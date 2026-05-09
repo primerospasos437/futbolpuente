@@ -1,9 +1,10 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import crypto from "crypto";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { loadDb, saveDb } from "./db.js";
+import { getRepository } from "./repository.js";
 import {
   PROFILE_DIMS,
   normalizeProfile,
@@ -37,17 +38,11 @@ function authHeader(req) {
   return m ? m[1] : null;
 }
 
-function getSessionPlayerId(db, token) {
-  if (!token) return null;
-  return db.sessions[token] ?? null;
-}
-
 function sanitizePosicion(val, fallback = "medio") {
   const s = String(val ?? "").trim();
   return ALLOW_POS.includes(s) ? s : fallback;
 }
 
-/** Validación estricta del cuerpo con las 18 dimensiones 1–10 */
 function sanitizeProfile(body) {
   const out = {};
   for (const dim of PROFILE_DIMS) {
@@ -96,13 +91,9 @@ function sanitizeFicha(body = {}, defaults = {}) {
   return { fechaNacimiento, contacto, posicionAlternativa, alturaCm, pesoKg, historialLesiones };
 }
 
-function ratingsForPlayer(db, playerId) {
-  return db.ratings.filter((r) => r.toId === playerId);
-}
-
-function playerPublic(p, db, viewerId) {
+function playerPublic(p, ratingsReceived, viewerId) {
   const profile = normalizeProfile(p.profile);
-  const received = ratingsForPlayer(db, p.id);
+  const received = ratingsReceived.map((r) => ({ scores: r.scores }));
   const fs = finalScore(profile, received);
   const peer = peerAverageForPlayer(received);
 
@@ -139,12 +130,16 @@ function playerPublic(p, db, viewerId) {
 }
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true });
+  const repo = getRepository();
+  res.json({
+    ok: true,
+    storage: repo.mode,
+  });
 });
 
-app.post("/api/players/register", (req, res) => {
+app.post("/api/players/register", async (req, res) => {
   try {
-    const db = loadDb();
+    const repo = getRepository();
     const body = req.body ?? {};
     const { nombreCompleto, apodo, pin, posicionPreferida, pieDominante, profile } = body;
 
@@ -152,8 +147,7 @@ app.post("/api/players/register", (req, res) => {
       return res.status(400).json({ error: "nombreCompleto, apodo y pin son obligatorios" });
 
     const apodoNorm = String(apodo).trim().toLowerCase();
-    if (db.players.some((x) => x.apodo.toLowerCase() === apodoNorm))
-      return res.status(409).json({ error: "Ese apodo ya está registrado" });
+    if (await repo.apodoExists(apodoNorm)) return res.status(409).json({ error: "Ese apodo ya está registrado" });
 
     const pos = sanitizePosicion(posicionPreferida, "medio");
     const pie = ALLOW_PIE.includes(pieDominante) ? pieDominante : "derecho";
@@ -173,9 +167,9 @@ app.post("/api/players/register", (req, res) => {
       historialLesiones: "",
     });
 
-    const id = uuid();
+    const provisionalId = uuid();
     const player = {
-      id,
+      id: provisionalId,
       nombreCompleto: String(nombreCompleto).trim(),
       apodo: String(apodo).trim(),
       pinHash: hashPin(pin),
@@ -191,62 +185,73 @@ app.post("/api/players/register", (req, res) => {
       createdAt: new Date().toISOString(),
     };
 
-    db.players.push(player);
+    const { id } = await repo.createPlayer(player);
     const token = uuid();
-    db.sessions[token] = id;
-    saveDb(db);
+    await repo.setSession(token, id);
+
     res.status(201).json({ token, playerId: id });
   } catch (e) {
     res.status(400).json({ error: String(e.message || e) });
   }
 });
 
-app.post("/api/session", (req, res) => {
-  const db = loadDb();
-  const { apodo, pin } = req.body ?? {};
-  if (!apodo || !pin) return res.status(400).json({ error: "apodo y pin requeridos" });
-  const apodoNorm = String(apodo).trim().toLowerCase();
-  const p = db.players.find((x) => x.apodo.toLowerCase() === apodoNorm);
-  if (!p || p.pinHash !== hashPin(pin)) return res.status(401).json({ error: "Credenciales incorrectas" });
-  const token = uuid();
-  db.sessions[token] = p.id;
-  saveDb(db);
-  res.json({ token, playerId: p.id });
-});
-
-app.use((req, res, next) => {
-  const db = loadDb();
-  const token = authHeader(req);
-  const pid = getSessionPlayerId(db, token);
-  if (!pid) return res.status(401).json({ error: "No autorizado" });
-  req.ctx = { db, playerId: pid, token };
-  next();
-});
-
-app.get("/api/me", (req, res) => {
-  const { db, playerId } = req.ctx;
-  const p = db.players.find((x) => x.id === playerId);
-  if (!p) return res.status(404).json({ error: "Jugador no encontrado" });
-  res.json(playerPublic(p, db, playerId));
-});
-
-app.patch("/api/me/profile", (req, res) => {
+app.post("/api/session", async (req, res) => {
   try {
-    const { db, playerId } = req.ctx;
-    const p = db.players.find((x) => x.id === playerId);
+    const repo = getRepository();
+    const { apodo, pin } = req.body ?? {};
+    if (!apodo || !pin) return res.status(400).json({ error: "apodo y pin requeridos" });
+    const apodoNorm = String(apodo).trim().toLowerCase();
+    const p = await repo.findByApodo(apodoNorm);
+    if (!p || p.pinHash !== hashPin(pin)) return res.status(401).json({ error: "Credenciales incorrectas" });
+    const token = uuid();
+    await repo.setSession(token, p.id);
+    res.json({ token, playerId: p.id });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+function requireAuth(handler) {
+  return async (/** @type {any} */ req, /** @type {any} */ res) => {
+    try {
+      const repo = getRepository();
+      const token = authHeader(req);
+      const playerId = token ? await repo.getJugadorIdFromToken(token) : null;
+      if (!playerId) return res.status(401).json({ error: "No autorizado" });
+      req.ctx = { repo, playerId, token };
+      await handler(req, res);
+    } catch (e) {
+      res.status(500).json({ error: String(e.message || e) });
+    }
+  };
+}
+
+app.get("/api/me", requireAuth(async (req, res) => {
+  const { repo, playerId } = req.ctx;
+  const p = await repo.findById(playerId);
+  if (!p) return res.status(404).json({ error: "Jugador no encontrado" });
+  const received = await repo.ratingsTo(p.id);
+  res.json(playerPublic(p, received, playerId));
+}));
+
+app.patch("/api/me/profile", requireAuth(async (req, res) => {
+  try {
+    const { repo, playerId } = req.ctx;
+    const p = await repo.findById(playerId);
     if (!p) return res.status(404).json({ error: "Jugador no encontrado" });
 
     const body = req.body ?? {};
     const { posicionPreferida, pieDominante, profile, nombreCompleto } = body;
 
-    if (nombreCompleto !== undefined) p.nombreCompleto = String(nombreCompleto).trim() || p.nombreCompleto;
+    const patch = {};
+    if (nombreCompleto !== undefined) patch.nombreCompleto = String(nombreCompleto).trim() || p.nombreCompleto;
 
-    if (posicionPreferida !== undefined) p.posicionPreferida = sanitizePosicion(posicionPreferida, p.posicionPreferida);
+    if (posicionPreferida !== undefined) patch.posicionPreferida = sanitizePosicion(posicionPreferida, p.posicionPreferida);
 
-    if (pieDominante !== undefined && ALLOW_PIE.includes(pieDominante)) p.pieDominante = pieDominante;
+    if (pieDominante !== undefined && ALLOW_PIE.includes(pieDominante)) patch.pieDominante = pieDominante;
 
     const ficha = sanitizeFicha(body, {
-      posicionPreferida: p.posicionPreferida,
+      posicionPreferida: patch.posicionPreferida ?? p.posicionPreferida,
       posicionAlternativa: p.posicionAlternativa ?? p.posicionPreferida,
       fechaNacimiento: p.fechaNacimiento,
       contacto: p.contacto,
@@ -254,110 +259,122 @@ app.patch("/api/me/profile", (req, res) => {
       pesoKg: p.pesoKg,
       historialLesiones: p.historialLesiones,
     });
-    p.fechaNacimiento = ficha.fechaNacimiento;
-    p.contacto = ficha.contacto;
-    p.posicionAlternativa = ficha.posicionAlternativa;
-    p.alturaCm = ficha.alturaCm;
-    p.pesoKg = ficha.pesoKg;
-    p.historialLesiones = ficha.historialLesiones;
+    patch.fechaNacimiento = ficha.fechaNacimiento;
+    patch.contacto = ficha.contacto;
+    patch.posicionAlternativa = ficha.posicionAlternativa;
+    patch.alturaCm = ficha.alturaCm;
+    patch.pesoKg = ficha.pesoKg;
+    patch.historialLesiones = ficha.historialLesiones;
 
-    if (profile) p.profile = sanitizeProfile(profile);
+    if (profile) patch.profile = sanitizeProfile(profile);
 
-    saveDb(db);
-    res.json(playerPublic(p, db, playerId));
+    const updated = await repo.updatePlayer(playerId, patch);
+    if (!updated) return res.status(404).json({ error: "Jugador no encontrado" });
+
+    const received = await repo.ratingsTo(playerId);
+    res.json(playerPublic(updated, received, playerId));
   } catch (e) {
     res.status(400).json({ error: String(e.message || e) });
   }
-});
+}));
 
-app.get("/api/players", (req, res) => {
-  const { db, playerId } = req.ctx;
-  const list = db.players.map((p) => playerPublic(p, db, playerId)).sort((a, b) => a.apodo.localeCompare(b.apodo));
+app.get("/api/players", requireAuth(async (req, res) => {
+  const { repo, playerId } = req.ctx;
+  const players = await repo.listPlayers();
+  const list = await Promise.all(
+    players.map(async (p) => {
+      const received = await repo.ratingsTo(p.id);
+      return playerPublic(p, received, playerId);
+    }),
+  );
+  list.sort((a, b) => a.apodo.localeCompare(b.apodo));
   res.json(list);
-});
+}));
 
-app.get("/api/players/:id", (req, res) => {
-  const { db, playerId } = req.ctx;
-  const p = db.players.find((x) => x.id === req.params.id);
+app.get("/api/players/:id", requireAuth(async (req, res) => {
+  const { repo, playerId } = req.ctx;
+  const p = await repo.findById(req.params.id);
   if (!p) return res.status(404).json({ error: "No encontrado" });
 
-  const received = ratingsForPlayer(db, p.id);
-  const peerDetail = peerAverageForPlayer(received);
-  const myRating = db.ratings.find((r) => r.fromId === playerId && r.toId === p.id);
+  const received = await repo.ratingsTo(p.id);
+  const peerDetail = peerAverageForPlayer(received.map((r) => ({ scores: r.scores })));
+  const myRating = await repo.findRating(playerId, p.id);
 
   res.json({
-    ...playerPublic(p, db, playerId),
+    ...playerPublic(p, received, playerId),
     dimensions: PROFILE_DIMS,
     peerByDimension: peerDetail?.byDim ?? {},
     myRating: myRating
       ? { scores: normalizeProfile(myRating.scores), updatedAt: myRating.updatedAt }
       : null,
   });
-});
+}));
 
-app.put("/api/players/:id/rating", (req, res) => {
+app.put("/api/players/:id/rating", requireAuth(async (req, res) => {
   try {
-    const { db, playerId } = req.ctx;
+    const { repo, playerId } = req.ctx;
     const targetId = req.params.id;
     if (targetId === playerId) return res.status(400).json({ error: "No puedes valorarte a ti mismo" });
-    const target = db.players.find((x) => x.id === targetId);
+    const target = await repo.findById(targetId);
     if (!target) return res.status(404).json({ error: "Jugador no encontrado" });
 
     const scores = sanitizeProfile(req.body?.scores ?? req.body ?? {});
-    let row = db.ratings.find((r) => r.fromId === playerId && r.toId === targetId);
-    const now = new Date().toISOString();
-    if (!row) {
-      row = { fromId: playerId, toId: targetId, scores, updatedAt: now };
-      db.ratings.push(row);
-    } else {
-      row.scores = scores;
-      row.updatedAt = now;
-    }
-    saveDb(db);
+    await repo.upsertRating(playerId, targetId, scores);
+
+    const received = await repo.ratingsTo(targetId);
     res.json({
       saved: true,
-      target: playerPublic(target, db, playerId),
+      target: playerPublic(target, received, playerId),
     });
   } catch (e) {
     res.status(400).json({ error: String(e.message || e) });
   }
-});
+}));
 
-app.post("/api/teams/balance", (req, res) => {
-  const { db, playerId } = req.ctx;
-  const { playerIds } = req.body ?? {};
-  const ids = Array.isArray(playerIds) ? playerIds.map(String) : null;
-  const selected =
-    ids && ids.length ? db.players.filter((p) => ids.includes(p.id)) : [...db.players];
+app.post("/api/teams/balance", requireAuth(async (req, res) => {
+  try {
+    const { repo, playerId } = req.ctx;
+    const { playerIds } = req.body ?? {};
+    const ids = Array.isArray(playerIds) ? playerIds.map(String) : null;
+    const all = await repo.listPlayers();
+    const selected =
+      ids && ids.length ? all.filter((p) => ids.includes(p.id)) : [...all];
 
-  if (selected.length < 4)
-    return res.status(400).json({ error: "Selecciona al menos 4 jugadores para armar dos equipos" });
+    if (selected.length < 4)
+      return res.status(400).json({ error: "Selecciona al menos 4 jugadores para armar dos equipos" });
 
-  const withScores = selected.map((p) => {
-    const profile = normalizeProfile(p.profile);
-    const received = ratingsForPlayer(db, p.id);
-    const fs = finalScore(profile, received);
-    return {
-      id: p.id,
-      apodo: p.apodo,
-      posicionPreferida: p.posicionPreferida,
-      score: fs.value,
-    };
-  });
+    const withScores = await Promise.all(
+      selected.map(async (p) => {
+        const profile = normalizeProfile(p.profile);
+        const received = await repo.ratingsTo(p.id);
+        const fs = finalScore(profile, received.map((r) => ({ scores: r.scores })));
+        return {
+          id: p.id,
+          apodo: p.apodo,
+          posicionPreferida: p.posicionPreferida,
+          score: fs.value,
+        };
+      }),
+    );
 
-  const { teamA, teamB, diff } = balanceTwoTeams(withScores);
-  const sum = (arr) => arr.reduce((s, x) => s + x.score, 0);
+    const { teamA, teamB, diff } = balanceTwoTeams(withScores);
+    const sum = (arr) => arr.reduce((s, x) => s + x.score, 0);
 
-  res.json({
-    teamA,
-    teamB,
-    sumA: sum(teamA),
-    sumB: sum(teamB),
-    difference: diff,
-    pickedBy: playerId,
-    generatedAt: new Date().toISOString(),
-  });
-});
+    res.json({
+      teamA,
+      teamB,
+      sumA: sum(teamA),
+      sumB: sum(teamB),
+      difference: diff,
+      pickedBy: playerId,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    const msg = String(e.message || e);
+    const code = msg.includes("al menos") ? 400 : 500;
+    res.status(code).json({ error: msg });
+  }
+}));
 
 if (process.env.NODE_ENV === "production") {
   const dist = join(__dirname, "..", "dist");
@@ -367,6 +384,18 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`API fútbol grupo en http://127.0.0.1:${PORT}`);
+async function start() {
+  const repo = getRepository();
+  await repo.validateSchema();
+  app.listen(PORT, () => {
+    console.log(`API fútbol grupo en http://127.0.0.1:${PORT}`);
+  });
+}
+
+start().catch((e) => {
+  console.error("No se pudo iniciar el servidor:", e.message || e);
+  console.error(
+    "Revisa tu esquema de Supabase y ejecuta la migración de soporte (supabase/02_app_support.sql).",
+  );
+  process.exit(1);
 });
