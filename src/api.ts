@@ -33,16 +33,6 @@ async function fetchApi(path: string, init?: RequestInit) {
 }
 
 export const api = {
-  register: (body: Record<string, unknown>) =>
-    fetchApi("/api/players/register", { method: "POST", body: JSON.stringify(body) }) as Promise<{
-      token: string;
-      playerId: string;
-    }>,
-  login: (apodo: string, pin: string) =>
-    fetchApi("/api/session", { method: "POST", body: JSON.stringify({ apodo, pin }) }) as Promise<{
-      token: string;
-      playerId: string;
-    }>,
   me: () => fetchApi("/api/me") as Promise<import("./types").PlayerSummary>,
   players: () => fetchApi("/api/players") as Promise<import("./types").PlayerSummary[]>,
   player: (id: string) => fetchApi(`/api/players/${id}`) as Promise<import("./types").PlayerDetail>,

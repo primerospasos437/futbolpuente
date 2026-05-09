@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
-import { api, setToken } from "../api";
+import { setToken } from "../api";
 import { useAuth } from "../AuthContext";
 import { defaultScores } from "../dimensions";
+import { loginWithSupabase, registerWithSupabase } from "../lib/futbolAuth";
 import type { Pie, Posicion } from "../types";
 
 export default function AuthPage() {
@@ -29,7 +30,7 @@ export default function AuthPage() {
     setError(null);
     setLoading(true);
     try {
-      const r = await api.login(apodo, pin);
+      const r = await loginWithSupabase(apodo, pin);
       setToken(r.token);
       await refresh();
     } catch (err) {
@@ -45,7 +46,20 @@ export default function AuthPage() {
     setLoading(true);
     try {
       const profile = defaultScores();
-      const payload: Record<string, unknown> = {
+      let alturaCm: number | null = null;
+      if (alturaStr.trim()) {
+        const h = Number(alturaStr.replace(",", "."));
+        if (!Number.isFinite(h) || h < 120 || h > 230) throw new Error("Altura (cm): número entre 120 y 230, o vacío");
+        alturaCm = Math.round(h);
+      }
+      let pesoKg: number | null = null;
+      if (pesoStr.trim()) {
+        const w = Number(pesoStr.replace(",", "."));
+        if (!Number.isFinite(w) || w < 35 || w > 160) throw new Error("Peso (kg): número entre 35 y 160, o vacío");
+        pesoKg = Math.round(w * 10) / 10;
+      }
+
+      const r = await registerWithSupabase({
         nombreCompleto,
         apodo,
         pin,
@@ -54,12 +68,10 @@ export default function AuthPage() {
         pieDominante: pie,
         fechaNacimiento,
         contacto,
+        alturaCm,
+        pesoKg,
         profile,
-      };
-      if (alturaStr.trim()) payload.alturaCm = Number(alturaStr.replace(",", "."));
-      if (pesoStr.trim()) payload.pesoKg = Number(pesoStr.replace(",", "."));
-
-      const r = await api.register(payload);
+      });
       setToken(r.token);
       await refresh();
     } catch (err) {

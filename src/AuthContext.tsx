@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { api, getToken, setToken } from "./api";
+import { getToken, setToken } from "./api";
+import { validateSessionWithSupabase } from "./lib/futbolAuth";
 
 type AuthState = {
   ready: boolean;
@@ -22,7 +23,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     try {
-      await api.me();
+      const ok = await validateSessionWithSupabase(t);
+      if (!ok) throw new Error("Sesión inválida");
       setLoggedIn(true);
     } catch {
       setToken(null);
