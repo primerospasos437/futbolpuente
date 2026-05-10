@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, getToken, apiPartidos } from "../api";
+import { api, getToken, apiPartidos, type PartidoRow } from "../api";
 import { getSupabase } from "../lib/supabase";
 import type { PlayerSummary } from "../types";
 
@@ -73,6 +73,7 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [convocatorias, setConvocatorias] = useState<Convocatoria[]>([]);
   const [presencias, setPresencias] = useState<{ jugador_id: string; estado: string }[]>([]);
+  const [partidos, setPartidos] = useState<PartidoRow[]>([]);
   const [saving, setSaving] = useState(false);
 
   const myId = localStorage.getItem("futbol_grupo_player_id") ?? "";
@@ -91,6 +92,8 @@ export default function HomePage() {
           try {
             const pres = await apiPartidos.listPresencias();
             if (!cancelled) setPresencias(Array.isArray(pres) ? pres : []);
+            const parts = await apiPartidos.list();
+            if (!cancelled) setPartidos(Array.isArray(parts) ? parts : []);
           } catch {}
         }
       } catch (e) {
@@ -146,6 +149,21 @@ export default function HomePage() {
 
     const cupoLleno = count >= MAX_JUGADORES && !yaAnotado;
 
+    const miPosicion = inscriptosConRanking.findIndex((c) => c.jugador_id === myId);
+    const esTitular = miPosicion >= 0 && miPosicion < MAX_JUGADORES;
+    const esSuplente = miPosicion >= MAX_JUGADORES;
+    const numSuplente = miPosicion - MAX_JUGADORES + 1;
+
+    // Check if teams were already assigned for this date
+    const partidoGuardado = partidos.find((p) => p.fecha === fecha);
+    const miEquipo = partidoGuardado
+      ? (partidoGuardado.equipo_claros as { id: string; apodo: string }[])?.some((x) => x.id === myId)
+        ? "claros"
+        : (partidoGuardado.equipo_oscuros as { id: string; apodo: string }[])?.some((x) => x.id === myId)
+          ? "oscuros"
+          : null
+      : null;
+
     return (
       <div className="card" style={{ marginBottom: "1rem" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
@@ -165,32 +183,57 @@ export default function HomePage() {
             {yaAnotado ? "✓ Anotado (salir)" : cupoLleno ? "Cupo lleno" : "Anotarme"}
           </button>
         </div>
+
+        {yaAnotado && (
+          <div style={{ marginTop: "0.75rem", padding: "0.6rem 0.75rem", borderRadius: "6px", background: esTitular ? "rgba(74,222,128,0.15)" : "rgba(231,76,60,0.12)", border: `1px solid ${esTitular ? "var(--accent)" : "#e74c3c"}` }}>
+            {esTitular && !miEquipo && (
+              <p style={{ margin: 0, fontWeight: 600, color: "var(--accent)" }}>
+                ✅ Estás anotado como titular (puesto {miPosicion + 1})
+              </p>
+            )}
+            {esSuplente && (
+              <p style={{ margin: 0, fontWeight: 600, color: "#e74c3c" }}>
+                ⏳ Quedaste como suplente {numSuplente}
+              </p>
+            )}
+            {miEquipo && (
+              <p style={{ margin: 0, fontWeight: 600, color: miEquipo === "claros" ? "var(--text)" : "var(--text)" }}>
+                🏟️ Jugás en equipo {miEquipo === "claros" ? "⬜ CLAROS" : "⬛ OSCUROS"} · {fecha} · 21:00 hs
+              </p>
+            )}
+          </div>
+        )}
+
         {inscriptos.length > 0 && (
           <div style={{ marginTop: "0.75rem" }}>
             <p className="muted" style={{ margin: "0 0 0.25rem", fontSize: "0.8rem" }}>
               Anotados{count > MAX_JUGADORES ? ` (entran ${MAX_JUGADORES} por ranking)` : ""}:
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
-              {inscriptosConRanking.map((c, i) => (
-                <span
-                  key={c.jugador_id}
-                  style={{
-                    fontSize: "0.85rem",
-                    padding: "0.2rem 0.5rem",
-                    borderRadius: "4px",
-                    background: i < MAX_JUGADORES ? "var(--accent)" : "#e74c3c",
-                    color: "#fff",
-                    opacity: c.jugador_id === myId ? 1 : 0.85,
-                    fontWeight: c.jugador_id === myId ? 700 : 400,
-                  }}
-                >
-                  {i + 1}. {c.apodo}
-                </span>
-              ))}
+              {inscriptosConRanking.map((c, i) => {
+                const titular = i < MAX_JUGADORES;
+                const supNum = i - MAX_JUGADORES + 1;
+                return (
+                  <span
+                    key={c.jugador_id}
+                    style={{
+                      fontSize: "0.85rem",
+                      padding: "0.2rem 0.5rem",
+                      borderRadius: "4px",
+                      background: titular ? "var(--accent)" : "#e74c3c",
+                      color: "#fff",
+                      opacity: c.jugador_id === myId ? 1 : 0.85,
+                      fontWeight: c.jugador_id === myId ? 700 : 400,
+                    }}
+                  >
+                    {titular ? `${i + 1}. ${c.apodo}` : `S${supNum}. ${c.apodo}`}
+                  </span>
+                );
+              })}
             </div>
             {count > MAX_JUGADORES && (
               <p className="muted" style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "#e74c3c" }}>
-                ⚠️ Hay más de {MAX_JUGADORES} — entran los de mayor asistencia.
+                ⚠️ Hay más de {MAX_JUGADORES} — entran los de mayor asistencia. Los demás quedan como suplentes.
               </p>
             )}
           </div>
