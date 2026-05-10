@@ -159,7 +159,7 @@ export function createSupabaseRepository(url, serviceRoleKey) {
       if (patch.posicionPreferida !== undefined) row.posicion_preferida = patch.posicionPreferida;
       if (patch.posicionAlternativa !== undefined) row.posicion_alternativa = patch.posicionAlternativa;
       if (patch.pieDominante !== undefined) row.pie_dominante = patch.pieDominante;
-      if (patch.fechaNacimiento !== undefined) row.fecha_nacimiento = patch.fechaNacimiento;
+      if (patch.fechaNacimiento !== undefined) row.fecha_nacimiento = patch.fechaNacimiento || null;
       if (patch.contacto !== undefined) row.contacto = patch.contacto;
       if (patch.alturaCm !== undefined) row.altura_cm = patch.alturaCm;
       if (patch.pesoKg !== undefined) row.peso_kg = patch.pesoKg;
