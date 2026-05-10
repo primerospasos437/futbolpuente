@@ -128,7 +128,9 @@ export default function PlayerProfilePage() {
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginTop: "1rem" }}>
           <div className="score-pill">Final: {data.finalScore.toFixed(2)}</div>
-          <div className="score-pill">Autopercepción: {data.finalBreakdown.selfAvg.toFixed(2)}</div>
+          {data.isSelf && (
+            <div className="score-pill">Autopercepción: {data.finalBreakdown.selfAvg.toFixed(2)}</div>
+          )}
           <div className="score-pill">
             Grupo: {data.finalBreakdown.peerAvg != null ? data.finalBreakdown.peerAvg.toFixed(2) : "—"} (
             {data.peerCount} votos)
@@ -177,20 +179,22 @@ export default function PlayerProfilePage() {
         </div>
       ) : null}
 
-      <div className="card" style={{ marginBottom: "1rem" }}>
-        <h2 style={{ marginTop: 0 }}>Autopercepción de {data.apodo}</h2>
-        {DIMENSION_SECTIONS.map((sec) => (
-          <DimensionReadonlyList
-            key={sec.id}
-            title={sec.title}
-            description={sec.description}
-            keys={sec.keys}
-            values={data.profile}
-          />
-        ))}
-      </div>
+      {data.isSelf && (
+        <div className="card" style={{ marginBottom: "1rem" }}>
+          <h2 style={{ marginTop: 0 }}>Tu autopercepción (detalle por aptitud)</h2>
+          {DIMENSION_SECTIONS.map((sec) => (
+            <DimensionReadonlyList
+              key={sec.id}
+              title={sec.title}
+              description={sec.description}
+              keys={sec.keys}
+              values={data.profile}
+            />
+          ))}
+        </div>
+      )}
 
-      {data.peerCount > 0 && (
+      {data.isSelf && data.peerCount > 0 && (
         <div className="card" style={{ marginBottom: "1rem" }}>
           <h2 style={{ marginTop: 0 }}>Promedio del grupo por bloque</h2>
           {DIMENSION_SECTIONS.map((sec) => (
