@@ -15,6 +15,17 @@ function rpcErrorMessage(err: { message?: string; details?: string; hint?: strin
   return m;
 }
 
+/** Email sintético para `usuarios.email` (NOT NULL / UNIQUE); local-part seguro a partir del apodo. */
+export function emailFromApodo(apodo: string): string {
+  const slug = apodo
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ".")
+    .replace(/[^a-z0-9._-]+/g, "")
+    .replace(/^\.+|\.+$/g, "");
+  return `${slug || "jugador"}@futbol.com`;
+}
+
 export type RegisterSupabaseInput = {
   nombreCompleto: string;
   apodo: string;
@@ -31,10 +42,12 @@ export type RegisterSupabaseInput = {
 
 export async function registerWithSupabase(input: RegisterSupabaseInput): Promise<{ token: string; playerId: string }> {
   const pinHash = await sha256Hex(input.pin);
+  const pEmail = emailFromApodo(input.apodo);
   const sb = getSupabase();
   const { data, error } = await sb.rpc("futbol_auth_register", {
     p_nombre_completo: input.nombreCompleto.trim(),
     p_apodo: input.apodo.trim(),
+    p_email: pEmail,
     p_pin_hash: pinHash,
     p_posicion_preferida: input.posicionPreferida,
     p_posicion_alternativa: input.posicionAlternativa,
