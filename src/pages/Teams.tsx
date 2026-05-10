@@ -3,7 +3,8 @@ import { api } from "../api";
 import type { BalanceResponse, PlayerSummary } from "../types";
 
 export default function TeamsPage() {
-  const [players, setPlayers] = useState<PlayerSummary[] | null>(null);
+  const [players, setPlayers] = useState<PlayerSummary[]>([]);
+  const [loadingPlayers, setLoadingPlayers] = useState(true);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [result, setResult] = useState<BalanceResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -15,12 +16,15 @@ export default function TeamsPage() {
       try {
         const list = await api.players();
         if (cancelled) return;
-        setPlayers(list);
+        const safe = Array.isArray(list) ? list : [];
+        setPlayers(safe);
         const init: Record<string, boolean> = {};
-        for (const p of list) init[p.id] = true;
+        for (const p of safe) init[p.id] = true;
         setSelected(init);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
+      } finally {
+        if (!cancelled) setLoadingPlayers(false);
       }
     })();
     return () => {
@@ -51,8 +55,9 @@ export default function TeamsPage() {
     setSelected(next);
   }
 
-  if (error && !players) return <div className="error">{error}</div>;
-  if (!players) return <p className="muted">Cargando…</p>;
+  if (error && !players.length) return <div className="error">{error}</div>;
+  if (loadingPlayers) return <p className="muted">Cargando…</p>;
+  if (!players.length) return <p className="muted">No hay jugadores registrados todavía. Registrá al menos 4 para armar equipos.</p>;
 
   return (
     <div>

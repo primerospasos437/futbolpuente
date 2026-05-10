@@ -34,7 +34,7 @@ async function fetchApi(path: string, init?: RequestInit) {
 
 export const api = {
   me: () => fetchApi("/api/me") as Promise<import("./types").PlayerSummary>,
-  players: () => fetchApi("/api/players") as Promise<import("./types").PlayerSummary[]>,
+  players: () => fetchApi("/api/players").then((d) => (Array.isArray(d) ? d : [])) as Promise<import("./types").PlayerSummary[]>,
   player: (id: string) => fetchApi(`/api/players/${id}`) as Promise<import("./types").PlayerDetail>,
   updateMe: (body: Record<string, unknown>) =>
     fetchApi("/api/me/profile", { method: "PATCH", body: JSON.stringify(body) }) as Promise<

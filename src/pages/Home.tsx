@@ -11,7 +11,8 @@ const posLabel: Record<string, string> = {
 };
 
 export default function HomePage() {
-  const [list, setList] = useState<PlayerSummary[] | null>(null);
+  const [list, setList] = useState<PlayerSummary[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -19,9 +20,11 @@ export default function HomePage() {
     (async () => {
       try {
         const data = await api.players();
-        if (!cancelled) setList(data);
+        if (!cancelled) setList(Array.isArray(data) ? data : []);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => {
@@ -30,7 +33,7 @@ export default function HomePage() {
   }, []);
 
   if (error) return <div className="error">{error}</div>;
-  if (!list) return <p className="muted">Cargando jugadores…</p>;
+  if (loading) return <p className="muted">Cargando jugadores…</p>;
 
   return (
     <div>
@@ -40,6 +43,9 @@ export default function HomePage() {
         y dejar tu valoración en las mismas dimensiones. La nota final mezcla autopercepción (35%) con el promedio del
         grupo (65%).
       </p>
+      {list.length === 0 ? (
+        <p className="muted">No hay jugadores registrados todavía.</p>
+      ) : (
       <div className="list">
         {list.map((p) => {
           const altLine =
@@ -72,6 +78,7 @@ export default function HomePage() {
           );
         })}
       </div>
+      )}
     </div>
   );
 }
