@@ -126,8 +126,8 @@ export type FutbolAuthRegisterRpcArgs = {
   p_posicion_preferida: PosicionRpc;
   p_posicion_alternativa: PosicionRpc;
   p_pie_dominante: PieRpc;
-  /** Siempre `''` o fecha ISO `YYYY-MM-DD` (nunca otro formato). */
-  p_fecha_nacimiento: string;
+  /** Fecha ISO `YYYY-MM-DD` o `null` si no se proporcionó. */
+  p_fecha_nacimiento: string | null;
   p_contacto: string;
   p_altura_cm: number | null;
   p_peso_kg: number | null;
@@ -146,7 +146,7 @@ export function buildFutbolAuthRegisterRpcArgs(raw: RegisterFormRaw, pinHashHex:
   const posAlt = sanitizePosicionRpc(raw.posicionAlternativa, posPrincipal);
   const pie = sanitizePieRpc(raw.pieDominante, "derecho");
 
-  const fecha = normalizeFechaNacimientoForDb(raw.fechaNacimiento);
+  const fecha = normalizeFechaNacimientoForDb(raw.fechaNacimiento) || null;
   const contacto = String(raw.contacto ?? "").trim();
 
   const altura_cm = normalizeAlturaCmRpc(raw.alturaCm);

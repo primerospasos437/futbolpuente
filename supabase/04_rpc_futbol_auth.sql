@@ -64,7 +64,7 @@ begin
     p_posicion_preferida,
     p_posicion_alternativa,
     p_pie_dominante,
-    coalesce(p_fecha_nacimiento, ''),
+    CASE WHEN p_fecha_nacimiento IS NULL OR trim(p_fecha_nacimiento) = '' THEN NULL ELSE p_fecha_nacimiento::date END,
     coalesce(p_contacto, ''),
     p_altura_cm,
     p_peso_kg,
