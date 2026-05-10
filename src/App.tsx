@@ -5,6 +5,7 @@ import HomePage from "./pages/Home";
 import PlayerProfilePage from "./pages/PlayerProfile";
 import MyProfilePage from "./pages/MyProfile";
 import TeamsPage from "./pages/Teams";
+import PresenciasPage from "./pages/Presencias";
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { loggedIn, logout, ready } = useAuth();
@@ -32,6 +33,9 @@ function Shell({ children }: { children: React.ReactNode }) {
           </NavLink>
           <NavLink to="/equipos" className={({ isActive }) => (isActive ? "active" : "")}>
             Equipos
+          </NavLink>
+          <NavLink to="/presencias" className={({ isActive }) => (isActive ? "active" : "")}>
+            Presencias
           </NavLink>
           <button type="button" className="btn btn-ghost" onClick={logout}>
             Salir
@@ -76,6 +80,14 @@ function AppRoutes() {
         element={
           <Shell>
             <TeamsPage />
+          </Shell>
+        }
+      />
+      <Route
+        path="/presencias"
+        element={
+          <Shell>
+            <PresenciasPage />
           </Shell>
         }
       />

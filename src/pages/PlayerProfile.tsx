@@ -68,6 +68,7 @@ export default function PlayerProfilePage() {
   const [scores, setScores] = useState<ProfileScores | null>(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [admin, setAdmin] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -78,6 +79,17 @@ export default function PlayerProfilePage() {
         if (cancelled) return;
         setData(p);
         setScores(p.myRating?.scores ?? defaultScores());
+        // Check admin
+        try {
+          const token = localStorage.getItem("futbol_grupo_token") ?? "";
+          const { getSupabase } = await import("../lib/supabase");
+          const sb = getSupabase();
+          const { data: jData } = await sb.rpc("futbol_list_jugadores", { p_token: token });
+          if (jData) {
+            const { isAdmin } = await import("../api");
+            setAdmin(isAdmin(Array.isArray(jData) ? jData : []));
+          }
+        } catch {}
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       }
@@ -128,7 +140,7 @@ export default function PlayerProfilePage() {
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginTop: "1rem" }}>
           <div className="score-pill">Final: {data.finalScore.toFixed(2)}</div>
-          {data.isSelf && (
+          {(data.isSelf || admin) && (
             <div className="score-pill">Autopercepción: {data.finalBreakdown.selfAvg.toFixed(2)}</div>
           )}
           <div className="score-pill">
@@ -179,9 +191,11 @@ export default function PlayerProfilePage() {
         </div>
       ) : null}
 
-      {data.isSelf && (
+      {(data.isSelf || admin) && (
         <div className="card" style={{ marginBottom: "1rem" }}>
-          <h2 style={{ marginTop: 0 }}>Tu autopercepción (detalle por aptitud)</h2>
+          <h2 style={{ marginTop: 0 }}>
+            {data.isSelf ? "Tu autopercepción (detalle por aptitud)" : `Autopercepción de ${data.apodo} (vista admin)`}
+          </h2>
           {DIMENSION_SECTIONS.map((sec) => (
             <DimensionReadonlyList
               key={sec.id}
@@ -194,7 +208,7 @@ export default function PlayerProfilePage() {
         </div>
       )}
 
-      {data.isSelf && data.peerCount > 0 && (
+      {(data.isSelf || admin) && data.peerCount > 0 && (
         <div className="card" style={{ marginBottom: "1rem" }}>
           <h2 style={{ marginTop: 0 }}>Promedio del grupo por bloque</h2>
           {DIMENSION_SECTIONS.map((sec) => (

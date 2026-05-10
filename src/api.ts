@@ -252,6 +252,76 @@ export function setPlayerId(id: string) {
   localStorage.setItem("futbol_grupo_player_id", id);
 }
 
+const ADMIN_APODO = "gasty";
+
+export function isAdmin(jugadores: JugadorRow[]): boolean {
+  const myId = getPlayerId();
+  const me = jugadores.find((j) => j.id === myId);
+  return me?.apodo?.toLowerCase() === ADMIN_APODO;
+}
+
+export interface PartidoRow {
+  id: string;
+  fecha: string;
+  equipo_claros: { id: string; apodo: string; score: number }[];
+  equipo_oscuros: { id: string; apodo: string; score: number }[];
+  estado: "pendiente" | "jugado" | "cancelado";
+  creado_por: string;
+  created_at: string;
+}
+
+export interface PresenciaRow {
+  partido_id: string;
+  jugador_id: string;
+  equipo: "claros" | "oscuros";
+  estado: "convocado" | "presente" | "ausente" | "reemplazado";
+}
+
+export const apiPartidos = {
+  async list(): Promise<PartidoRow[]> {
+    const token = requireToken();
+    const sb = getSupabase();
+    const { data, error } = await sb.rpc("futbol_list_partidos", { p_token: token });
+    if (error) throw new Error(error.message);
+    return Array.isArray(data) ? data : (data ?? []);
+  },
+
+  async listPresencias(): Promise<PresenciaRow[]> {
+    const token = requireToken();
+    const sb = getSupabase();
+    const { data, error } = await sb.rpc("futbol_list_presencias", { p_token: token });
+    if (error) throw new Error(error.message);
+    return Array.isArray(data) ? data : (data ?? []);
+  },
+
+  async crear(fecha: string, claros: { id: string; apodo: string; score: number }[], oscuros: { id: string; apodo: string; score: number }[]): Promise<{ id: string }> {
+    const token = requireToken();
+    const sb = getSupabase();
+    const { data, error } = await sb.rpc("futbol_crear_partido", {
+      p_token: token,
+      p_fecha: fecha,
+      p_claros: claros,
+      p_oscuros: oscuros,
+    });
+    if (error) throw new Error(error.message);
+    return data as { id: string };
+  },
+
+  async marcarPresencia(partidoId: string, jugadorId: string, estado: string): Promise<void> {
+    const token = requireToken();
+    const sb = getSupabase();
+    const { error } = await sb.rpc("futbol_marcar_presencia", {
+      p_token: token,
+      p_partido_id: partidoId,
+      p_jugador_id: jugadorId,
+      p_estado: estado,
+    });
+    if (error) throw new Error(error.message);
+  },
+};
+
+export { isAdmin as checkIsAdmin };
+
 function balanceTwoTeams(players: { id: string; apodo: string; posicionPreferida: string; score: number }[]) {
   if (players.length < 2) return { teamA: [...players], teamB: [] as typeof players, diff: 0 };
 
