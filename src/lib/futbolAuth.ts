@@ -1,5 +1,8 @@
 import { getSupabase } from "./supabase";
-import type { ProfileScores } from "../types";
+import { buildFutbolAuthRegisterRpcArgs, type RegisterFormRaw } from "./futbolRegistration";
+
+export type { RegisterFormRaw } from "./futbolRegistration";
+export { emailFromApodo } from "./futbolRegistration";
 
 export async function sha256Hex(plain: string): Promise<string> {
   const enc = new TextEncoder().encode(String(plain));
@@ -15,49 +18,19 @@ function rpcErrorMessage(err: { message?: string; details?: string; hint?: strin
   return m;
 }
 
-/** Email sintético para `usuarios.email` (NOT NULL / UNIQUE); local-part seguro a partir del apodo. */
-export function emailFromApodo(apodo: string): string {
-  const slug = apodo
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, ".")
-    .replace(/[^a-z0-9._-]+/g, "")
-    .replace(/^\.+|\.+$/g, "");
-  return `${slug || "jugador"}@futbol.com`;
-}
+/**
+ * Registro vía RPC `futbol_auth_register`: normaliza tipos, enums, fecha ISO, números y JSON del perfil
+ * antes de enviar a PostgREST (evita strings donde PostgreSQL espera int/numeric/jsonb).
+ */
+export async function registerWithSupabase(raw: RegisterFormRaw): Promise<{ token: string; playerId: string }> {
+  const pin = String(raw.pin ?? "").trim();
+  if (pin.length < 4) throw new Error("PIN: mínimo 4 caracteres");
 
-export type RegisterSupabaseInput = {
-  nombreCompleto: string;
-  apodo: string;
-  pin: string;
-  posicionPreferida: string;
-  posicionAlternativa: string;
-  pieDominante: string;
-  fechaNacimiento: string;
-  contacto: string;
-  alturaCm: number | null;
-  pesoKg: number | null;
-  profile: ProfileScores;
-};
+  const pinHash = await sha256Hex(pin);
+  const args = buildFutbolAuthRegisterRpcArgs(raw, pinHash);
 
-export async function registerWithSupabase(input: RegisterSupabaseInput): Promise<{ token: string; playerId: string }> {
-  const pinHash = await sha256Hex(input.pin);
-  const pEmail = emailFromApodo(input.apodo);
   const sb = getSupabase();
-  const { data, error } = await sb.rpc("futbol_auth_register", {
-    p_nombre_completo: input.nombreCompleto.trim(),
-    p_apodo: input.apodo.trim(),
-    p_email: pEmail,
-    p_pin_hash: pinHash,
-    p_posicion_preferida: input.posicionPreferida,
-    p_posicion_alternativa: input.posicionAlternativa,
-    p_pie_dominante: input.pieDominante,
-    p_fecha_nacimiento: input.fechaNacimiento ?? "",
-    p_contacto: input.contacto ?? "",
-    p_altura_cm: input.alturaCm,
-    p_peso_kg: input.pesoKg,
-    p_perfil_scores: input.profile,
-  });
+  const { data, error } = await sb.rpc("futbol_auth_register", args);
   if (error) throw new Error(rpcErrorMessage(error));
   const row = data as { token?: string; playerId?: string };
   if (!row?.token || !row?.playerId) throw new Error("Respuesta inválida del registro");
@@ -65,10 +38,10 @@ export async function registerWithSupabase(input: RegisterSupabaseInput): Promis
 }
 
 export async function loginWithSupabase(apodo: string, pin: string): Promise<{ token: string; playerId: string }> {
-  const pinHash = await sha256Hex(pin);
+  const pinHash = await sha256Hex(String(pin ?? "").trim());
   const sb = getSupabase();
   const { data, error } = await sb.rpc("futbol_auth_login", {
-    p_apodo: apodo.trim(),
+    p_apodo: String(apodo ?? "").trim(),
     p_pin_hash: pinHash,
   });
   if (error) throw new Error(rpcErrorMessage(error));
@@ -80,7 +53,7 @@ export async function loginWithSupabase(apodo: string, pin: string): Promise<{ t
 /** Valida el Bearer token guardado (tabla sesiones) sin pasar por el servidor Node. */
 export async function validateSessionWithSupabase(token: string): Promise<boolean> {
   const sb = getSupabase();
-  const { data, error } = await sb.rpc("futbol_auth_validate_token", { p_token: token });
+  const { data, error } = await sb.rpc("futbol_auth_validate_token", { p_token: String(token ?? "").trim() });
   if (error) return false;
   const row = data as { valid?: boolean } | null;
   return Boolean(row && row.valid === true);
