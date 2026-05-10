@@ -37,10 +37,11 @@ npm run dev:server
 
 ### Key Gotchas
 
-- **No lockfile**: The project has no `package-lock.json`, `yarn.lock`, or `pnpm-lock.yaml`. Use `npm install` to install dependencies.
 - **No ESLint config**: Use `npx tsc --noEmit` for type-checking/lint.
 - **No test framework**: There are no automated test scripts configured.
 - **Backend fails without Supabase**: The Express server calls `validateSchema()` on startup which queries actual Supabase tables. It will crash immediately without valid credentials.
 - **Frontend auth also needs Supabase**: The React app calls Supabase RPC functions directly for registration/login. Without `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, auth pages will throw a runtime error.
 - **JSON fallback exists but is disconnected**: `server/repository-json.js` has a complete local JSON persistence layer, but `server/repository.js` currently only uses the Supabase implementation.
 - **Vite proxies `/api` to backend**: The Vite dev server at port 5173 proxies all `/api/*` requests to `http://127.0.0.1:3001`.
+- **DB schema mismatch**: The actual Supabase instance schema differs from `supabase/schema.sql`. Key differences: (1) `jugadores.fecha_nacimiento` is `date` type in DB but code/schema.sql defines it as `TEXT`; (2) the `usuarios` table has a `nombre` column and uses `creado_en` instead of `created_at`; (3) `jugadores` has an extra `usuario_id` FK column and `posicion_principal` NOT NULL column not in the code's schema. This means the frontend RPC registration (`futbol_auth_register`) fails when `fecha_nacimiento` is empty string — it cannot cast `''` to date. Backend login via `/api/session` works fine.
+- **`.env` file creation**: On fresh VM startup, create `.env` from the environment secrets before running `npm run dev`. Example: `printf "SUPABASE_URL=%s\n..." "$SUPABASE_URL" ... > .env`
