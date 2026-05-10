@@ -46,19 +46,6 @@ export default function AuthPage() {
     setLoading(true);
     try {
       const profile = defaultScores();
-      let alturaCm: number | null = null;
-      if (alturaStr.trim()) {
-        const h = Number(alturaStr.replace(",", "."));
-        if (!Number.isFinite(h) || h < 120 || h > 230) throw new Error("Altura (cm): número entre 120 y 230, o vacío");
-        alturaCm = Math.round(h);
-      }
-      let pesoKg: number | null = null;
-      if (pesoStr.trim()) {
-        const w = Number(pesoStr.replace(",", "."));
-        if (!Number.isFinite(w) || w < 35 || w > 160) throw new Error("Peso (kg): número entre 35 y 160, o vacío");
-        pesoKg = Math.round(w * 10) / 10;
-      }
-
       const r = await registerWithSupabase({
         nombreCompleto,
         apodo,
@@ -68,8 +55,8 @@ export default function AuthPage() {
         pieDominante: pie,
         fechaNacimiento,
         contacto,
-        alturaCm,
-        pesoKg,
+        alturaCm: alturaStr,
+        pesoKg: pesoStr,
         profile,
       });
       setToken(r.token);
