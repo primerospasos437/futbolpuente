@@ -44,9 +44,11 @@ begin
 
   insert into jugadores (
     id,
+    usuario_id,
     apodo,
     pin_hash,
     nombre_completo,
+    posicion_principal,
     posicion_preferida,
     posicion_alternativa,
     pie_dominante,
@@ -58,9 +60,11 @@ begin
     perfil_scores
   ) values (
     v_id,
+    v_id,
     trim(p_apodo),
     p_pin_hash,
     trim(p_nombre_completo),
+    p_posicion_preferida,
     p_posicion_preferida,
     p_posicion_alternativa,
     p_pie_dominante,

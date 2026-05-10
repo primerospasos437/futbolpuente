@@ -115,19 +115,29 @@ export function createSupabaseRepository(url, serviceRoleKey) {
      * Si falla el segundo, queda usuario huérfano (poco frecuente); podés limpiar a mano.
      */
     async createPlayer(player) {
-      const { data: u, error: eu } = await sb.from("usuarios").insert({}).select("id").single();
+      const emailSlug = String(player.apodo)
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ".")
+        .replace(/[^a-z0-9._-]+/g, "")
+        .replace(/^\.+|\.+$/g, "") || "jugador";
+      const email = `${emailSlug}@futbol.com`;
+
+      const { data: u, error: eu } = await sb.from("usuarios").insert({ email }).select("id").single();
       if (eu) throw new Error(eu.message);
       const id = u.id;
 
       const row = {
         id,
+        usuario_id: id,
         apodo: player.apodo,
         pin_hash: player.pinHash,
         nombre_completo: player.nombreCompleto,
+        posicion_principal: player.posicionPreferida,
         posicion_preferida: player.posicionPreferida,
         posicion_alternativa: player.posicionAlternativa,
         pie_dominante: player.pieDominante,
-        fecha_nacimiento: player.fechaNacimiento ?? "",
+        fecha_nacimiento: player.fechaNacimiento || null,
         contacto: player.contacto ?? "",
         altura_cm: player.alturaCm,
         peso_kg: player.pesoKg,
