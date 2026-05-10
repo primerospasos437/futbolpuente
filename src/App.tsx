@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./AuthContext";
+import { GateScreen, isGateUnlocked } from "./GateCode";
 import AuthPage from "./pages/Auth";
 import HomePage from "./pages/Home";
 import PlayerProfilePage from "./pages/PlayerProfile";
@@ -22,7 +24,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="shell">
       <header className="topbar">
         <div className="brand">
-          Fútbol <span>Grupo</span>
+          Fútbol <span>Puente Club</span>
         </div>
         <nav className="tabs">
           <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
@@ -97,6 +99,12 @@ function AppRoutes() {
 }
 
 export default function App() {
+  const [unlocked, setUnlocked] = useState(isGateUnlocked());
+
+  if (!unlocked) {
+    return <GateScreen onUnlock={() => setUnlocked(true)} />;
+  }
+
   return (
     <AuthProvider>
       <AppRoutes />

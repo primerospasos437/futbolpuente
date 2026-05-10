@@ -71,7 +71,7 @@ export default function TeamsPage() {
   function shareWhatsApp() {
     if (!result) return;
     const lines: string[] = [];
-    lines.push(`⚽ *Fútbol Grupo — ${fecha}*`);
+    lines.push(`⚽ *Fútbol Puente Club — ${fecha}*`);
     lines.push("");
     lines.push("⬜ *CLAROS:*");
     result.teamA.forEach((p) => lines.push(`  • ${p.apodo} (${p.posicionPreferida})`));
