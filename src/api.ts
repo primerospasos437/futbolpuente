@@ -1,3 +1,7 @@
+import { getSupabase } from "./lib/supabase";
+import { DIMENSION_ORDER } from "./dimensions";
+import type { BalanceResponse, Dimension, PlayerDetail, PlayerSummary, ProfileScores } from "./types";
+
 const TOKEN_KEY = "futbol_grupo_token";
 
 export function getToken(): string | null {
@@ -9,45 +13,291 @@ export function setToken(t: string | null) {
   else localStorage.removeItem(TOKEN_KEY);
 }
 
-async function fetchApi(path: string, init?: RequestInit) {
-  const headers = new Headers(init?.headers);
-  headers.set("Content-Type", "application/json");
-  const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  const res = await fetch(path, { ...init, headers });
-  const text = await res.text();
-  let data: unknown = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = { raw: text };
-  }
-  if (!res.ok) {
-    const msg =
-      typeof data === "object" && data && "error" in data
-        ? String((data as { error: string }).error)
-        : res.statusText;
-    throw new Error(msg);
-  }
-  return data;
+function requireToken(): string {
+  const t = getToken();
+  if (!t) throw new Error("No autorizado");
+  return t;
 }
 
+function normalizeProfile(p: Record<string, unknown> | null | undefined): ProfileScores {
+  const src = p && typeof p === "object" ? p : {};
+  const out: Record<string, number> = {};
+  for (const k of DIMENSION_ORDER) {
+    const v = Number(src[k]);
+    out[k] = Number.isFinite(v) ? Math.min(10, Math.max(1, Math.round(v))) : 5;
+  }
+  return out as ProfileScores;
+}
+
+function profileAverage(profile: ProfileScores): number {
+  const vals = DIMENSION_ORDER.map((k) => profile[k]);
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
+
+function peerAverageForPlayer(ratings: { puntajes: Record<string, unknown> }[]): {
+  overall: number | null;
+  count: number;
+  byDim: Partial<Record<Dimension, number>>;
+} | null {
+  if (!ratings.length) return null;
+  const byDim: Partial<Record<Dimension, number>> = {};
+  for (const dim of DIMENSION_ORDER) {
+    const vals = ratings.map((r) => {
+      const n = Number(r.puntajes?.[dim]);
+      return Number.isFinite(n) ? Math.min(10, Math.max(1, Math.round(n))) : 5;
+    });
+    byDim[dim] = vals.reduce((a, b) => a + b, 0) / vals.length;
+  }
+  const overallDims = DIMENSION_ORDER.map((d) => byDim[d]!).filter((v) => v != null);
+  return {
+    byDim,
+    overall: overallDims.length ? overallDims.reduce((a, b) => a + b, 0) / overallDims.length : null,
+    count: ratings.length,
+  };
+}
+
+function finalScore(selfProfile: ProfileScores, ratings: { puntajes: Record<string, unknown> }[]) {
+  const selfAvg = profileAverage(selfProfile);
+  const peer = peerAverageForPlayer(ratings);
+  if (!peer?.overall) return { value: selfAvg, selfAvg, peerAvg: null, peerCount: 0 };
+  const value = 0.35 * selfAvg + 0.65 * peer.overall;
+  return { value, selfAvg, peerAvg: peer.overall, peerCount: peer.count };
+}
+
+interface JugadorRow {
+  id: string;
+  apodo: string;
+  nombre_completo: string;
+  posicion_preferida: string;
+  posicion_alternativa: string;
+  pie_dominante: string;
+  perfil_scores: Record<string, unknown> | null;
+  fecha_nacimiento: string | null;
+  contacto: string;
+  altura_cm: number | null;
+  peso_kg: number | null;
+  historial_lesiones: string;
+  created_at: string;
+}
+
+interface ValoracionRow {
+  de_jugador_id: string;
+  para_jugador_id: string;
+  puntajes: Record<string, unknown>;
+  updated_at: string;
+}
+
+function buildPlayerSummary(
+  j: JugadorRow,
+  allRatings: ValoracionRow[],
+  myId: string,
+): PlayerSummary {
+  const profile = normalizeProfile(j.perfil_scores);
+  const received = allRatings.filter((r) => r.para_jugador_id === j.id);
+  const fs = finalScore(profile, received);
+  const peer = peerAverageForPlayer(received);
+  const isSelf = j.id === myId;
+
+  return {
+    id: j.id,
+    nombreCompleto: j.nombre_completo,
+    apodo: j.apodo,
+    posicionPreferida: j.posicion_preferida as PlayerSummary["posicionPreferida"],
+    posicionAlternativa: (j.posicion_alternativa ?? j.posicion_preferida) as PlayerSummary["posicionAlternativa"],
+    pieDominante: j.pie_dominante as PlayerSummary["pieDominante"],
+    profile,
+    ficha: {
+      fechaNacimiento: j.fecha_nacimiento ?? "",
+      contacto: j.contacto ?? "",
+      posicionAlternativa: (j.posicion_alternativa ?? j.posicion_preferida) as PlayerSummary["posicionAlternativa"],
+      alturaCm: j.altura_cm,
+      pesoKg: j.peso_kg != null ? Number(j.peso_kg) : null,
+      historialLesiones: isSelf ? (j.historial_lesiones ?? "") : null,
+    },
+    profileAverage: profileAverage(profile),
+    peerAverage: peer?.overall ?? null,
+    peerCount: peer?.count ?? 0,
+    finalScore: fs.value,
+    finalBreakdown: { selfAvg: fs.selfAvg, peerAvg: fs.peerAvg ?? null, peerCount: fs.peerCount },
+    createdAt: j.created_at ?? new Date().toISOString(),
+    isSelf,
+  };
+}
+
+async function loadData(token: string) {
+  const sb = getSupabase();
+  const [jugRes, valRes] = await Promise.all([
+    sb.rpc("futbol_list_jugadores", { p_token: token }),
+    sb.rpc("futbol_list_valoraciones", { p_token: token }),
+  ]);
+  if (jugRes.error) throw new Error(jugRes.error.message);
+  if (valRes.error) throw new Error(valRes.error.message);
+  const jugadores: JugadorRow[] = Array.isArray(jugRes.data) ? jugRes.data : (jugRes.data ?? []);
+  const valoraciones: ValoracionRow[] = Array.isArray(valRes.data) ? valRes.data : (valRes.data ?? []);
+  return { jugadores, valoraciones };
+}
+
+
 export const api = {
-  me: () => fetchApi("/api/me") as Promise<import("./types").PlayerSummary>,
-  players: () => fetchApi("/api/players").then((d) => (Array.isArray(d) ? d : [])) as Promise<import("./types").PlayerSummary[]>,
-  player: (id: string) => fetchApi(`/api/players/${id}`) as Promise<import("./types").PlayerDetail>,
-  updateMe: (body: Record<string, unknown>) =>
-    fetchApi("/api/me/profile", { method: "PATCH", body: JSON.stringify(body) }) as Promise<
-      import("./types").PlayerSummary
-    >,
-  ratePlayer: (id: string, scores: import("./types").ProfileScores) =>
-    fetchApi(`/api/players/${id}/rating`, {
-      method: "PUT",
-      body: JSON.stringify({ scores }),
-    }) as Promise<{ saved: boolean; target: import("./types").PlayerSummary }>,
-  balanceTeams: (playerIds?: string[]) =>
-    fetchApi("/api/teams/balance", {
-      method: "POST",
-      body: JSON.stringify(playerIds?.length ? { playerIds } : {}),
-    }) as Promise<import("./types").BalanceResponse>,
+  async me(): Promise<PlayerSummary> {
+    const token = requireToken();
+    const sb = getSupabase();
+    const { error: valErr } = await sb.rpc("futbol_auth_validate_token", { p_token: token });
+    if (valErr) throw new Error("No autorizado");
+
+    const { jugadores, valoraciones } = await loadData(token);
+    const myId = getPlayerId();
+    const me = jugadores.find((j) => j.id === myId);
+    if (!me) throw new Error("Jugador no encontrado. Registrate nuevamente.");
+    return buildPlayerSummary(me, valoraciones, myId);
+  },
+
+  async players(): Promise<PlayerSummary[]> {
+    const token = requireToken();
+    const { jugadores, valoraciones } = await loadData(token);
+    const myId = getPlayerId();
+    return jugadores.map((j) => buildPlayerSummary(j, valoraciones, myId));
+  },
+
+  async player(id: string): Promise<PlayerDetail> {
+    const token = requireToken();
+    const { jugadores, valoraciones } = await loadData(token);
+    const myId = getPlayerId();
+    const j = jugadores.find((p) => p.id === id);
+    if (!j) throw new Error("Jugador no encontrado");
+    const summary = buildPlayerSummary(j, valoraciones, myId);
+    const received = valoraciones.filter((r) => r.para_jugador_id === id);
+    const peer = peerAverageForPlayer(received);
+    const myRatingRow = valoraciones.find((r) => r.de_jugador_id === myId && r.para_jugador_id === id);
+    return {
+      ...summary,
+      dimensions: [...DIMENSION_ORDER],
+      peerByDimension: peer?.byDim ?? {},
+      myRating: myRatingRow
+        ? { scores: normalizeProfile(myRatingRow.puntajes), updatedAt: myRatingRow.updated_at }
+        : null,
+    };
+  },
+
+  async updateMe(body: Record<string, unknown>): Promise<PlayerSummary> {
+    const token = requireToken();
+    const sb = getSupabase();
+    const patch: Record<string, unknown> = {};
+    if (body.nombreCompleto !== undefined) patch.nombre_completo = body.nombreCompleto;
+    if (body.posicionPreferida !== undefined) patch.posicion_preferida = body.posicionPreferida;
+    if (body.posicionAlternativa !== undefined) patch.posicion_alternativa = body.posicionAlternativa;
+    if (body.pieDominante !== undefined) patch.pie_dominante = body.pieDominante;
+    if (body.fechaNacimiento !== undefined) patch.fecha_nacimiento = body.fechaNacimiento || "";
+    if (body.contacto !== undefined) patch.contacto = body.contacto;
+    if (body.alturaCm !== undefined) patch.altura_cm = body.alturaCm != null ? String(body.alturaCm) : null;
+    if (body.pesoKg !== undefined) patch.peso_kg = body.pesoKg != null ? String(body.pesoKg) : null;
+    if (body.historialLesiones !== undefined) patch.historial_lesiones = body.historialLesiones;
+    if (body.profile !== undefined) patch.perfil_scores = body.profile;
+
+    const { error } = await sb.rpc("futbol_update_profile", { p_token: token, p_data: patch });
+    if (error) throw new Error(error.message);
+    return await api.me();
+  },
+
+  async ratePlayer(id: string, scores: ProfileScores): Promise<{ saved: boolean; target: PlayerSummary }> {
+    const token = requireToken();
+    const sb = getSupabase();
+    const { error } = await sb.rpc("futbol_upsert_rating", {
+      p_token: token,
+      p_target_id: id,
+      p_scores: scores,
+    });
+    if (error) throw new Error(error.message);
+    const target = await api.player(id);
+    return { saved: true, target };
+  },
+
+  async balanceTeams(playerIds?: string[]): Promise<BalanceResponse> {
+    const token = requireToken();
+    const { jugadores, valoraciones } = await loadData(token);
+    const myId = getPlayerId();
+    const selected = playerIds?.length
+      ? jugadores.filter((j) => playerIds.includes(j.id))
+      : jugadores;
+
+    if (selected.length < 4)
+      throw new Error("Selecciona al menos 4 jugadores para armar dos equipos");
+
+    const withScores = selected.map((j) => {
+      const profile = normalizeProfile(j.perfil_scores);
+      const received = valoraciones.filter((r) => r.para_jugador_id === j.id);
+      const fs = finalScore(profile, received);
+      return { id: j.id, apodo: j.apodo, posicionPreferida: j.posicion_preferida, score: fs.value };
+    });
+
+    const { teamA, teamB, diff } = balanceTwoTeams(withScores);
+    const sum = (arr: typeof teamA) => arr.reduce((s, x) => s + x.score, 0);
+    return {
+      teamA: teamA as BalanceResponse["teamA"],
+      teamB: teamB as BalanceResponse["teamB"],
+      sumA: sum(teamA),
+      sumB: sum(teamB),
+      difference: diff,
+      pickedBy: myId,
+      generatedAt: new Date().toISOString(),
+    };
+  },
 };
+
+function getPlayerId(): string {
+  return localStorage.getItem("futbol_grupo_player_id") ?? "";
+}
+
+export function setPlayerId(id: string) {
+  localStorage.setItem("futbol_grupo_player_id", id);
+}
+
+function balanceTwoTeams(players: { id: string; apodo: string; posicionPreferida: string; score: number }[]) {
+  if (players.length < 2) return { teamA: [...players], teamB: [] as typeof players, diff: 0 };
+
+  const sorted = [...players].sort((a, b) => b.score - a.score);
+  let teamA: typeof players = [];
+  let teamB: typeof players = [];
+  let sumA = 0;
+  let sumB = 0;
+
+  for (const p of sorted) {
+    if (sumA <= sumB) { teamA.push(p); sumA += p.score; }
+    else { teamB.push(p); sumB += p.score; }
+  }
+
+  const improve = () => {
+    let best = Math.abs(sumA - sumB);
+    let improved = true;
+    while (improved) {
+      improved = false;
+      for (let i = 0; i < teamA.length; i++) {
+        for (let j = 0; j < teamB.length; j++) {
+          const a = teamA[i], b = teamB[j];
+          const nA = sumA - a.score + b.score;
+          const nB = sumB - b.score + a.score;
+          const nd = Math.abs(nA - nB);
+          if (nd + 1e-9 < best) {
+            teamA[i] = b; teamB[j] = a;
+            sumA = nA; sumB = nB;
+            best = nd; improved = true;
+          }
+        }
+      }
+    }
+  };
+
+  for (let k = 0; k < 800; k++) {
+    improve();
+    if (!teamA.length || !teamB.length) break;
+    const ia = Math.floor(Math.random() * teamA.length);
+    const ib = Math.floor(Math.random() * teamB.length);
+    const a = teamA[ia], b = teamB[ib];
+    sumA = sumA - a.score + b.score;
+    sumB = sumB - b.score + a.score;
+    teamA[ia] = b; teamB[ib] = a;
+  }
+  improve();
+
+  return { teamA, teamB, diff: Math.abs(sumA - sumB) };
+}

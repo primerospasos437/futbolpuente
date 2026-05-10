@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
-import { setToken } from "../api";
+import { setToken, setPlayerId } from "../api";
 import { useAuth } from "../AuthContext";
 import { defaultScores } from "../dimensions";
 import { loginWithSupabase, registerWithSupabase } from "../lib/futbolAuth";
@@ -32,6 +32,7 @@ export default function AuthPage() {
     try {
       const r = await loginWithSupabase(apodo, pin);
       setToken(r.token);
+      setPlayerId(r.playerId);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
@@ -60,6 +61,7 @@ export default function AuthPage() {
         profile,
       });
       setToken(r.token);
+      setPlayerId(r.playerId);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
