@@ -34,17 +34,20 @@ export function emailFromApodo(apodoTrimmed: string): string {
 }
 
 /**
- * `fecha_nacimiento` en DB es TEXT NOT NULL: devuelve '' si vacío/inválido, o ISO `YYYY-MM-DD` si es fecha real.
+ * `fecha_nacimiento` en DB es TEXT NOT NULL: devuelve '' si vacío/inválido.
+ * Si hay fecha, la devuelve **siempre** en ISO estricto `YYYY-MM-DD` (mes y día con 2 dígitos), validada en calendario UTC.
  */
 export function normalizeFechaNacimientoForDb(raw: string | null | undefined): string {
   const s = String(raw ?? "").trim();
   if (!s) return "";
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  // Acepta `YYYY-M-D` del usuario y la canoniza a `YYYY-MM-DD`; rechaza otros formatos.
+  const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
   if (!m) return "";
   const y = Number(m[1]);
   const mo = Number(m[2]);
   const d = Number(m[3]);
   if (!Number.isInteger(y) || !Number.isInteger(mo) || !Number.isInteger(d)) return "";
+  if (y < 1 || y > 9999 || mo < 1 || mo > 12 || d < 1 || d > 31) return "";
   const dt = new Date(Date.UTC(y, mo - 1, d));
   if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return "";
   const mm = String(mo).padStart(2, "0");
@@ -123,6 +126,7 @@ export type FutbolAuthRegisterRpcArgs = {
   p_posicion_preferida: PosicionRpc;
   p_posicion_alternativa: PosicionRpc;
   p_pie_dominante: PieRpc;
+  /** Siempre `''` o fecha ISO `YYYY-MM-DD` (nunca otro formato). */
   p_fecha_nacimiento: string;
   p_contacto: string;
   p_altura_cm: number | null;

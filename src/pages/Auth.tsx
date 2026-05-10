@@ -163,6 +163,7 @@ export default function AuthPage() {
               </div>
               <div className="row">
                 <label>Fecha de nacimiento</label>
+                {/* `type="date"` entrega siempre ISO `YYYY-MM-DD` al estado; `futbolRegistration` la revalida y canoniza antes del RPC. */}
                 <input type="date" value={fechaNacimiento} onChange={(e) => setFechaNacimiento(e.target.value)} />
               </div>
             </div>

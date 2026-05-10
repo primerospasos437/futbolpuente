@@ -21,6 +21,8 @@ function rpcErrorMessage(err: { message?: string; details?: string; hint?: strin
 /**
  * Registro vía RPC `futbol_auth_register`: normaliza tipos, enums, fecha ISO, números y JSON del perfil
  * antes de enviar a PostgREST (evita strings donde PostgreSQL espera int/numeric/jsonb).
+ *
+ * `p_fecha_nacimiento` sale de `normalizeFechaNacimientoForDb`: solo `''` o `YYYY-MM-DD` válido en calendario.
  */
 export async function registerWithSupabase(raw: RegisterFormRaw): Promise<{ token: string; playerId: string }> {
   const pin = String(raw.pin ?? "").trim();
