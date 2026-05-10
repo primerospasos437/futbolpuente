@@ -94,6 +94,7 @@ export default function TeamsPage() {
 
   if (error && !players.length) return <div className="error">{error}</div>;
   if (loadingPlayers) return <p className="muted">Cargando…</p>;
+  if (!admin) return <p className="muted">Solo los administradores pueden armar equipos.</p>;
   if (!players.length) return <p className="muted">No hay jugadores registrados todavía. Registrá al menos 4 para armar equipos.</p>;
 
   return (
