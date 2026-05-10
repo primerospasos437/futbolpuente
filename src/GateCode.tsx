@@ -10,6 +10,7 @@ export function isGateUnlocked(): boolean {
 export function GateScreen({ onUnlock }: { onUnlock: () => void }) {
   const [code, setCode] = useState("");
   const [error, setError] = useState(false);
+  const [showCode, setShowCode] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,7 +32,7 @@ export function GateScreen({ onUnlock }: { onUnlock: () => void }) {
         <form onSubmit={handleSubmit}>
           <div className="row">
             <input
-              type="password"
+              type={showCode ? "text" : "password"}
               value={code}
               onChange={(e) => { setCode(e.target.value); setError(false); }}
               placeholder="Código de acceso"
@@ -40,6 +41,14 @@ export function GateScreen({ onUnlock }: { onUnlock: () => void }) {
               style={{ textAlign: "center", fontSize: "1.1rem" }}
             />
           </div>
+          <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", marginTop: "0.5rem", cursor: "pointer", fontSize: "0.9rem", color: "var(--muted)" }}>
+            <input
+              type="checkbox"
+              checked={showCode}
+              onChange={(e) => setShowCode(e.target.checked)}
+            />
+            Mostrar código
+          </label>
           {error && <p className="error" style={{ marginTop: "0.5rem" }}>Código incorrecto</p>}
           <button className="btn btn-primary" type="submit" style={{ marginTop: "1rem", width: "100%" }}>
             Entrar
