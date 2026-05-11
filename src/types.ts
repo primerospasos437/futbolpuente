@@ -44,6 +44,7 @@ export interface PlayerSummary {
   pieDominante: Pie;
   profile: ProfileScores;
   ficha: PlayerFicha;
+  fotoUrl: string | null;
   profileAverage: number;
   peerAverage: number | null;
   peerCount: number;

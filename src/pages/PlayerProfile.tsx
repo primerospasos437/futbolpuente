@@ -133,11 +133,20 @@ export default function PlayerProfilePage() {
         <Link to="/">← Volver al listado</Link>
       </p>
       <div className="card" style={{ marginBottom: "1rem" }}>
-        <h1 style={{ marginBottom: "0.25rem" }}>{data.apodo}</h1>
-        <p className="muted" style={{ marginTop: 0 }}>
-          {data.nombreCompleto} · Principal: {data.posicionPreferida} · Alternativa:{" "}
-          {ficha.posicionAlternativa ?? data.posicionPreferida} · Pie {data.pieDominante}
-        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.5rem" }}>
+          {data.fotoUrl ? (
+            <img src={data.fotoUrl} alt={data.apodo} style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover" }} />
+          ) : (
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", flexShrink: 0 }}>⚽</div>
+          )}
+          <div>
+            <h1 style={{ marginBottom: "0.25rem", marginTop: 0 }}>{data.apodo}</h1>
+            <p className="muted" style={{ marginTop: 0, marginBottom: 0 }}>
+              {data.nombreCompleto} · Principal: {data.posicionPreferida} · Alternativa:{" "}
+              {ficha.posicionAlternativa ?? data.posicionPreferida} · Pie {data.pieDominante}
+            </p>
+          </div>
+        </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginTop: "1rem" }}>
           <div className="score-pill">Final: {data.finalScore.toFixed(2)}</div>
           {(data.isSelf || admin) && (

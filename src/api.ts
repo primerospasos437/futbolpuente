@@ -78,6 +78,7 @@ interface JugadorRow {
   peso_kg: number | null;
   historial_lesiones: string;
   created_at: string;
+  foto_url: string | null;
 }
 
 interface ValoracionRow {
@@ -114,6 +115,7 @@ function buildPlayerSummary(
       pesoKg: j.peso_kg != null ? Number(j.peso_kg) : null,
       historialLesiones: isSelf ? (j.historial_lesiones ?? "") : null,
     },
+    fotoUrl: j.foto_url ?? null,
     profileAverage: profileAverage(profile),
     peerAverage: peer?.overall ?? null,
     peerCount: peer?.count ?? 0,
@@ -197,6 +199,13 @@ export const api = {
     const { error } = await sb.rpc("futbol_update_profile", { p_token: token, p_data: patch });
     if (error) throw new Error(error.message);
     return await api.me();
+  },
+
+  async updateFoto(dataUrl: string): Promise<void> {
+    const token = requireToken();
+    const sb = getSupabase();
+    const { error } = await sb.rpc("futbol_update_foto", { p_token: token, p_foto: dataUrl });
+    if (error) throw new Error(error.message);
   },
 
   async ratePlayer(id: string, scores: ProfileScores): Promise<{ saved: boolean; target: PlayerSummary }> {

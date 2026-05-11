@@ -273,8 +273,13 @@ export default function HomePage() {
           const bio = p.ficha.alturaCm != null ? ` · ${p.ficha.alturaCm} cm` : "";
           return (
             <Link key={p.id} to={`/jugador/${p.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-              <div className="player-row">
-                <div className="p-main">
+              <div className="player-row" style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                {p.fotoUrl ? (
+                  <img src={p.fotoUrl} alt={p.apodo} style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", flexShrink: 0 }}>⚽</div>
+                )}
+                <div className="p-main" style={{ flex: 1 }}>
                   <span className="p-name">
                     {p.apodo}
                     {p.isSelf ? (

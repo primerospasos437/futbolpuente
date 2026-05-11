@@ -4,6 +4,27 @@ import ProfileScoreSliders from "../components/ProfileScoreSliders";
 import { DIMENSION_LABELS, DIMENSION_ORDER, DIMENSION_SECTIONS } from "../dimensions";
 import type { Dimension, Pie, PlayerSummary, Posicion, ProfileScores } from "../types";
 
+function resizeImage(file: File, maxSize: number): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let w = img.width, h = img.height;
+        if (w > h) { if (w > maxSize) { h = (h * maxSize) / w; w = maxSize; } }
+        else { if (h > maxSize) { w = (w * maxSize) / h; h = maxSize; } }
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.7));
+      };
+      img.src = e.target!.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function MyProfilePage() {
   const [me, setMe] = useState<PlayerSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +98,18 @@ export default function MyProfilePage() {
   if (error && !me) return <div className="error">{error}</div>;
   if (!me || !profile) return <p className="muted">Cargando…</p>;
 
+  async function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const dataUrl = await resizeImage(file, 300);
+    try {
+      await api.updateFoto(dataUrl);
+      setMe((prev) => prev ? { ...prev, fotoUrl: dataUrl } : prev);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al subir foto");
+    }
+  }
+
   return (
     <div>
       <h1>Mi perfil</h1>
@@ -86,11 +119,26 @@ export default function MyProfilePage() {
       </p>
 
       <div className="card" style={{ marginBottom: "1rem" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
-          <div className="score-pill">Final: {me.finalScore.toFixed(2)}</div>
-          <div className="score-pill">Autopercepción: {me.finalBreakdown.selfAvg.toFixed(2)}</div>
-          <div className="score-pill">
-            Grupo: {me.finalBreakdown.peerAvg != null ? me.finalBreakdown.peerAvg.toFixed(2) : "—"}
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+          <div style={{ position: "relative" }}>
+            {me.fotoUrl ? (
+              <img src={me.fotoUrl} alt={me.apodo} style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover" }} />
+            ) : (
+              <div style={{ width: 80, height: 80, borderRadius: "50%", background: "var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem" }}>
+                ⚽
+              </div>
+            )}
+            <label style={{ position: "absolute", bottom: -4, right: -4, background: "var(--accent)", color: "#fff", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "0.8rem" }}>
+              📷
+              <input type="file" accept="image/*" onChange={handleFotoChange} style={{ display: "none" }} />
+            </label>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+            <div className="score-pill">Final: {me.finalScore.toFixed(2)}</div>
+            <div className="score-pill">Autopercepción: {me.finalBreakdown.selfAvg.toFixed(2)}</div>
+            <div className="score-pill">
+              Grupo: {me.finalBreakdown.peerAvg != null ? me.finalBreakdown.peerAvg.toFixed(2) : "—"}
+            </div>
           </div>
         </div>
       </div>
