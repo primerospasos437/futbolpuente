@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import ProfileScoreSliders from "../components/ProfileScoreSliders";
-import type { Pie, PlayerSummary, Posicion, ProfileScores } from "../types";
+import { DIMENSION_LABELS, DIMENSION_ORDER, DIMENSION_SECTIONS } from "../dimensions";
+import type { Dimension, Pie, PlayerSummary, Posicion, ProfileScores } from "../types";
 
 export default function MyProfilePage() {
   const [me, setMe] = useState<PlayerSummary | null>(null);
@@ -192,6 +193,96 @@ export default function MyProfilePage() {
           {saving ? "Guardando…" : "Guardar cambios"}
         </button>
       </form>
+
+      <ImprovementSuggestions player={me} profile={profile} />
+    </div>
+  );
+}
+
+function ImprovementSuggestions({ player, profile }: { player: PlayerSummary; profile: ProfileScores }) {
+  const scores = DIMENSION_ORDER.map((k) => ({ key: k, value: profile[k], label: DIMENSION_LABELS[k] }));
+  const sorted = [...scores].sort((a, b) => a.value - b.value);
+  const weakest = sorted.slice(0, 4).filter((s) => s.value <= 6);
+
+  const peerScores: { key: Dimension; value: number; label: string }[] = [];
+  if (player.peerCount > 0 && player.finalBreakdown.peerAvg != null) {
+    for (const k of DIMENSION_ORDER) {
+      const peerVal = (player as any).peerByDimension?.[k];
+      if (peerVal != null) peerScores.push({ key: k, value: peerVal, label: DIMENSION_LABELS[k] });
+    }
+  }
+  const peerWeak = peerScores.length > 0
+    ? [...peerScores].sort((a, b) => a.value - b.value).slice(0, 3).filter((s) => s.value <= 6)
+    : [];
+
+  const allWeak = new Map<string, { label: string; self: number; peer?: number }>();
+  for (const w of weakest) {
+    allWeak.set(w.key, { label: w.label, self: w.value });
+  }
+  for (const w of peerWeak) {
+    const existing = allWeak.get(w.key);
+    if (existing) existing.peer = w.value;
+    else allWeak.set(w.key, { label: w.label, self: profile[w.key as Dimension], peer: w.value });
+  }
+
+  const suggestions = [...allWeak.entries()].slice(0, 5);
+
+  if (suggestions.length === 0) return null;
+
+  const sectionForDim = (dim: string) => {
+    for (const sec of DIMENSION_SECTIONS) {
+      if ((sec.keys as string[]).includes(dim)) return sec.title.replace(/^\d+\.\s*/, "");
+    }
+    return "";
+  };
+
+  const tips: Record<string, string> = {
+    controlPrimerToque: "Practicá recepción con ambos pies bajo presión. Pared contra pared, control y giro.",
+    pase: "Trabajá pases a un toque y variá distancias. Precisión > fuerza.",
+    regate1v1: "Ensayá fintas simples (bicicleta, recorte) a velocidad real en espacios reducidos.",
+    remateFinalizacion: "Definición: practicá con ambas piernas apuntando a los rincones, no solo potencia.",
+    juegoAereo: "Mejorá timing de salto y ataque al balón. Practicá cabeceo de córner.",
+    posicionamiento: "Mirá videos de tu posición. Pensá siempre: ¿dónde debería estar si pierdo/gano el balón?",
+    visionJuego: "Antes de recibir, girá la cabeza para ver opciones. Anticipá la jugada siguiente.",
+    movimientosSinBalon: "Desmarque constante: diagonal, a espaldas del defensor, ofrecer línea de pase.",
+    tomaDecisiones: "Simplificá: menos gambeta innecesaria, más pases seguros. Elegí rápido.",
+    comprensionTactica: "Estudiá el sistema del equipo. Preguntá al que arma qué espera de tu posición.",
+    velocidadAceleracion: "Sprints cortos (10-20m) con cambio de dirección. Repeticiones de arranque.",
+    resistencia: "Sumá trote continuo 20-30 min entre semana. Mejora mucho el segundo tiempo.",
+    fuerzaPotencia: "Sentadillas, estocadas, saltos al cajón. Fuerza funcional para duelos.",
+    agilidadCoordinacion: "Escalera de coordinación, conos, slalom. Mejora los cambios de dirección.",
+    fortalezaMental: "Error = aprendizaje. No te castigues en el partido, reseteá después de cada jugada.",
+    actitudDisciplina: "Llegá a tiempo, calentá siempre, hidratate. La constancia marca diferencia.",
+    espirituEquipo: "Comunicá en la cancha: pedí, avisá, alentá. El equipo funciona mejor hablando.",
+    motivacion: "Ponete mini-objetivos por partido (ej: 3 recuperaciones, 0 pases malos al arco).",
+  };
+
+  return (
+    <div className="card" style={{ marginTop: "1.5rem" }}>
+      <h2 style={{ marginTop: 0 }}>💡 Áreas para mejorar</h2>
+      <p className="muted" style={{ marginTop: 0 }}>
+        Según tu autopercepción{player.peerCount > 0 ? " y las valoraciones de tus compañeros" : ""}, estas son las
+        aptitudes donde más podés crecer:
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "0.75rem" }}>
+        {suggestions.map(([dim, info]) => (
+          <div key={dim} style={{ padding: "0.75rem", borderRadius: "6px", background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.3)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <strong>{info.label}</strong>
+              <span className="muted" style={{ fontSize: "0.8rem" }}>
+                {sectionForDim(dim)}
+              </span>
+            </div>
+            <div style={{ fontSize: "0.85rem", color: "var(--muted)", marginTop: "0.25rem" }}>
+              Tu nota: {info.self}/10
+              {info.peer != null ? ` · Grupo: ${info.peer.toFixed(1)}/10` : ""}
+            </div>
+            <p style={{ margin: "0.4rem 0 0", fontSize: "0.9rem", lineHeight: 1.5 }}>
+              {tips[dim] ?? "Trabajá esta aptitud con ejercicios específicos en entrenamientos."}
+            </p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

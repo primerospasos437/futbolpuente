@@ -223,26 +223,47 @@ export default function PlayerProfilePage() {
         </div>
       )}
 
-      {canRate ? (
-        <div className="card">
-          <h2 style={{ marginTop: 0 }}>Tu valoración de {data.apodo}</h2>
-          <p className="muted">
-            Valorá cada aspecto del 1 al 10 según lo que ves en entrenamientos y partidos. Podés actualizarla cuando
-            quieras.
-          </p>
-          <form onSubmit={submitRating}>
-            <ProfileScoreSliders scores={scores} onChange={setScores} />
-            {msg && (
-              <p className={msg.includes("guardada") ? "muted" : "error"} style={{ marginTop: "1rem" }}>
-                {msg}
-              </p>
+      {canRate ? (() => {
+        const lastUpdate = data.myRating?.updatedAt ? new Date(data.myRating.updatedAt) : null;
+        const now = new Date();
+        const daysSinceUpdate = lastUpdate ? Math.floor((now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24)) : null;
+        const blocked = daysSinceUpdate !== null && daysSinceUpdate < 30;
+        const daysRemaining = blocked ? 30 - daysSinceUpdate : 0;
+
+        return (
+          <div className="card">
+            <h2 style={{ marginTop: 0 }}>Tu valoración de {data.apodo}</h2>
+            {blocked ? (
+              <div style={{ padding: "0.75rem", borderRadius: "6px", background: "rgba(231,76,60,0.1)", border: "1px solid #e74c3c" }}>
+                <p style={{ margin: 0, color: "#e74c3c", fontWeight: 500 }}>
+                  🔒 Ya valoraste a {data.apodo} este mes. Podés actualizar en {daysRemaining} día{daysRemaining !== 1 ? "s" : ""}.
+                </p>
+                <p className="muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8rem" }}>
+                  Última valoración: {lastUpdate!.toLocaleDateString()}
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="muted">
+                  Valorá cada aspecto del 1 al 10 según lo que ves en entrenamientos y partidos.
+                  {data.myRating ? " Podés actualizar 1 vez por mes." : ""}
+                </p>
+                <form onSubmit={submitRating}>
+                  <ProfileScoreSliders scores={scores} onChange={setScores} />
+                  {msg && (
+                    <p className={msg.includes("guardada") ? "muted" : "error"} style={{ marginTop: "1rem" }}>
+                      {msg}
+                    </p>
+                  )}
+                  <button className="btn btn-primary" type="submit" style={{ marginTop: "1rem" }} disabled={saving}>
+                    {saving ? "Guardando…" : data.myRating ? "Actualizar valoración" : "Enviar valoración"}
+                  </button>
+                </form>
+              </>
             )}
-            <button className="btn btn-primary" type="submit" style={{ marginTop: "1rem" }} disabled={saving}>
-              {saving ? "Guardando…" : data.myRating ? "Actualizar valoración" : "Enviar valoración"}
-            </button>
-          </form>
-        </div>
-      ) : (
+          </div>
+        );
+      })() : (
         <div className="card">
           <p className="muted" style={{ margin: 0 }}>
             Este es tu perfil: las valoraciones las cargan tus compañeros desde sus cuentas.
