@@ -116,6 +116,7 @@ function buildPlayerSummary(
       historialLesiones: isSelf ? (j.historial_lesiones ?? "") : null,
     },
     fotoUrl: j.foto_url ?? null,
+    arcoScores: (j as any).perfil_scores?.arcoScores ?? null,
     profileAverage: profileAverage(profile),
     peerAverage: peer?.overall ?? null,
     peerCount: peer?.count ?? 0,
@@ -194,7 +195,13 @@ export const api = {
     if (body.alturaCm !== undefined) patch.altura_cm = body.alturaCm != null ? String(body.alturaCm) : null;
     if (body.pesoKg !== undefined) patch.peso_kg = body.pesoKg != null ? String(body.pesoKg) : null;
     if (body.historialLesiones !== undefined) patch.historial_lesiones = body.historialLesiones;
-    if (body.profile !== undefined) patch.perfil_scores = body.profile;
+    if (body.profile !== undefined) {
+      const scores = { ...(body.profile as Record<string, unknown>) };
+      if (body.arcoScores) scores.arcoScores = body.arcoScores;
+      patch.perfil_scores = scores;
+    } else if (body.arcoScores) {
+      patch.perfil_scores = { arcoScores: body.arcoScores };
+    }
 
     const { error } = await sb.rpc("futbol_update_profile", { p_token: token, p_data: patch });
     if (error) throw new Error(error.message);

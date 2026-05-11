@@ -38,6 +38,9 @@ export default function MyProfilePage() {
   const [pesoStr, setPesoStr] = useState("");
   const [historialLesiones, setHistorialLesiones] = useState("");
   const [profile, setProfile] = useState<ProfileScores | null>(null);
+  const [arcoValor, setArcoValor] = useState(5);
+  const [arcoComunicacion, setArcoComunicacion] = useState(5);
+  const [arcoManos, setArcoManos] = useState(5);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -57,6 +60,10 @@ export default function MyProfilePage() {
         setPesoStr(p.ficha.pesoKg != null ? String(p.ficha.pesoKg) : "");
         setHistorialLesiones(p.ficha.historialLesiones ?? "");
         setProfile({ ...p.profile });
+        const arco = (p as any).arcoScores ?? {};
+        setArcoValor(arco.valor ?? 5);
+        setArcoComunicacion(arco.comunicacion ?? 5);
+        setArcoManos(arco.manos ?? 5);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       }
@@ -84,6 +91,9 @@ export default function MyProfilePage() {
       };
       body.alturaCm = alturaStr.trim() === "" ? null : Number(alturaStr.replace(",", "."));
       body.pesoKg = pesoStr.trim() === "" ? null : Number(pesoStr.replace(",", "."));
+      if (posicion !== "portero") {
+        body.arcoScores = { valor: arcoValor, comunicacion: arcoComunicacion, manos: arcoManos };
+      }
 
       const p = await api.updateMe(body);
       setMe(p);
@@ -229,6 +239,54 @@ export default function MyProfilePage() {
             placeholder="Ej.: esguince tobillo derecho 03/2024 — recuperado; molestia isquios…"
           />
         </div>
+
+        {posicion !== "portero" && (
+          <>
+            <h2 style={{ fontSize: "1.15rem", marginTop: "1.5rem" }}>🧤 Capacidades en el arco (obligatorio)</h2>
+            <p className="profile-section-desc">
+              Como jugador de campo, valorá tus capacidades cuando te toca ir al arco. Escala 1–10.
+            </p>
+            <div className="row">
+              <label>Valor / Audacia (tirarse al piso, salir a tapar remates)</label>
+              <input
+                type="range" min={1} max={10} value={arcoValor}
+                onChange={(e) => setArcoValor(Number(e.target.value))}
+                style={{ width: "100%" }}
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "var(--muted)" }}>
+                <span>1 (no me tiro)</span>
+                <span style={{ fontWeight: 600, color: "var(--text)" }}>{arcoValor}</span>
+                <span>10 (me juego entero)</span>
+              </div>
+            </div>
+            <div className="row">
+              <label>Comunicación (gritar, ordenar, dirigir como último hombre)</label>
+              <input
+                type="range" min={1} max={10} value={arcoComunicacion}
+                onChange={(e) => setArcoComunicacion(Number(e.target.value))}
+                style={{ width: "100%" }}
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "var(--muted)" }}>
+                <span>1 (callado)</span>
+                <span style={{ fontWeight: 600, color: "var(--text)" }}>{arcoComunicacion}</span>
+                <span>10 (siempre ordeno)</span>
+              </div>
+            </div>
+            <div className="row">
+              <label>Uso de manos y pies para atajar</label>
+              <input
+                type="range" min={1} max={10} value={arcoManos}
+                onChange={(e) => setArcoManos(Number(e.target.value))}
+                style={{ width: "100%" }}
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "var(--muted)" }}>
+                <span>1 (solo pies)</span>
+                <span style={{ fontWeight: 600, color: "var(--text)" }}>{arcoManos}</span>
+                <span>10 (manos y pies)</span>
+              </div>
+            </div>
+          </>
+        )}
 
         <h2 style={{ fontSize: "1.15rem", marginTop: "1.5rem" }}>Autopercepción (1 a 10)</h2>
         <p className="profile-section-desc">

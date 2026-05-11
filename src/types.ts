@@ -45,6 +45,7 @@ export interface PlayerSummary {
   profile: ProfileScores;
   ficha: PlayerFicha;
   fotoUrl: string | null;
+  arcoScores: { valor: number; comunicacion: number; manos: number } | null;
   profileAverage: number;
   peerAverage: number | null;
   peerCount: number;
