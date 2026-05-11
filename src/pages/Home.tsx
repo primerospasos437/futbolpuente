@@ -77,6 +77,7 @@ export default function HomePage() {
   const [saving, setSaving] = useState(false);
 
   const myId = localStorage.getItem("futbol_grupo_player_id") ?? "";
+  const [expandedPhoto, setExpandedPhoto] = useState<{ url: string; apodo: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -275,7 +276,12 @@ export default function HomePage() {
             <Link key={p.id} to={`/jugador/${p.id}`} style={{ textDecoration: "none", color: "inherit" }}>
               <div className="player-row" style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                 {p.fotoUrl ? (
-                  <img src={p.fotoUrl} alt={p.apodo} style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                  <img
+                    src={p.fotoUrl}
+                    alt={p.apodo}
+                    style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0, cursor: "pointer" }}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedPhoto({ url: p.fotoUrl!, apodo: p.apodo }); }}
+                  />
                 ) : (
                   <div style={{ width: 40, height: 40, borderRadius: "50%", background: "var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", flexShrink: 0 }}>⚽</div>
                 )}
@@ -301,6 +307,26 @@ export default function HomePage() {
           );
         })}
       </div>
+      )}
+
+      {expandedPhoto && (
+        <div
+          onClick={() => setExpandedPhoto(null)}
+          style={{
+            position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+            background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center",
+            justifyContent: "center", flexDirection: "column", zIndex: 9999, cursor: "pointer",
+          }}
+        >
+          <img
+            src={expandedPhoto.url}
+            alt={expandedPhoto.apodo}
+            style={{ width: 200, height: 200, borderRadius: "50%", objectFit: "cover", border: "3px solid #fff" }}
+          />
+          <p style={{ color: "#fff", marginTop: "0.75rem", fontWeight: 600, fontSize: "1.1rem" }}>
+            {expandedPhoto.apodo}
+          </p>
+        </div>
       )}
     </div>
   );
