@@ -52,11 +52,13 @@ export async function loginWithSupabase(apodo: string, pin: string): Promise<{ t
   return { token: row.token, playerId: row.playerId };
 }
 
-/** Valida el Bearer token guardado (tabla sesiones) sin pasar por el servidor Node. */
-export async function validateSessionWithSupabase(token: string): Promise<boolean> {
+/** Valida el Bearer token y devuelve el jugador asociado (para sincronizar `futbol_grupo_player_id`). */
+export async function validateSessionWithSupabase(token: string): Promise<{ ok: boolean; playerId?: string }> {
   const sb = getSupabase();
   const { data, error } = await sb.rpc("futbol_auth_validate_token", { p_token: String(token ?? "").trim() });
-  if (error) return false;
-  const row = data as { valid?: boolean } | null;
-  return Boolean(row && row.valid === true);
+  if (error) return { ok: false };
+  const row = data as { valid?: boolean; jugadorId?: string } | null;
+  if (!row || row.valid !== true) return { ok: false };
+  const playerId = typeof row.jugadorId === "string" && row.jugadorId.length ? row.jugadorId : undefined;
+  return { ok: true, playerId };
 }

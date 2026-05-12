@@ -20,6 +20,22 @@ function requireToken(): string {
   return t;
 }
 
+/** Si falta `futbol_grupo_player_id`, lo obtiene de `futbol_auth_validate_token` (requiere SQL actualizado en Supabase). */
+async function ensurePlayerIdSynced(token: string): Promise<string> {
+  let myId = getPlayerId();
+  if (myId) return myId;
+  const sb = getSupabase();
+  const { data, error } = await sb.rpc("futbol_auth_validate_token", { p_token: token });
+  if (!error && data && typeof data === "object") {
+    const jid = (data as { jugadorId?: string }).jugadorId;
+    if (typeof jid === "string" && jid.length > 0) {
+      setPlayerId(jid);
+      return jid;
+    }
+  }
+  return getPlayerId() ?? "";
+}
+
 function normalizeProfile(p: Record<string, unknown> | null | undefined): ProfileScores {
   const src = p && typeof p === "object" ? p : {};
   const out: Record<string, number> = {};
@@ -98,10 +114,11 @@ function buildPlayerSummary(
   const received = allRatings.filter((r) => r.para_jugador_id === j.id);
   const fs = finalScore(profile, received);
   const peer = peerAverageForPlayer(received);
-  const isSelf = j.id === myId;
+  const sid = String(myId);
+  const isSelf = String(j.id) === sid;
 
   const ratingFromMe = allRatings.find(
-    (r) => r.de_jugador_id === myId && r.para_jugador_id === j.id,
+    (r) => String(r.de_jugador_id) === sid && String(r.para_jugador_id) === String(j.id),
   );
   const lastRatedByMeAt = ratingFromMe?.updated_at ?? null;
   let needsMyRating = false;
@@ -161,33 +178,33 @@ export const api = {
   async me(): Promise<PlayerSummary> {
     const token = requireToken();
     const sb = getSupabase();
+    const myId = await ensurePlayerIdSynced(token);
     const { error: valErr } = await sb.rpc("futbol_auth_validate_token", { p_token: token });
     if (valErr) throw new Error("No autorizado");
 
     const { jugadores, valoraciones } = await loadData(token);
-    const myId = getPlayerId();
-    const me = jugadores.find((j) => j.id === myId);
+    const me = jugadores.find((j) => String(j.id) === String(myId));
     if (!me) throw new Error("Jugador no encontrado. Registrate nuevamente.");
     return buildPlayerSummary(me, valoraciones, myId);
   },
 
   async players(): Promise<PlayerSummary[]> {
     const token = requireToken();
+    const myId = await ensurePlayerIdSynced(token);
     const { jugadores, valoraciones } = await loadData(token);
-    const myId = getPlayerId();
     return jugadores.map((j) => buildPlayerSummary(j, valoraciones, myId));
   },
 
   async player(id: string): Promise<PlayerDetail> {
     const token = requireToken();
+    const myId = await ensurePlayerIdSynced(token);
     const { jugadores, valoraciones } = await loadData(token);
-    const myId = getPlayerId();
     const j = jugadores.find((p) => p.id === id);
     if (!j) throw new Error("Jugador no encontrado");
     const summary = buildPlayerSummary(j, valoraciones, myId);
     const received = valoraciones.filter((r) => r.para_jugador_id === id);
     const peer = peerAverageForPlayer(received);
-    const myRatingRow = valoraciones.find((r) => r.de_jugador_id === myId && r.para_jugador_id === id);
+    const myRatingRow = valoraciones.find((r) => String(r.de_jugador_id) === String(myId) && String(r.para_jugador_id) === String(id));
     return {
       ...summary,
       dimensions: [...DIMENSION_ORDER],
@@ -246,8 +263,8 @@ export const api = {
 
   async balanceTeams(playerIds?: string[]): Promise<BalanceResponse> {
     const token = requireToken();
+    const myId = await ensurePlayerIdSynced(token);
     const { jugadores, valoraciones } = await loadData(token);
-    const myId = getPlayerId();
     const selected = playerIds?.length
       ? jugadores.filter((j) => playerIds.includes(j.id))
       : jugadores;
@@ -317,7 +334,7 @@ const ADMIN_APODO = "gasty";
 
 export function isAdmin(jugadores: JugadorRow[]): boolean {
   const myId = getPlayerId();
-  const me = jugadores.find((j) => j.id === myId);
+  const me = jugadores.find((j) => String(j.id) === String(myId));
   return me?.apodo?.toLowerCase() === ADMIN_APODO;
 }
 

@@ -255,44 +255,67 @@ export default function HomePage() {
     <div>
       <h1>Fútbol Puente Club</h1>
 
-      {renderMatchButton("martes", DAY_MARTES, "Partido Martes")}
-      {renderMatchButton("jueves", DAY_JUEVES, "Partido Jueves")}
-
       {(() => {
-        const aValorar = list.filter((p) => p.needsMyRating && !p.isSelf);
-        if (!aValorar.length) return null;
+        const otros = list.filter((p) => !p.isSelf);
+        const aValorar = otros.filter((p) => p.needsMyRating);
         return (
-          <div className="card" style={{ marginTop: "1.5rem", border: "1px solid var(--accent)" }}>
-            <h2 style={{ marginTop: 0, marginBottom: "0.35rem" }}>Valoraciones pendientes</h2>
-            <p className="muted" style={{ margin: "0 0 0.75rem", fontSize: "0.9rem" }}>
-              Podés valorar a cada compañero una vez por mes. Tocá el nombre para completar la planilla.
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-              {aValorar.map((p) => (
-                <Link
-                  key={p.id}
-                  to={`/jugador/${p.id}`}
-                  style={{
-                    textDecoration: "none",
-                    fontSize: "0.85rem",
-                    padding: "0.25rem 0.55rem",
-                    borderRadius: "999px",
-                    background: "var(--accent)",
-                    color: "#fff",
-                    fontWeight: 600,
-                  }}
-                >
-                  Calificar a {p.apodo}
-                </Link>
-              ))}
-            </div>
+          <div
+            className="card"
+            style={{
+              marginBottom: "1.25rem",
+              border: "2px solid var(--accent)",
+              boxShadow: "0 2px 10px rgba(0, 0, 0, 0.06)",
+            }}
+          >
+            <h2 style={{ marginTop: 0, marginBottom: "0.35rem", fontSize: "1.15rem" }}>
+              Compañeros para valorar
+            </h2>
+            {otros.length === 0 ? (
+              <p className="muted" style={{ margin: 0, fontSize: "0.9rem" }}>
+                Cuando haya más jugadores en el grupo, acá vas a ver a quiénes te falta valorar.
+              </p>
+            ) : aValorar.length > 0 ? (
+              <>
+                <p className="muted" style={{ margin: "0 0 0.75rem", fontSize: "0.9rem" }}>
+                  Tocá un nombre y completá la planilla (1 vez por mes por jugador). En la lista de abajo, los que
+                  siguen pendientes llevan la etiqueta <strong style={{ color: "var(--text)" }}>Valorar</strong>.
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                  {aValorar.map((p) => (
+                    <Link
+                      key={p.id}
+                      to={`/jugador/${p.id}`}
+                      style={{
+                        textDecoration: "none",
+                        fontSize: "0.85rem",
+                        padding: "0.3rem 0.65rem",
+                        borderRadius: "999px",
+                        background: "var(--accent)",
+                        color: "#fff",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Calificar a {p.apodo}
+                    </Link>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p style={{ margin: 0, fontSize: "0.95rem", lineHeight: 1.5 }}>
+                <span style={{ color: "var(--accent)", fontWeight: 700 }}>✓</span> No tenés valoraciones pendientes:
+                ya valoraste a todos los compañeros (o todavía no corresponde renovar: una vez cada 30 días).
+              </p>
+            )}
           </div>
         );
       })()}
 
+      {renderMatchButton("martes", DAY_MARTES, "Partido Martes")}
+      {renderMatchButton("jueves", DAY_JUEVES, "Partido Jueves")}
+
       <h2 style={{ marginTop: "1.5rem" }}>Jugadores</h2>
       <p className="sub">
-        Tocá un jugador para ver su ficha y dejar tu valoración.
+        Tocá un jugador para ver su ficha y dejar tu valoración. Los que muestran <strong>Valorar</strong> son los que podés cargar ahora.
       </p>
       {list.length === 0 ? (
         <p className="muted">No hay jugadores registrados todavía.</p>
