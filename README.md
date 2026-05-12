@@ -31,7 +31,18 @@ Si cambiás `.env`, **pará el servidor** (`Ctrl+C`) y volvé a ejecutar `npm ru
 
 ## Producción (Cloudflare Pages)
 
-En el proyecto de Pages, mismas variables: `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` apuntando al **mismo** proyecto Supabase en la nube. Build: `npm run build`, carpeta de salida: `dist`.
+1. **Variables de entorno** (obligatorio; el `.env` de tu PC **no** viaja con el deploy):
+   - Cloudflare → **Workers & Pages** → tu proyecto → **Settings** → **Environment variables**
+   - En **Production** (y Preview si querés), agregá:
+     - `VITE_SUPABASE_URL` = `https://TU-REF.supabase.co` (Project URL del dashboard de Supabase)
+     - `VITE_SUPABASE_ANON_KEY` = la clave **anon public** (mismo dashboard → Settings → API)
+   - **No** pongas `http://127.0.0.1:54321`: el build guarda esa URL dentro del JS y en internet no hay Supabase escuchando ahí.
+
+2. **Redeploy**: después de guardar las variables, **Deployments** → los tres puntos del último build → **Retry deployment**, o empujá un commit vacío para que vuelva a compilar.
+
+3. **Build**: comando `npm run build`, directorio de salida `dist` (como ya tengas configurado).
+
+Si ves un aviso rojo sobre “127.0.0.1” o “compiló con Supabase en tu máquina”, es porque el **último deploy** se hizo sin esas variables bien puestas: corregilas en Cloudflare y **volvé a desplegar**.
 
 ## SQL en Supabase
 

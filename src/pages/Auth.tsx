@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { setToken, setPlayerId, getToken } from "../api";
 import { useAuth } from "../AuthContext";
+import { prodSupabaseEnvBrokenMessage } from "../lib/supabaseEnvCheck";
 import { defaultScores } from "../dimensions";
 import { loginWithSupabase, registerWithSupabase } from "../lib/futbolAuth";
 import type { Pie, Posicion } from "../types";
@@ -22,6 +23,11 @@ export default function AuthPage() {
   const [contacto, setContacto] = useState("");
   const [alturaStr, setAlturaStr] = useState("");
   const [pesoStr, setPesoStr] = useState("");
+
+  useEffect(() => {
+    const bad = prodSupabaseEnvBrokenMessage();
+    if (bad) setError(bad);
+  }, []);
 
   if (ready && loggedIn) return <Navigate to="/" replace />;
 
