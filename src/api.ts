@@ -124,6 +124,10 @@ function buildPlayerSummary(
     finalBreakdown: { selfAvg: fs.selfAvg, peerAvg: fs.peerAvg ?? null, peerCount: fs.peerCount },
     createdAt: j.created_at ?? new Date().toISOString(),
     isSelf,
+    ratedByMe:
+      Boolean(myId) &&
+      j.id !== myId &&
+      allRatings.some((r) => r.de_jugador_id === myId && r.para_jugador_id === j.id),
   };
 }
 

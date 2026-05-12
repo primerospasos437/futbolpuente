@@ -57,6 +57,8 @@ export interface PlayerSummary {
   };
   createdAt: string;
   isSelf: boolean;
+  /** Si el usuario actual ya envió una valoración a este jugador (siempre `false` para vos mismo). */
+  ratedByMe: boolean;
 }
 
 export interface PlayerDetail extends PlayerSummary {
