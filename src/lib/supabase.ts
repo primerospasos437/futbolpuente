@@ -17,6 +17,17 @@ export function getSupabase(): SupabaseClient {
   if (!url || !key) {
     throw new Error("Faltan VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY");
   }
+  const looksLocal = /^(https?:\/\/)?(127\.0\.0\.1|localhost)(:\d+)?/i.test(url);
+  if (looksLocal && import.meta.env.PROD) {
+    throw new Error(
+      "VITE_SUPABASE_URL apunta a localhost (p. ej. :54321). En producción configurá en Cloudflare la URL https://….supabase.co y la anon key del proyecto.",
+    );
+  }
+  if (looksLocal && import.meta.env.DEV) {
+    console.warn(
+      "[Fútbol Puente] VITE_SUPABASE_URL es local. Si falla el login con ERR_CONNECTION_REFUSED, ejecutá `supabase start` o usá la URL https://….supabase.co en `.env`.",
+    );
+  }
   _client = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
