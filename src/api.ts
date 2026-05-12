@@ -1,6 +1,7 @@
 import { getSupabase } from "./lib/supabase";
 import { DIMENSION_ORDER } from "./dimensions";
-import type { BalanceResponse, Dimension, PlayerDetail, PlayerSummary, ProfileScores } from "./types";
+import { balanceTeamsPositional, type TeamBalancePlayer } from "./lib/teamBalance";
+import type { BalanceResponse, Dimension, PlayerDetail, PlayerSummary, ProfileScores, Posicion } from "./types";
 
 const TOKEN_KEY = "futbol_grupo_token";
 
@@ -17,6 +18,22 @@ function requireToken(): string {
   const t = getToken();
   if (!t) throw new Error("No autorizado");
   return t;
+}
+
+/** Si falta `futbol_grupo_player_id`, lo obtiene de `futbol_auth_validate_token` (requiere SQL actualizado en Supabase). */
+async function ensurePlayerIdSynced(token: string): Promise<string> {
+  let myId = getPlayerId();
+  if (myId) return myId;
+  const sb = getSupabase();
+  const { data, error } = await sb.rpc("futbol_auth_validate_token", { p_token: token });
+  if (!error && data && typeof data === "object") {
+    const jid = (data as { jugadorId?: string }).jugadorId;
+    if (typeof jid === "string" && jid.length > 0) {
+      setPlayerId(jid);
+      return jid;
+    }
+  }
+  return getPlayerId() ?? "";
 }
 
 function normalizeProfile(p: Record<string, unknown> | null | undefined): ProfileScores {
@@ -97,7 +114,21 @@ function buildPlayerSummary(
   const received = allRatings.filter((r) => r.para_jugador_id === j.id);
   const fs = finalScore(profile, received);
   const peer = peerAverageForPlayer(received);
-  const isSelf = j.id === myId;
+  const sid = String(myId);
+  const isSelf = String(j.id) === sid;
+
+  const ratingFromMe = allRatings.find(
+    (r) => String(r.de_jugador_id) === sid && String(r.para_jugador_id) === String(j.id),
+  );
+  const lastRatedByMeAt = ratingFromMe?.updated_at ?? null;
+  let needsMyRating = false;
+  if (!isSelf) {
+    if (!lastRatedByMeAt) needsMyRating = true;
+    else {
+      const days = (Date.now() - new Date(lastRatedByMeAt).getTime()) / (1000 * 60 * 60 * 24);
+      needsMyRating = days >= 30;
+    }
+  }
 
   return {
     id: j.id,
@@ -124,6 +155,8 @@ function buildPlayerSummary(
     finalBreakdown: { selfAvg: fs.selfAvg, peerAvg: fs.peerAvg ?? null, peerCount: fs.peerCount },
     createdAt: j.created_at ?? new Date().toISOString(),
     isSelf,
+    lastRatedByMeAt,
+    needsMyRating,
   };
 }
 
@@ -145,33 +178,33 @@ export const api = {
   async me(): Promise<PlayerSummary> {
     const token = requireToken();
     const sb = getSupabase();
+    const myId = await ensurePlayerIdSynced(token);
     const { error: valErr } = await sb.rpc("futbol_auth_validate_token", { p_token: token });
     if (valErr) throw new Error("No autorizado");
 
     const { jugadores, valoraciones } = await loadData(token);
-    const myId = getPlayerId();
-    const me = jugadores.find((j) => j.id === myId);
+    const me = jugadores.find((j) => String(j.id) === String(myId));
     if (!me) throw new Error("Jugador no encontrado. Registrate nuevamente.");
     return buildPlayerSummary(me, valoraciones, myId);
   },
 
   async players(): Promise<PlayerSummary[]> {
     const token = requireToken();
+    const myId = await ensurePlayerIdSynced(token);
     const { jugadores, valoraciones } = await loadData(token);
-    const myId = getPlayerId();
     return jugadores.map((j) => buildPlayerSummary(j, valoraciones, myId));
   },
 
   async player(id: string): Promise<PlayerDetail> {
     const token = requireToken();
+    const myId = await ensurePlayerIdSynced(token);
     const { jugadores, valoraciones } = await loadData(token);
-    const myId = getPlayerId();
     const j = jugadores.find((p) => p.id === id);
     if (!j) throw new Error("Jugador no encontrado");
     const summary = buildPlayerSummary(j, valoraciones, myId);
     const received = valoraciones.filter((r) => r.para_jugador_id === id);
     const peer = peerAverageForPlayer(received);
-    const myRatingRow = valoraciones.find((r) => r.de_jugador_id === myId && r.para_jugador_id === id);
+    const myRatingRow = valoraciones.find((r) => String(r.de_jugador_id) === String(myId) && String(r.para_jugador_id) === String(id));
     return {
       ...summary,
       dimensions: [...DIMENSION_ORDER],
@@ -230,8 +263,8 @@ export const api = {
 
   async balanceTeams(playerIds?: string[]): Promise<BalanceResponse> {
     const token = requireToken();
+    const myId = await ensurePlayerIdSynced(token);
     const { jugadores, valoraciones } = await loadData(token);
-    const myId = getPlayerId();
     const selected = playerIds?.length
       ? jugadores.filter((j) => playerIds.includes(j.id))
       : jugadores;
@@ -239,18 +272,47 @@ export const api = {
     if (selected.length < 4)
       throw new Error("Selecciona al menos 4 jugadores para armar dos equipos");
 
-    const withScores = selected.map((j) => {
+    const withVec: TeamBalancePlayer[] = selected.map((j) => {
       const profile = normalizeProfile(j.perfil_scores);
       const received = valoraciones.filter((r) => r.para_jugador_id === j.id);
       const fs = finalScore(profile, received);
-      return { id: j.id, apodo: j.apodo, posicionPreferida: j.posicion_preferida, score: fs.value };
+      const rawArco = (j.perfil_scores as Record<string, unknown> | null)?.arcoScores;
+      let arcoScores: TeamBalancePlayer["arcoScores"] = null;
+      if (rawArco && typeof rawArco === "object") {
+        const o = rawArco as Record<string, unknown>;
+        const v = Number(o.valor);
+        const c = Number(o.comunicacion);
+        const m = Number(o.manos);
+        if ([v, c, m].every((n) => Number.isFinite(n))) {
+          arcoScores = {
+            valor: Math.min(10, Math.max(1, Math.round(v))),
+            comunicacion: Math.min(10, Math.max(1, Math.round(c))),
+            manos: Math.min(10, Math.max(1, Math.round(m))),
+          };
+        }
+      }
+      return {
+        id: j.id,
+        apodo: j.apodo,
+        posicionPreferida: j.posicion_preferida as Posicion,
+        posicionAlternativa: (j.posicion_alternativa ?? j.posicion_preferida) as Posicion,
+        score: fs.value,
+        profile,
+        arcoScores,
+      };
     });
 
-    const { teamA, teamB, diff } = balanceTwoTeams(withScores);
-    const sum = (arr: typeof teamA) => arr.reduce((s, x) => s + x.score, 0);
+    const { teamA, teamB, diff } = balanceTeamsPositional(withVec);
+    const toSlot = (p: TeamBalancePlayer) => ({
+      id: p.id,
+      apodo: p.apodo,
+      posicionPreferida: p.posicionPreferida,
+      score: p.score,
+    });
+    const sum = (arr: TeamBalancePlayer[]) => arr.reduce((s, x) => s + x.score, 0);
     return {
-      teamA: teamA as BalanceResponse["teamA"],
-      teamB: teamB as BalanceResponse["teamB"],
+      teamA: teamA.map(toSlot),
+      teamB: teamB.map(toSlot),
       sumA: sum(teamA),
       sumB: sum(teamB),
       difference: diff,
@@ -272,7 +334,7 @@ const ADMIN_APODO = "gasty";
 
 export function isAdmin(jugadores: JugadorRow[]): boolean {
   const myId = getPlayerId();
-  const me = jugadores.find((j) => j.id === myId);
+  const me = jugadores.find((j) => String(j.id) === String(myId));
   return me?.apodo?.toLowerCase() === ADMIN_APODO;
 }
 
@@ -337,53 +399,3 @@ export const apiPartidos = {
 };
 
 export { isAdmin as checkIsAdmin };
-
-function balanceTwoTeams(players: { id: string; apodo: string; posicionPreferida: string; score: number }[]) {
-  if (players.length < 2) return { teamA: [...players], teamB: [] as typeof players, diff: 0 };
-
-  const sorted = [...players].sort((a, b) => b.score - a.score);
-  let teamA: typeof players = [];
-  let teamB: typeof players = [];
-  let sumA = 0;
-  let sumB = 0;
-
-  for (const p of sorted) {
-    if (sumA <= sumB) { teamA.push(p); sumA += p.score; }
-    else { teamB.push(p); sumB += p.score; }
-  }
-
-  const improve = () => {
-    let best = Math.abs(sumA - sumB);
-    let improved = true;
-    while (improved) {
-      improved = false;
-      for (let i = 0; i < teamA.length; i++) {
-        for (let j = 0; j < teamB.length; j++) {
-          const a = teamA[i], b = teamB[j];
-          const nA = sumA - a.score + b.score;
-          const nB = sumB - b.score + a.score;
-          const nd = Math.abs(nA - nB);
-          if (nd + 1e-9 < best) {
-            teamA[i] = b; teamB[j] = a;
-            sumA = nA; sumB = nB;
-            best = nd; improved = true;
-          }
-        }
-      }
-    }
-  };
-
-  for (let k = 0; k < 800; k++) {
-    improve();
-    if (!teamA.length || !teamB.length) break;
-    const ia = Math.floor(Math.random() * teamA.length);
-    const ib = Math.floor(Math.random() * teamB.length);
-    const a = teamA[ia], b = teamB[ib];
-    sumA = sumA - a.score + b.score;
-    sumB = sumB - b.score + a.score;
-    teamA[ia] = b; teamB[ib] = a;
-  }
-  improve();
-
-  return { teamA, teamB, diff: Math.abs(sumA - sumB) };
-}

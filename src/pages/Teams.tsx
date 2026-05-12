@@ -32,6 +32,7 @@ export default function TeamsPage() {
   const [convocatorias, setConvocatorias] = useState<Convocatoria[]>([]);
   const [loadingPlayers, setLoadingPlayers] = useState(true);
   const [result, setResult] = useState<BalanceResponse | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -88,6 +89,7 @@ export default function TeamsPage() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setConfirmed(false);
     setSaved(false);
     try {
       const ids = titulares.map((p) => p.id);
@@ -102,6 +104,10 @@ export default function TeamsPage() {
 
   async function saveMatch() {
     if (!result) return;
+    if (!confirmed) {
+      setError("Confirmá los equipos antes de guardar el partido.");
+      return;
+    }
     try {
       await apiPartidos.crear(fecha, result.teamA as any, result.teamB as any);
       setSaved(true);
@@ -112,19 +118,23 @@ export default function TeamsPage() {
 
   function shareWhatsApp() {
     if (!result) return;
+    if (!confirmed) {
+      setError("Confirmá los equipos antes de avisar por WhatsApp.");
+      return;
+    }
     const diaLabel = selectedDia === "martes" ? "Martes" : "Jueves";
     const lines: string[] = [];
     lines.push(`⚽ *Fútbol Puente Club — ${diaLabel} ${fecha} · 21:00 hs*`);
     lines.push("");
     lines.push("⬜ *CLAROS:*");
     result.teamA.forEach((p) => lines.push(`  • ${p.apodo} (${p.posicionPreferida})`));
-    lines.push(`  _Suma: ${result.sumA.toFixed(1)}_`);
+    lines.push(`  _Suma puntaje: ${result.sumA.toFixed(1)}_`);
     lines.push("");
     lines.push("⬛ *OSCUROS:*");
     result.teamB.forEach((p) => lines.push(`  • ${p.apodo} (${p.posicionPreferida})`));
-    lines.push(`  _Suma: ${result.sumB.toFixed(1)}_`);
+    lines.push(`  _Suma puntaje: ${result.sumB.toFixed(1)}_`);
     lines.push("");
-    lines.push(`Diferencia: ${result.difference.toFixed(2)}`);
+    lines.push(`Diferencia de puntaje total: ${Math.abs(result.sumA - result.sumB).toFixed(2)}`);
     const suplentes = jugadoresAnotados.slice(MAX_TITULARES);
     if (suplentes.length) {
       lines.push("");
@@ -139,11 +149,13 @@ export default function TeamsPage() {
   if (loadingPlayers) return <p className="muted">Cargando…</p>;
   if (!admin) return <p className="muted">Solo los administradores pueden armar equipos.</p>;
 
+  const scoreDiff = result ? Math.abs(result.sumA - result.sumB) : 0;
+
   return (
     <div>
       <h1>Armar equipos</h1>
       <p className="sub">
-        Los equipos se arman con los jugadores que se anotaron. Elegí el día y generá Claros vs Oscuros.
+        Los equipos se arman con los jugadores anotados, equilibrando posiciones y roles (arco, defensa, medios, ataque, colaboración y resistencia). Avisá por WhatsApp solo después de confirmar.
       </p>
 
       <div className="card" style={{ marginBottom: "1rem" }}>
@@ -151,14 +163,14 @@ export default function TeamsPage() {
           <button
             type="button"
             className={`btn ${selectedDia === "martes" ? "btn-primary" : "btn-ghost"}`}
-            onClick={() => { setSelectedDia("martes"); setResult(null); }}
+            onClick={() => { setSelectedDia("martes"); setResult(null); setConfirmed(false); setSaved(false); }}
           >
             Martes ({fechaMartes}) · {anotadosMartes.length} anotados
           </button>
           <button
             type="button"
             className={`btn ${selectedDia === "jueves" ? "btn-primary" : "btn-ghost"}`}
-            onClick={() => { setSelectedDia("jueves"); setResult(null); }}
+            onClick={() => { setSelectedDia("jueves"); setResult(null); setConfirmed(false); setSaved(false); }}
           >
             Jueves ({fechaJueves}) · {anotadosJueves.length} anotados
           </button>
@@ -195,9 +207,13 @@ export default function TeamsPage() {
               })}
             </div>
 
-            {titulares.length >= 4 && (
+            {titulares.length >= 4 && (!result || confirmed) && (
               <button className="btn btn-primary" type="button" style={{ marginTop: "1rem" }} onClick={generate} disabled={loading}>
-                {loading ? "Calculando…" : `Generar Claros vs Oscuros (${titulares.length} titulares)`}
+                {loading
+                  ? "Calculando…"
+                  : !result
+                    ? `Generar Claros vs Oscuros (${titulares.length} titulares)`
+                    : "Nueva propuesta de equipos"}
               </button>
             )}
             {titulares.length < 4 && (
@@ -213,9 +229,32 @@ export default function TeamsPage() {
 
       {result && (
         <>
+          {!confirmed && (
+            <div className="card" style={{ marginBottom: "1rem", border: "1px dashed var(--border)" }}>
+              <p style={{ margin: "0 0 0.75rem", fontWeight: 600 }}>Borrador — revisá los equipos</p>
+              <p className="muted" style={{ margin: "0 0 0.75rem", fontSize: "0.9rem" }}>
+                Hasta que no confirmes, el grupo no debería recibir el armado. Usá <strong>Rearmar</strong> para otra combinación o <strong>Confirmar</strong> cuando esté listo para avisar y guardar.
+              </p>
+              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                <button type="button" className="btn btn-ghost" onClick={generate} disabled={loading}>
+                  🔄 Rearmar
+                </button>
+                <button type="button" className="btn btn-primary" onClick={() => { setConfirmed(true); setError(null); }}>
+                  ✓ Confirmar equipos
+                </button>
+              </div>
+            </div>
+          )}
+
+          {confirmed && (
+            <p style={{ margin: "0 0 1rem", padding: "0.6rem 0.75rem", borderRadius: "6px", background: "rgba(74,222,128,0.12)", border: "1px solid var(--accent)", fontWeight: 600 }}>
+              Equipos confirmados — ya podés compartir por WhatsApp y guardar el partido.
+            </p>
+          )}
+
           <div className="team-grid">
             <div className="card team-card">
-              <h3>⬜ Claros · suma {result.sumA.toFixed(2)}</h3>
+              <h3>⬜ Claros · suma puntaje {result.sumA.toFixed(2)}</h3>
               <ul>
                 {result.teamA.map((x) => (
                   <li key={x.id}>{x.apodo} · {x.posicionPreferida} · {x.score.toFixed(2)}</li>
@@ -223,7 +262,7 @@ export default function TeamsPage() {
               </ul>
             </div>
             <div className="card team-card">
-              <h3>⬛ Oscuros · suma {result.sumB.toFixed(2)}</h3>
+              <h3>⬛ Oscuros · suma puntaje {result.sumB.toFixed(2)}</h3>
               <ul>
                 {result.teamB.map((x) => (
                   <li key={x.id}>{x.apodo} · {x.posicionPreferida} · {x.score.toFixed(2)}</li>
@@ -244,20 +283,31 @@ export default function TeamsPage() {
           )}
 
           <p className="muted" style={{ marginTop: "0.5rem" }}>
-            Diferencia entre equipos: {result.difference.toFixed(3)}
+            Diferencia de puntaje total: {scoreDiff.toFixed(2)} · Desbalance de roles (menor es mejor): {result.difference.toFixed(2)}
           </p>
 
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginTop: "1rem" }}>
-            <button type="button" className="btn btn-primary" onClick={shareWhatsApp}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={shareWhatsApp}
+              disabled={!confirmed}
+              title={!confirmed ? "Confirmá los equipos primero" : undefined}
+            >
               📱 Compartir por WhatsApp
             </button>
             {!saved && (
-              <button type="button" className="btn btn-ghost" onClick={saveMatch}>
+              <button type="button" className="btn btn-ghost" onClick={saveMatch} disabled={!confirmed}>
                 💾 Guardar partido
               </button>
             )}
             {saved && <span className="muted" style={{ alignSelf: "center" }}>✓ Partido guardado</span>}
           </div>
+          {confirmed && (
+            <button type="button" className="btn btn-ghost" style={{ marginTop: "0.75rem" }} onClick={() => { setConfirmed(false); setSaved(false); setError(null); }}>
+              Deshacer confirmación (para rearmar sin avisar aún)
+            </button>
+          )}
         </>
       )}
     </div>

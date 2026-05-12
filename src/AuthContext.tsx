@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { getToken, setToken } from "./api";
+import { getToken, setPlayerId, setToken } from "./api";
 import { validateSessionWithSupabase } from "./lib/futbolAuth";
 
 type AuthState = {
@@ -23,8 +23,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     try {
-      const ok = await validateSessionWithSupabase(t);
-      if (!ok) throw new Error("Sesión inválida");
+      const session = await validateSessionWithSupabase(t);
+      if (!session.ok) throw new Error("Sesión inválida");
+      if (session.playerId) setPlayerId(session.playerId);
       setLoggedIn(true);
     } catch {
       setToken(null);

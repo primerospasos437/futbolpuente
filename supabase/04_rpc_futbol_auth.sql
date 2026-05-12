@@ -134,11 +134,17 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_jugador_id uuid;
 begin
-  if not exists (select 1 from sesiones s where s.token = p_token) then
+  select s.jugador_id into v_jugador_id
+  from sesiones s
+  where s.token = p_token
+  limit 1;
+  if v_jugador_id is null then
     raise exception 'No autorizado';
   end if;
-  return jsonb_build_object('valid', true);
+  return jsonb_build_object('valid', true, 'jugadorId', v_jugador_id::text);
 end;
 $$;
 
