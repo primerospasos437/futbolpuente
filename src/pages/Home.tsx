@@ -258,6 +258,38 @@ export default function HomePage() {
       {renderMatchButton("martes", DAY_MARTES, "Partido Martes")}
       {renderMatchButton("jueves", DAY_JUEVES, "Partido Jueves")}
 
+      {(() => {
+        const aValorar = list.filter((p) => p.needsMyRating && !p.isSelf);
+        if (!aValorar.length) return null;
+        return (
+          <div className="card" style={{ marginTop: "1.5rem", border: "1px solid var(--accent)" }}>
+            <h2 style={{ marginTop: 0, marginBottom: "0.35rem" }}>Valoraciones pendientes</h2>
+            <p className="muted" style={{ margin: "0 0 0.75rem", fontSize: "0.9rem" }}>
+              Podés valorar a cada compañero una vez por mes. Tocá el nombre para completar la planilla.
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+              {aValorar.map((p) => (
+                <Link
+                  key={p.id}
+                  to={`/jugador/${p.id}`}
+                  style={{
+                    textDecoration: "none",
+                    fontSize: "0.85rem",
+                    padding: "0.25rem 0.55rem",
+                    borderRadius: "999px",
+                    background: "var(--accent)",
+                    color: "#fff",
+                    fontWeight: 600,
+                  }}
+                >
+                  Calificar a {p.apodo}
+                </Link>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       <h2 style={{ marginTop: "1.5rem" }}>Jugadores</h2>
       <p className="sub">
         Tocá un jugador para ver su ficha y dejar tu valoración.
@@ -291,6 +323,21 @@ export default function HomePage() {
                     {p.isSelf ? (
                       <span className="muted" style={{ marginLeft: 8, fontWeight: 500 }}>
                         (vos)
+                      </span>
+                    ) : null}
+                    {p.needsMyRating && !p.isSelf ? (
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          fontSize: "0.7rem",
+                          fontWeight: 700,
+                          padding: "0.12rem 0.4rem",
+                          borderRadius: "4px",
+                          background: "#f39c12",
+                          color: "#111",
+                        }}
+                      >
+                        Valorar
                       </span>
                     ) : null}
                   </span>

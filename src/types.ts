@@ -57,6 +57,10 @@ export interface PlayerSummary {
   };
   createdAt: string;
   isSelf: boolean;
+  /** Fecha ISO de tu última valoración hacia este jugador, si existe */
+  lastRatedByMeAt: string | null;
+  /** Podés enviar o renovar valoración (no vos, y sin bloqueo de 30 días) */
+  needsMyRating: boolean;
 }
 
 export interface PlayerDetail extends PlayerSummary {
