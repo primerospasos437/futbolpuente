@@ -18,6 +18,24 @@ function rpcErrorMessage(err: { message?: string; details?: string; hint?: strin
   return m;
 }
 
+function toFutbolAuthError(err: unknown): Error {
+  if (err instanceof Error) {
+    if (
+      err.message.includes("Faltan VITE_SUPABASE") ||
+      err.message.includes("Esta página está compilada para Supabase")
+    ) {
+      return err;
+    }
+    if (err instanceof TypeError && /fetch|network/i.test(String(err.message))) {
+      return new Error(
+        "No se pudo conectar con Supabase (red o bloqueo). Si estás en la web pública, comprobá que el sitio se haya compilado con VITE_SUPABASE_URL apuntando al proyecto en la nube, no a localhost.",
+      );
+    }
+    return err;
+  }
+  return new Error(String(err));
+}
+
 /**
  * Registro vía RPC `futbol_auth_register`: normaliza tipos, enums, fecha ISO, números y JSON del perfil
  * antes de enviar a PostgREST (evita strings donde PostgreSQL espera int/numeric/jsonb).
@@ -25,31 +43,39 @@ function rpcErrorMessage(err: { message?: string; details?: string; hint?: strin
  * `p_fecha_nacimiento` sale de `normalizeFechaNacimientoForDb`: solo `''` o `YYYY-MM-DD` válido en calendario.
  */
 export async function registerWithSupabase(raw: RegisterFormRaw): Promise<{ token: string; playerId: string }> {
-  const pin = String(raw.pin ?? "").trim();
-  if (pin.length < 4) throw new Error("PIN: mínimo 4 caracteres");
+  try {
+    const pin = String(raw.pin ?? "").trim();
+    if (pin.length < 4) throw new Error("PIN: mínimo 4 caracteres");
 
-  const pinHash = await sha256Hex(pin);
-  const args = buildFutbolAuthRegisterRpcArgs(raw, pinHash);
+    const pinHash = await sha256Hex(pin);
+    const args = buildFutbolAuthRegisterRpcArgs(raw, pinHash);
 
-  const sb = getSupabase();
-  const { data, error } = await sb.rpc("futbol_auth_register", args);
-  if (error) throw new Error(rpcErrorMessage(error));
-  const row = data as { token?: string; playerId?: string };
-  if (!row?.token || !row?.playerId) throw new Error("Respuesta inválida del registro");
-  return { token: row.token, playerId: row.playerId };
+    const sb = getSupabase();
+    const { data, error } = await sb.rpc("futbol_auth_register", args);
+    if (error) throw new Error(rpcErrorMessage(error));
+    const row = data as { token?: string; playerId?: string };
+    if (!row?.token || !row?.playerId) throw new Error("Respuesta inválida del registro");
+    return { token: row.token, playerId: row.playerId };
+  } catch (e) {
+    throw toFutbolAuthError(e);
+  }
 }
 
 export async function loginWithSupabase(apodo: string, pin: string): Promise<{ token: string; playerId: string }> {
-  const pinHash = await sha256Hex(String(pin ?? "").trim());
-  const sb = getSupabase();
-  const { data, error } = await sb.rpc("futbol_auth_login", {
-    p_apodo: String(apodo ?? "").trim(),
-    p_pin_hash: pinHash,
-  });
-  if (error) throw new Error(rpcErrorMessage(error));
-  const row = data as { token?: string; playerId?: string };
-  if (!row?.token || !row?.playerId) throw new Error("Respuesta inválida del login");
-  return { token: row.token, playerId: row.playerId };
+  try {
+    const pinHash = await sha256Hex(String(pin ?? "").trim());
+    const sb = getSupabase();
+    const { data, error } = await sb.rpc("futbol_auth_login", {
+      p_apodo: String(apodo ?? "").trim(),
+      p_pin_hash: pinHash,
+    });
+    if (error) throw new Error(rpcErrorMessage(error));
+    const row = data as { token?: string; playerId?: string };
+    if (!row?.token || !row?.playerId) throw new Error("Respuesta inválida del login");
+    return { token: row.token, playerId: row.playerId };
+  } catch (e) {
+    throw toFutbolAuthError(e);
+  }
 }
 
 /** Valida el Bearer token guardado (tabla sesiones) sin pasar por el servidor Node. */
