@@ -4,6 +4,7 @@ import { balanceTeamsPositional, type TeamBalancePlayer } from "./lib/teamBalanc
 import type { BalanceResponse, Dimension, PlayerDetail, PlayerSummary, ProfileScores, Posicion } from "./types";
 
 const TOKEN_KEY = "futbol_grupo_token";
+const PLAYER_ID_KEY = "futbol_grupo_player_id";
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -323,11 +324,15 @@ export const api = {
 };
 
 function getPlayerId(): string {
-  return localStorage.getItem("futbol_grupo_player_id") ?? "";
+  return localStorage.getItem(PLAYER_ID_KEY) ?? "";
 }
 
 export function setPlayerId(id: string) {
-  localStorage.setItem("futbol_grupo_player_id", id);
+  localStorage.setItem(PLAYER_ID_KEY, id);
+}
+
+export function clearPlayerId() {
+  localStorage.removeItem(PLAYER_ID_KEY);
 }
 
 const ADMIN_APODO = "gasty";

@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { getToken, setPlayerId, setToken } from "./api";
+import { getToken, setPlayerId, setToken, clearPlayerId } from "./api";
 import { validateSessionWithSupabase } from "./lib/futbolAuth";
 
 type AuthState = {
@@ -29,6 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoggedIn(true);
     } catch {
       setToken(null);
+      clearPlayerId();
       setLoggedIn(false);
     } finally {
       setReady(true);
@@ -41,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     setToken(null);
+    clearPlayerId();
     setLoggedIn(false);
   }, []);
 

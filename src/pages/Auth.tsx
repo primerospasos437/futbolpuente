@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
-import { setToken, setPlayerId } from "../api";
+import { setToken, setPlayerId, getToken } from "../api";
 import { useAuth } from "../AuthContext";
 import { defaultScores } from "../dimensions";
 import { loginWithSupabase, registerWithSupabase } from "../lib/futbolAuth";
@@ -24,6 +24,16 @@ export default function AuthPage() {
   const [pesoStr, setPesoStr] = useState("");
 
   if (ready && loggedIn) return <Navigate to="/" replace />;
+
+  if (!ready && getToken()) {
+    return (
+      <div className="shell">
+        <p className="muted" style={{ padding: "2rem", textAlign: "center" }}>
+          Comprobando sesión…
+        </p>
+      </div>
+    );
+  }
 
   async function onLogin(e: React.FormEvent) {
     e.preventDefault();
