@@ -1,4 +1,5 @@
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
+import NotificationsBell from "./components/NotificationsBell";
 import { AuthProvider, useAuth } from "./AuthContext";
 import AuthPage from "./pages/Auth";
 import HomePage from "./pages/Home";
@@ -6,6 +7,7 @@ import PlayerProfilePage from "./pages/PlayerProfile";
 import MisPerfilesPage from "./pages/MisPerfilesPage";
 import ProximosPartidosPage from "./pages/ProximosPartidosPage";
 import TeamsPage from "./pages/Teams";
+import ValorarF5PartidoPage from "./pages/ValorarF5PartidoPage";
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { loggedIn, logout, ready } = useAuth();
@@ -37,6 +39,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           <NavLink to="/equipos" className={({ isActive }) => (isActive ? "active" : "")}>
             Equipos
           </NavLink>
+          <NotificationsBell />
           <button type="button" className="btn btn-ghost" onClick={logout}>
             Salir
           </button>
@@ -88,6 +91,14 @@ function AppRoutes() {
         element={
           <Shell>
             <TeamsPage />
+          </Shell>
+        }
+      />
+      <Route
+        path="/partido/:partidoId/valorar-f5"
+        element={
+          <Shell>
+            <ValorarF5PartidoPage />
           </Shell>
         }
       />

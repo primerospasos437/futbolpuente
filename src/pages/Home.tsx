@@ -56,14 +56,27 @@ function PlayerRowLink({ p }: { p: PlayerSummary }) {
 
 export default function HomePage() {
   const [data, setData] = useState<PlayersListPayload | null>(null);
+  const [f5Pendientes, setF5Pendientes] = useState<{ partidoId: string; fecha: string; companeros: { id: string; apodo: string }[] }[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const payload = await api.players();
-        if (!cancelled) setData(payload);
+        const [payload, pend] = await Promise.all([
+          api.players(),
+          api.pendientesValoracionF5Partidos().catch(() => []),
+        ]);
+        if (!cancelled) {
+          setData(payload);
+          setF5Pendientes(
+            pend.map((x) => ({
+              partidoId: x.partido.id,
+              fecha: x.partido.fecha,
+              companeros: x.companeros,
+            })),
+          );
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       }
@@ -86,10 +99,29 @@ export default function HomePage() {
       <h1>Jugadores</h1>
       <p className="sub">
         Perfil completo por bloques (técnico, táctico, físico y psicológico). Tocá un jugador para ver la ficha y dejar
-        tu valoración. En la ficha de cada compañero solo se muestra la nota final agregada: la autopercepción (cómo se
-        califica a sí mismo) es privada. Recordá completar también el perfil F5 en «Mis perfiles» y pedirles a los demás
-        que hagan lo mismo.
+        tu valoración. La autopercepción de cada uno (cómo se califica a sí mismo) solo la ve el propio jugador y los
+        administradores; el resto ve la nota final y el promedio agregado del grupo. Recordá completar también el perfil
+        F5 en «Mis perfiles» y valorar el F5 de tus compañeros desde su ficha o después de cada partido confirmado.
       </p>
+
+      {f5Pendientes.length > 0 ? (
+        <div className="card" style={{ marginBottom: "1.25rem", borderColor: "var(--accent-dim)" }}>
+          <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Te falta valorar F5 en partidos confirmados</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Valorá a los compañeros con los que jugaste esa noche (1 a 5 por característica).
+          </p>
+          <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+            {f5Pendientes.map((b) => (
+              <li key={b.partidoId} style={{ marginBottom: "0.5rem" }}>
+                <Link to={`/partido/${b.partidoId}/valorar-f5`} style={{ fontWeight: 600 }}>
+                  Partido {b.fecha}
+                </Link>
+                <span className="muted"> — faltan: {b.companeros.map((c) => c.apodo).join(", ")}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {otrosJugadores.length > 0 && (
         <div

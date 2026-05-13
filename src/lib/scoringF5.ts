@@ -23,7 +23,7 @@ function mean(nums: number[]): number {
 
 /** Si en alguna dimensión la autopercepción es «excelente» (5), el peso del grupo sube al 90 %. */
 export function f5UsesReducedSelfWeight(self: F5ProfileScores): boolean {
-  return F5_DIMENSION_ORDER.some((k) => self[k] >= 5);
+  return F5_DIMENSION_ORDER.some((k) => self[k] === 5);
 }
 
 export function f5ProfileAverage(profile: F5ProfileScores | Record<string, unknown>): number {

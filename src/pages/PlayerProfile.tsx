@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api";
+import F5ProfileScorePickers from "../components/F5ProfileScorePickers";
 import ProfileScoreSliders from "../components/ProfileScoreSliders";
 import { DIMENSION_LABELS, DIMENSION_SECTIONS, defaultScores } from "../dimensions";
-import type { PlayerDetail, ProfileScores } from "../types";
+import { F5_LABELS, F5_SECTIONS, defaultF5Scores } from "../dimensions-f5";
+import type { F5Dimension, PlayerDetail, ProfileScores } from "../types";
 
 function DimensionReadonlyList({
   title,
@@ -61,13 +63,43 @@ function DimensionPeerList({
   );
 }
 
+function F5PeerDimensionList({
+  title,
+  keys,
+  peerByDimension,
+}: {
+  title: string;
+  keys: F5Dimension[];
+  peerByDimension: PlayerDetail["peerF5ByDimension"];
+}) {
+  return (
+    <section className="profile-section">
+      <h3 className="profile-section-title">{title}</h3>
+      <ul style={{ margin: 0, paddingLeft: "1.1rem", color: "var(--muted)", lineHeight: 1.75 }}>
+        {keys.map((d) => {
+          const v = peerByDimension[d];
+          return (
+            <li key={d}>
+              <strong style={{ color: "var(--text)" }}>{F5_LABELS[d]}:</strong>{" "}
+              {v != null ? v.toFixed(2) : "—"}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 export default function PlayerProfilePage() {
   const { id } = useParams();
   const [data, setData] = useState<PlayerDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scores, setScores] = useState<ProfileScores | null>(null);
+  const [f5Scores, setF5Scores] = useState<ReturnType<typeof defaultF5Scores> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savingF5, setSavingF5] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [msgF5, setMsgF5] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -78,6 +110,7 @@ export default function PlayerProfilePage() {
         if (cancelled) return;
         setData(p);
         setScores(p.myRating?.scores ?? defaultScores());
+        setF5Scores(p.myF5PerfilRating?.scores ?? defaultF5Scores());
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       }
@@ -88,6 +121,8 @@ export default function PlayerProfilePage() {
   }, [id]);
 
   const canRate = useMemo(() => data && !data.isSelf, [data]);
+  const showDetalleGrupo = Boolean(data && (data.isSelf || data.viewerIsAdmin));
+  const showAutopercepcionAjenaAdmin = Boolean(data && !data.isSelf && data.viewerIsAdmin);
 
   async function submitRating(e: React.FormEvent) {
     e.preventDefault();
@@ -98,6 +133,7 @@ export default function PlayerProfilePage() {
       await api.ratePlayer(id, scores);
       const p = await api.player(id);
       setData(p);
+      setScores(p.myRating?.scores ?? defaultScores());
       setMsg("Valoración guardada.");
     } catch (err) {
       setMsg(err instanceof Error ? err.message : "Error");
@@ -106,14 +142,34 @@ export default function PlayerProfilePage() {
     }
   }
 
+  async function submitF5Perfil(e: React.FormEvent) {
+    e.preventDefault();
+    if (!id || !f5Scores || !canRate) return;
+    setSavingF5(true);
+    setMsgF5(null);
+    try {
+      await api.ratePlayerF5Perfil(id, f5Scores);
+      const p = await api.player(id);
+      setData(p);
+      setF5Scores(p.myF5PerfilRating?.scores ?? defaultF5Scores());
+      setMsgF5("Valoración F5 guardada.");
+    } catch (err) {
+      setMsgF5(err instanceof Error ? err.message : "Error");
+    } finally {
+      setSavingF5(false);
+    }
+  }
+
   if (error) return <div className="error">{error}</div>;
-  if (!data || !scores) return <p className="muted">Cargando perfil…</p>;
+  if (!data || !scores || !f5Scores) return <p className="muted">Cargando perfil…</p>;
 
   const { ficha } = data;
   const altPeso =
     ficha.alturaCm != null || ficha.pesoKg != null
       ? `${ficha.alturaCm != null ? `${ficha.alturaCm} cm` : "—"} · ${ficha.pesoKg != null ? `${ficha.pesoKg} kg` : "—"}`
       : null;
+
+  const f5PeerN = data.f5FinalBreakdown?.peerCount ?? 0;
 
   return (
     <div>
@@ -136,9 +192,22 @@ export default function PlayerProfilePage() {
                 {data.peerCount} votos)
               </div>
             </>
-          ) : null}
+          ) : (
+            <div className="score-pill muted" style={{ fontSize: "0.85rem" }}>
+              Autopercepción ajena: solo promedio global visible · detalle solo administrador
+            </div>
+          )}
           {data.f5FinalScore != null ? (
             <div className="score-pill">F5 · final {data.f5FinalScore.toFixed(2)}</div>
+          ) : null}
+          {data.isSelf && data.f5FinalBreakdown ? (
+            <>
+              <div className="score-pill">F5 autopercepción (prom.): {data.f5FinalBreakdown.selfAvg.toFixed(2)}</div>
+              <div className="score-pill">
+                F5 grupo: {data.f5FinalBreakdown.peerAvg != null ? data.f5FinalBreakdown.peerAvg.toFixed(2) : "—"} (
+                {data.f5FinalBreakdown.peerCount} valoraciones)
+              </div>
+            </>
           ) : null}
         </div>
       </div>
@@ -199,7 +268,35 @@ export default function PlayerProfilePage() {
         </div>
       ) : null}
 
-      {data.peerCount > 0 && (
+      {showAutopercepcionAjenaAdmin ? (
+        <div className="card" style={{ marginBottom: "1rem" }}>
+          <h2 style={{ marginTop: 0 }}>Autopercepción de {data.apodo} (solo administrador)</h2>
+          {DIMENSION_SECTIONS.map((sec) => (
+            <DimensionReadonlyList
+              key={`adm-${sec.id}`}
+              title={sec.title}
+              description={sec.description}
+              keys={sec.keys}
+              values={data.profile}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {!showDetalleGrupo && data.peerCount > 0 ? (
+        <div className="card" style={{ marginBottom: "1rem" }}>
+          <h2 style={{ marginTop: 0 }}>Mirada del grupo (perfil completo)</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Solo se muestra el promedio agregado. El detalle por característica lo ven el jugador y los administradores.
+          </p>
+          <p style={{ marginBottom: 0 }}>
+            <strong>Promedio del grupo:</strong> {data.finalBreakdown.peerAvg != null ? data.finalBreakdown.peerAvg.toFixed(2) : "—"}{" "}
+            <span className="muted">({data.peerCount} valoraciones)</span>
+          </p>
+        </div>
+      ) : null}
+
+      {showDetalleGrupo && data.peerCount > 0 ? (
         <div className="card" style={{ marginBottom: "1rem" }}>
           <h2 style={{ marginTop: 0 }}>Promedio del grupo por bloque</h2>
           {DIMENSION_SECTIONS.map((sec) => (
@@ -212,11 +309,34 @@ export default function PlayerProfilePage() {
             />
           ))}
         </div>
-      )}
+      ) : null}
+
+      {!showDetalleGrupo && f5PeerN > 0 ? (
+        <div className="card" style={{ marginBottom: "1rem" }}>
+          <h2 style={{ marginTop: 0 }}>Mirada del grupo (F5)</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Solo promedio agregado. El detalle por dimensión lo ven el jugador y los administradores.
+          </p>
+          <p style={{ marginBottom: 0 }}>
+            <strong>Promedio F5 del grupo:</strong>{" "}
+            {data.f5FinalBreakdown?.peerAvg != null ? data.f5FinalBreakdown.peerAvg.toFixed(2) : "—"}{" "}
+            <span className="muted">({f5PeerN} valoraciones)</span>
+          </p>
+        </div>
+      ) : null}
+
+      {showDetalleGrupo && f5PeerN > 0 ? (
+        <div className="card" style={{ marginBottom: "1rem" }}>
+          <h2 style={{ marginTop: 0 }}>Promedio del grupo F5 por bloque</h2>
+          {F5_SECTIONS.map((sec) => (
+            <F5PeerDimensionList key={`f5p-${sec.id}`} title={sec.title} keys={sec.keys} peerByDimension={data.peerF5ByDimension} />
+          ))}
+        </div>
+      ) : null}
 
       {canRate ? (
-        <div className="card">
-          <h2 style={{ marginTop: 0 }}>Tu valoración de {data.apodo}</h2>
+        <div className="card" style={{ marginBottom: "1rem" }}>
+          <h2 style={{ marginTop: 0 }}>Tu valoración de {data.apodo} (perfil completo)</h2>
           <p className="muted">
             Valorá cada aspecto del 1 al 10 según lo que ves en entrenamientos y partidos. Podés actualizarla cuando
             quieras.
@@ -233,13 +353,36 @@ export default function PlayerProfilePage() {
             </button>
           </form>
         </div>
-      ) : (
+      ) : null}
+
+      {canRate ? (
+        <div className="card" style={{ marginBottom: "1rem" }}>
+          <h2 style={{ marginTop: 0 }}>Tu valoración F5 de {data.apodo}</h2>
+          <p className="muted">
+            Escala 1 a 5 (malo a excelente) por cada característica F5. Se combina con las valoraciones por partido para
+            el promedio del grupo.
+          </p>
+          <form onSubmit={submitF5Perfil}>
+            <F5ProfileScorePickers scores={f5Scores} onChange={setF5Scores} />
+            {msgF5 && (
+              <p className={msgF5.includes("guardada") ? "muted" : "error"} style={{ marginTop: "1rem" }}>
+                {msgF5}
+              </p>
+            )}
+            <button className="btn btn-primary" type="submit" style={{ marginTop: "1rem" }} disabled={savingF5}>
+              {savingF5 ? "Guardando…" : data.myF5PerfilRating ? "Actualizar valoración F5" : "Enviar valoración F5"}
+            </button>
+          </form>
+        </div>
+      ) : null}
+
+      {!canRate ? (
         <div className="card">
           <p className="muted" style={{ margin: 0 }}>
             Este es tu perfil: las valoraciones las cargan tus compañeros desde sus cuentas.
           </p>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
