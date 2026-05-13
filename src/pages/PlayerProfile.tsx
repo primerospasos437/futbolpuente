@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import F5ProfileScorePickers from "../components/F5ProfileScorePickers";
 import ProfileScoreSliders from "../components/ProfileScoreSliders";
@@ -101,6 +101,8 @@ export default function PlayerProfilePage() {
   const [savingF5, setSavingF5] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [msgF5, setMsgF5] = useState<string | null>(null);
+  const [valoracionTab, setValoracionTab] = useState<"completo" | "f5">("completo");
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!id) return;
@@ -122,12 +124,21 @@ export default function PlayerProfilePage() {
   }, [id]);
 
   useEffect(() => {
-    if (!data || location.hash !== "#f5-valoracion") return;
-    const el = document.getElementById("f5-valoracion");
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [data, location.hash]);
+    setValoracionTab(location.hash === "#f5-valoracion" ? "f5" : "completo");
+  }, [id, location.hash]);
 
   const canRate = useMemo(() => data && !data.isSelf, [data]);
+
+  useLayoutEffect(() => {
+    if (!canRate || valoracionTab !== "f5" || location.hash !== "#f5-valoracion") return;
+    const el = document.getElementById("f5-valoracion");
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [canRate, valoracionTab, location.hash, data?.id]);
+
+  function setValoracionTabNav(t: "completo" | "f5") {
+    setValoracionTab(t);
+    navigate({ pathname: location.pathname, hash: t === "f5" ? "f5-valoracion" : "" }, { replace: true });
+  }
   const showDetalleGrupo = Boolean(data && (data.isSelf || data.viewerIsAdmin));
   const showAutopercepcionAjenaAdmin = Boolean(data && !data.isSelf && data.viewerIsAdmin);
 
@@ -343,43 +354,63 @@ export default function PlayerProfilePage() {
 
       {canRate ? (
         <div className="card" style={{ marginBottom: "1rem" }}>
-          <h2 style={{ marginTop: 0 }}>Tu valoración de {data.apodo} (perfil completo)</h2>
-          <p className="muted">
-            Valorá cada aspecto del 1 al 10 según lo que ves en entrenamientos y partidos. Podés actualizarla cuando
-            quieras.
+          <h2 style={{ marginTop: 0 }}>Tu valoración de {data.apodo}</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Elegí el tipo de valoración. Podés actualizarlas cuando quieras.
           </p>
-          <form onSubmit={submitRating}>
-            <ProfileScoreSliders scores={scores} onChange={setScores} />
-            {msg && (
-              <p className={msg.includes("guardada") ? "muted" : "error"} style={{ marginTop: "1rem" }}>
-                {msg}
-              </p>
-            )}
-            <button className="btn btn-primary" type="submit" style={{ marginTop: "1rem" }} disabled={saving}>
-              {saving ? "Guardando…" : data.myRating ? "Actualizar valoración" : "Enviar valoración"}
+          <div className="tabs" style={{ marginBottom: "1rem" }}>
+            <button
+              type="button"
+              className={`btn btn-ghost ${valoracionTab === "completo" ? "active" : ""}`}
+              onClick={() => setValoracionTabNav("completo")}
+            >
+              Perfil completo (1–10)
             </button>
-          </form>
-        </div>
-      ) : null}
+            <button
+              type="button"
+              className={`btn btn-ghost ${valoracionTab === "f5" ? "active" : ""}`}
+              onClick={() => setValoracionTabNav("f5")}
+            >
+              F5 (1–5)
+            </button>
+          </div>
 
-      {canRate ? (
-        <div className="card" style={{ marginBottom: "1rem" }} id="f5-valoracion">
-          <h2 style={{ marginTop: 0 }}>Tu valoración F5 de {data.apodo}</h2>
-          <p className="muted">
-            Escala 1 a 5 (malo a excelente) por cada característica F5. Se combina con las valoraciones por partido para
-            el promedio del grupo.
-          </p>
-          <form onSubmit={submitF5Perfil}>
-            <F5ProfileScorePickers scores={f5Scores} onChange={setF5Scores} />
-            {msgF5 && (
-              <p className={msgF5.includes("guardada") ? "muted" : "error"} style={{ marginTop: "1rem" }}>
-                {msgF5}
+          {valoracionTab === "completo" ? (
+            <>
+              <p className="muted">
+                Valorá cada aspecto del 1 al 10 según lo que ves en entrenamientos y partidos.
               </p>
-            )}
-            <button className="btn btn-primary" type="submit" style={{ marginTop: "1rem" }} disabled={savingF5}>
-              {savingF5 ? "Guardando…" : data.myF5PerfilRating ? "Actualizar valoración F5" : "Enviar valoración F5"}
-            </button>
-          </form>
+              <form onSubmit={submitRating}>
+                <ProfileScoreSliders scores={scores} onChange={setScores} />
+                {msg && (
+                  <p className={msg.includes("guardada") ? "muted" : "error"} style={{ marginTop: "1rem" }}>
+                    {msg}
+                  </p>
+                )}
+                <button className="btn btn-primary" type="submit" style={{ marginTop: "1rem" }} disabled={saving}>
+                  {saving ? "Guardando…" : data.myRating ? "Actualizar valoración" : "Enviar valoración"}
+                </button>
+              </form>
+            </>
+          ) : (
+            <div id="f5-valoracion">
+              <p className="muted">
+                Escala 1 a 5 (malo a excelente) por cada característica F5. Se combina con las valoraciones por partido
+                para el promedio del grupo.
+              </p>
+              <form onSubmit={submitF5Perfil}>
+                <F5ProfileScorePickers scores={f5Scores} onChange={setF5Scores} />
+                {msgF5 && (
+                  <p className={msgF5.includes("guardada") ? "muted" : "error"} style={{ marginTop: "1rem" }}>
+                    {msgF5}
+                  </p>
+                )}
+                <button className="btn btn-primary" type="submit" style={{ marginTop: "1rem" }} disabled={savingF5}>
+                  {savingF5 ? "Guardando…" : data.myF5PerfilRating ? "Actualizar valoración F5" : "Enviar valoración F5"}
+                </button>
+              </form>
+            </div>
+          )}
         </div>
       ) : null}
 
