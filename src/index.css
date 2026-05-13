@@ -187,6 +187,16 @@ textarea:focus {
 .player-row:hover {
   border-color: rgba(62, 207, 142, 0.35);
 }
+
+/* Listado inicio: completaste valoración (verde) vs pendiente */
+.player-row--valorado {
+  border-left: 4px solid var(--accent);
+  background: rgba(62, 207, 142, 0.06);
+}
+.player-row--pendiente {
+  border-left: 4px solid rgba(244, 185, 66, 0.45);
+}
+
 .p-main {
   display: flex;
   flex-direction: column;

@@ -13,7 +13,7 @@ export default function TeamsPage() {
     let cancelled = false;
     (async () => {
       try {
-        const list = await api.players();
+        const { jugadores: list } = await api.players();
         if (cancelled) return;
         setPlayers(list);
         const init: Record<string, boolean> = {};

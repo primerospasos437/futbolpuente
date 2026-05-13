@@ -55,6 +55,18 @@ export interface PlayerSummary {
   };
   createdAt: string;
   isSelf: boolean;
+  /** Si el usuario actual ya envió una valoración a este jugador (siempre `false` para vos mismo). */
+  ratedByMe: boolean;
+}
+
+/** Respuesta de listado de jugadores con bloques para la vista (pendientes vs ya valorados). */
+export interface PlayersListPayload {
+  /** Todos los jugadores (orden por apodo), cada uno con `ratedByMe`. */
+  jugadores: PlayerSummary[];
+  /** Compañeros que aún no valoraste. */
+  faltanCalificar: PlayerSummary[];
+  /** Compañeros que ya valoraste (p. ej. indicador en verde en la lista). */
+  yaCalificados: PlayerSummary[];
 }
 
 export interface PlayerDetail extends PlayerSummary {

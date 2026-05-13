@@ -2,7 +2,16 @@ import { DIMENSION_ORDER } from "./dimensions";
 import { getSupabase } from "./lib/supabase";
 import { finalScore, normalizeProfile, peerAverageForPlayer, profileAverage } from "./lib/scoring";
 import { balanceTwoTeams } from "./lib/teamsBalance";
-import type { BalanceResponse, Pie, PlayerDetail, PlayerSummary, Posicion, ProfileScores, TeamSlot } from "./types";
+import type {
+  BalanceResponse,
+  Pie,
+  PlayerDetail,
+  PlayerSummary,
+  PlayersListPayload,
+  Posicion,
+  ProfileScores,
+  TeamSlot,
+} from "./types";
 
 const TOKEN_KEY = "futbol_grupo_token";
 
@@ -85,12 +94,20 @@ function mapPublicRow(r: JugadorPublicoRow): PlayerInternal {
   };
 }
 
-function playerPublic(p: PlayerInternal, ratingsReceived: ValoracionRow[], viewerId: string): PlayerSummary {
+function playerPublic(
+  p: PlayerInternal,
+  ratingsReceived: ValoracionRow[],
+  viewerId: string,
+  myRatedTargetIds: Set<string>,
+): PlayerSummary {
   const profile = normalizeProfile(p.profile);
   const received = ratingsReceived.map((row) => ({ scores: row.puntajes ?? {} }));
   const fs = finalScore(profile, received);
   const peer = peerAverageForPlayer(received);
   const showInjury = viewerId === p.id;
+  const isSelf = viewerId === p.id;
+  const ratedByMe =
+    Boolean(viewerId) && p.id !== viewerId && myRatedTargetIds.has(p.id);
 
   return {
     id: p.id,
@@ -118,7 +135,8 @@ function playerPublic(p: PlayerInternal, ratingsReceived: ValoracionRow[], viewe
       peerCount: fs.peerCount,
     },
     createdAt: p.createdAt,
-    isSelf: viewerId === p.id,
+    isSelf,
+    ratedByMe,
   };
 }
 
@@ -172,6 +190,14 @@ async function findRating(deId: string, paraId: string): Promise<ValoracionRow |
   return data as ValoracionRow | null;
 }
 
+/** IDs de jugadores que el viewer ya valoró (valoraciones emitidas por mí). */
+async function fetchMyRatedTargetIds(viewerId: string): Promise<Set<string>> {
+  const sb = getSupabase();
+  const { data, error } = await sb.from("valoraciones").select("para_jugador_id").eq("de_jugador_id", viewerId);
+  if (error) throw new Error(error.message);
+  return new Set((data ?? []).map((r: { para_jugador_id: string }) => String(r.para_jugador_id)));
+}
+
 async function fetchJugadorPublico(id: string): Promise<PlayerInternal | null> {
   const sb = getSupabase();
   const { data, error } = await sb.from("jugadores_publico").select(JUGADORES_PUBLICO).eq("id", id).maybeSingle();
@@ -191,26 +217,31 @@ export const api = {
     const row = mapPublicRow(data as JugadorPublicoRow);
     row.historialLesiones = await fetchMyHistorial(token);
     const received = await ratingsTo(viewerId);
-    return playerPublic(row, received, viewerId);
+    const myRated = await fetchMyRatedTargetIds(viewerId);
+    return playerPublic(row, received, viewerId, myRated);
   },
 
-  players: async (): Promise<PlayerSummary[]> => {
+  players: async (): Promise<PlayersListPayload> => {
     const token = await requireToken();
     const viewerId = await sessionPlayerId();
     const historialSelf = await fetchMyHistorial(token);
+    const myRated = await fetchMyRatedTargetIds(viewerId);
     const sb = getSupabase();
     const { data, error } = await sb.from("jugadores_publico").select(JUGADORES_PUBLICO).order("apodo", { ascending: true });
     if (error) throw new Error(error.message);
     const rows = (data ?? []) as JugadorPublicoRow[];
-    const list = await Promise.all(
+    const jugadores = await Promise.all(
       rows.map(async (r) => {
         const p = mapPublicRow(r);
         if (p.id === viewerId) p.historialLesiones = historialSelf;
         const received = await ratingsTo(p.id);
-        return playerPublic(p, received, viewerId);
+        return playerPublic(p, received, viewerId, myRated);
       }),
     );
-    return list;
+    const otros = jugadores.filter((p) => !p.isSelf);
+    const faltanCalificar = otros.filter((p) => !p.ratedByMe);
+    const yaCalificados = otros.filter((p) => p.ratedByMe);
+    return { jugadores, faltanCalificar, yaCalificados };
   },
 
   player: async (id: string): Promise<PlayerDetail> => {
@@ -222,8 +253,9 @@ export const api = {
     const received = await ratingsTo(p.id);
     const peerDetail = peerAverageForPlayer(received.map((row) => ({ scores: row.puntajes ?? {} })));
     const myRatingRow = await findRating(viewerId, p.id);
+    const myRated = await fetchMyRatedTargetIds(viewerId);
 
-    const summary = playerPublic(p, received, viewerId);
+    const summary = playerPublic(p, received, viewerId, myRated);
     return {
       ...summary,
       dimensions: DIMENSION_ORDER,
@@ -259,12 +291,13 @@ export const api = {
     if (!target) throw new Error("Jugador no encontrado");
     if (target.id === viewerId) target.historialLesiones = await fetchMyHistorial(token);
     const received = await ratingsTo(target.id);
-    return { saved: true, target: playerPublic(target, received, viewerId) };
+    const myRated = await fetchMyRatedTargetIds(viewerId);
+    return { saved: true, target: playerPublic(target, received, viewerId, myRated) };
   },
 
   balanceTeams: async (playerIds?: string[]): Promise<BalanceResponse> => {
     const viewerId = await sessionPlayerId();
-    const summaries = await api.players();
+    const { jugadores: summaries } = await api.players();
     const selected = playerIds?.length ? summaries.filter((p) => playerIds.includes(p.id)) : [...summaries];
     if (selected.length < 4) throw new Error("Selecciona al menos 4 jugadores para armar dos equipos");
 
