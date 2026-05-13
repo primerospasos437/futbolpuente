@@ -1,0 +1,3 @@
+# Cloudflare Pages (y compatibles): el servidor no conoce rutas del client router.
+# Los estáticos (/assets/*, favicon, etc.) tienen prioridad; el resto sirve index.html.
+/*    /index.html   200

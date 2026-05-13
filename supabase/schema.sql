@@ -33,7 +33,11 @@ CREATE TABLE jugadores (
   pie_dominante TEXT NOT NULL DEFAULT 'derecho'
     CHECK (pie_dominante IN ('derecho', 'izquierdo', 'ambos')),
 
-  fecha_nacimiento TEXT NOT NULL DEFAULT '',
+  -- ISO fecha calendario; NULL = sin cargar (PostgREST/RPC envían null, no '').
+  -- Migración desde TEXT NOT NULL DEFAULT '': ALTER TABLE jugadores
+  --   ALTER COLUMN fecha_nacimiento DROP DEFAULT,
+  --   ALTER COLUMN fecha_nacimiento TYPE date USING (NULLIF(trim(fecha_nacimiento), '')::date);
+  fecha_nacimiento DATE,
   contacto TEXT NOT NULL DEFAULT '',
 
   altura_cm INTEGER CHECK (altura_cm IS NULL OR (altura_cm BETWEEN 120 AND 230)),

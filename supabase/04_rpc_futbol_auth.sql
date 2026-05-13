@@ -1,10 +1,18 @@
 -- RPCs para registro / login / validación de sesión desde el frontend (anon key).
 -- Ejecutá este script en Supabase → SQL Editor si usás RLS sin políticas públicas en tablas.
 -- Requiere extensión pgcrypto (ya en schema.sql).
+--
+-- Migración: si tenías la sobrecarga antigua con `p_fecha_nacimiento text`, este DROP evita funciones duplicadas.
+-- Si `jugadores.fecha_nacimiento` sigue siendo TEXT, cambiala a DATE antes (ver comentario en schema.sql).
 
 create extension if not exists "pgcrypto";
 
+drop function if exists public.futbol_auth_register(
+  text, text, text, text, text, text, text, text, text, integer, numeric, jsonb
+);
+
 -- Registro: crea usuario + jugador + sesión; mismo hash PIN que el backend (SHA-256 hex en texto).
+-- `p_fecha_nacimiento` es tipo date: PostgREST envía JSON null o string ISO YYYY-MM-DD (no cadena vacía).
 create or replace function public.futbol_auth_register(
   p_nombre_completo text,
   p_apodo text,
@@ -13,7 +21,7 @@ create or replace function public.futbol_auth_register(
   p_posicion_preferida text,
   p_posicion_alternativa text,
   p_pie_dominante text,
-  p_fecha_nacimiento text,
+  p_fecha_nacimiento date,
   p_contacto text,
   p_altura_cm integer,
   p_peso_kg numeric,
@@ -44,11 +52,9 @@ begin
 
   insert into jugadores (
     id,
-    usuario_id,
     apodo,
     pin_hash,
     nombre_completo,
-    posicion_principal,
     posicion_preferida,
     posicion_alternativa,
     pie_dominante,
@@ -60,16 +66,14 @@ begin
     perfil_scores
   ) values (
     v_id,
-    v_id,
     trim(p_apodo),
-    p_pin_hash,
+    lower(trim(p_pin_hash)),
     trim(p_nombre_completo),
-    p_posicion_preferida,
-    p_posicion_preferida,
-    p_posicion_alternativa,
-    p_pie_dominante,
-    CASE WHEN p_fecha_nacimiento IS NULL OR trim(p_fecha_nacimiento) = '' THEN NULL ELSE p_fecha_nacimiento::date END,
-    coalesce(p_contacto, ''),
+    trim(p_posicion_preferida),
+    trim(p_posicion_alternativa),
+    trim(p_pie_dominante),
+    p_fecha_nacimiento,
+    trim(coalesce(p_contacto, '')),
     p_altura_cm,
     p_peso_kg,
     '',
@@ -87,11 +91,11 @@ end;
 $$;
 
 revoke all on function public.futbol_auth_register(
-  text, text, text, text, text, text, text, text, text, integer, numeric, jsonb
+  text, text, text, text, text, text, text, date, text, integer, numeric, jsonb
 ) from public;
 
 grant execute on function public.futbol_auth_register(
-  text, text, text, text, text, text, text, text, text, integer, numeric, jsonb
+  text, text, text, text, text, text, text, date, text, integer, numeric, jsonb
 ) to anon, authenticated;
 
 
@@ -114,7 +118,7 @@ begin
   where lower(trim(j.apodo)) = lower(trim(p_apodo))
   limit 1;
 
-  if v_id is null or v_hash is distinct from p_pin_hash then
+  if v_id is null or lower(trim(v_hash)) is distinct from lower(trim(p_pin_hash)) then
     raise exception 'Credenciales incorrectas';
   end if;
 
