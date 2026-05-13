@@ -12,6 +12,9 @@ export async function sha256Hex(plain: string): Promise<string> {
 
 function rpcErrorMessage(err: { message?: string; details?: string; hint?: string }): string {
   const m = String(err.message || "Error");
+  if (m.includes("Could not choose the best candidate function")) {
+    return "Error de base de datos: hay funciones duplicadas de registro. Ejecutá en Postgres la migración supabase/11_futbol_auth_register_una_sola_firma.sql (o reaplicá 04_rpc_futbol_auth.sql).";
+  }
   if (m.includes("Ese correo ya está registrado")) return "Ese correo ya está registrado";
   if (m.includes("Credenciales incorrectas")) return "Credenciales incorrectas";
   if (m.includes("No autorizado")) return "No autorizado";

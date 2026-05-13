@@ -106,8 +106,26 @@ alter view public.jugadores_publico owner to postgres;
 grant select on public.jugadores_publico to anon, authenticated;
 
 -- ---------------------------------------------------------------------------
--- Corregir mensaje de email duplicado en registro
+-- Corregir mensaje de email duplicado en registro (y una sola firma: fecha date)
 -- ---------------------------------------------------------------------------
+do $$
+declare
+  fn text;
+begin
+  for fn in
+    select format(
+      'public.futbol_auth_register(%s)',
+      pg_catalog.pg_get_function_identity_arguments(p.oid)
+    )
+    from pg_catalog.pg_proc p
+    inner join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+    where p.proname = 'futbol_auth_register'
+      and n.nspname = 'public'
+  loop
+    execute 'drop function if exists ' || fn || ' cascade';
+  end loop;
+end $$;
+
 create or replace function public.futbol_auth_register(
   p_nombre_completo text,
   p_apodo text,
