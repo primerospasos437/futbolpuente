@@ -42,7 +42,17 @@ Si cambiás `.env`, **pará el servidor** (`Ctrl+C`) y volvé a ejecutar `npm ru
 
 3. **Build**: comando `npm run build`, directorio de salida `dist` (como ya tengas configurado).
 
-Si ves un aviso rojo sobre “127.0.0.1” o “compiló con Supabase en tu máquina”, es porque el **último deploy** se hizo sin esas variables bien puestas: corregilas en Cloudflare y **volvé a desplegar**.
+4. **Caché de build**: si ya corregiste las variables y sigue el error rojo, en **Deployments** probá **Clear build cache** (o equivalente) y luego **Retry deployment**.
+
+### Por qué pasa el error «127.0.0.1» en web/celular
+
+Vite **incrusta** `VITE_SUPABASE_URL` dentro del JavaScript en el **momento del build**. Si ese build se hizo con URL local (o sin variables y tomó un default viejo), **cambiar variables después no cambia el JS ya publicado** hasta que hagas un **nuevo deploy** que vuelva a compilar.
+
+En los builds de **Cloudflare Pages**, el script `scripts/check-pages-supabase.mjs` revisa que la URL no sea localhost; si está mal, **el build falla** y no se publica un sitio roto.
+
+### Supabase (la base en la nube)
+
+La base **sigue en Supabase**; no se “pierde” por el front. El problema es solo la **URL/clave que el navegador usa** para llegar a Supabase. Corregí variables en Cloudflare + redeploy y listo.
 
 ## SQL en Supabase
 

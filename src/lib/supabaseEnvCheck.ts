@@ -10,7 +10,7 @@ export const MSG_CF_FALTAN_VARS =
   "Al sitio le faltan las variables de Supabase. En Cloudflare Pages → tu proyecto → Settings → Environment variables (Production), agregá VITE_SUPABASE_URL (https://….supabase.co) y VITE_SUPABASE_ANON_KEY (anon public de Supabase → Settings → API). Guardá y hacé Redeploy del último commit.";
 
 export const MSG_CF_URL_LOCAL =
-  "Esta versión del sitio se compiló con Supabase en tu máquina (127.0.0.1). En internet no puede conectarse. En Cloudflare Pages corregí VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY con la URL https://….supabase.co y la anon key del proyecto en la nube, guardá y volvé a desplegar (Retry deployment).";
+  "Esta página está compilada para Supabase en tu máquina (127.0.0.1). En internet no puede conectar: volvé a generar el sitio con la URL y la clave anónima del proyecto Supabase en la nube (VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en Cloudflare Pages → Environment variables → Production), guardá, y en Deployments hacé «Retry deployment» o «Clear build cache» y volvé a compilar.";
 
 export function prodSupabaseEnvBrokenMessage(): string | null {
   if (!import.meta.env.PROD) return null;
