@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { assertProdSupabaseEnv } from "./supabaseEnvCheck";
+import { assertProdSupabaseEnv, isLocalSupabaseUrl } from "./supabaseEnvCheck";
 
 /** Recreamos el cliente si cambian URL/clave (p. ej. pasaste de localhost a la nube en `.env`). */
 let _cached: { url: string; key: string; client: SupabaseClient } | null = null;
@@ -24,7 +24,7 @@ export function getSupabase(): SupabaseClient {
     return _cached.client;
   }
 
-  const looksLocal = /^(https?:\/\/)?(127\.0\.0\.1|localhost)(:\d+)?/i.test(url);
+  const looksLocal = isLocalSupabaseUrl(url);
   if (looksLocal && import.meta.env.DEV) {
     console.warn(
       "[Fútbol Puente] VITE_SUPABASE_URL es local. Si falla el login con ERR_CONNECTION_REFUSED, ejecutá `supabase start` o usá la URL https://….supabase.co en `.env`.",
