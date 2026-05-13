@@ -37,6 +37,7 @@
    ```
    PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -f supabase/02_app_support.sql
    PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -f supabase/04_rpc_futbol_auth.sql
+   PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -f supabase/05_client_supabase_reads_writes.sql
    PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -f supabase/05_rpc_data.sql
    PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -f supabase/06_partidos.sql
    PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -f supabase/07_convocatorias.sql
@@ -60,6 +61,7 @@
 - The gate code to access the app is `fobalpuenteclub` (hardcoded in `src/GateCode.tsx`).
 - There is no ESLint configuration — type checking is done via `npx tsc --noEmit`.
 - No test framework is configured. Validation is done via TypeScript type checking and manual testing.
+- `npx tsc --noEmit` has pre-existing errors in `src/pages/Presencias.tsx` (missing exports `apiPartidos`, `isAdmin`, `PartidoRow`, `PresenciaRow` from `../api`). These are known and do not affect the build or runtime.
 
 ### Key Commands
 
