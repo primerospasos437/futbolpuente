@@ -70,6 +70,8 @@ export interface PlayerSummary {
   isSelf: boolean;
   /** Si el usuario actual ya envió una valoración a este jugador (siempre `false` para vos mismo). */
   ratedByMe: boolean;
+  /** Valoración F5 de perfil (1–5) que emitiste vos hacia este jugador. */
+  ratedF5PerfilByMe: boolean;
 }
 
 /** Respuesta de listado de jugadores con bloques para la vista (pendientes vs ya valorados). */
@@ -80,6 +82,10 @@ export interface PlayersListPayload {
   faltanCalificar: PlayerSummary[];
   /** Compañeros que ya valoraste (p. ej. indicador en verde en la lista). */
   yaCalificados: PlayerSummary[];
+  /** Compañeros a los que aún no enviaste valoración F5 de perfil. */
+  faltanCalificarF5: PlayerSummary[];
+  /** Compañeros a los que ya enviaste valoración F5 de perfil. */
+  yaCalificadosF5: PlayerSummary[];
 }
 
 export interface PlayerDetail extends PlayerSummary {

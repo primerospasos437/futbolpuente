@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { api } from "../api";
 import F5ProfileScorePickers from "../components/F5ProfileScorePickers";
 import ProfileScoreSliders from "../components/ProfileScoreSliders";
@@ -92,6 +92,7 @@ function F5PeerDimensionList({
 
 export default function PlayerProfilePage() {
   const { id } = useParams();
+  const location = useLocation();
   const [data, setData] = useState<PlayerDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scores, setScores] = useState<ProfileScores | null>(null);
@@ -119,6 +120,12 @@ export default function PlayerProfilePage() {
       cancelled = true;
     };
   }, [id]);
+
+  useEffect(() => {
+    if (!data || location.hash !== "#f5-valoracion") return;
+    const el = document.getElementById("f5-valoracion");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [data, location.hash]);
 
   const canRate = useMemo(() => data && !data.isSelf, [data]);
   const showDetalleGrupo = Boolean(data && (data.isSelf || data.viewerIsAdmin));
@@ -356,7 +363,7 @@ export default function PlayerProfilePage() {
       ) : null}
 
       {canRate ? (
-        <div className="card" style={{ marginBottom: "1rem" }}>
+        <div className="card" style={{ marginBottom: "1rem" }} id="f5-valoracion">
           <h2 style={{ marginTop: 0 }}>Tu valoración F5 de {data.apodo}</h2>
           <p className="muted">
             Escala 1 a 5 (malo a excelente) por cada característica F5. Se combina con las valoraciones por partido para
