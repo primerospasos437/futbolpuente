@@ -58,7 +58,7 @@ begin
   end if;
 
   if exists (select 1 from usuarios u where lower(u.email) = lower(trim(p_email))) then
-    raise exception 'Ese apodo ya está registrado';
+    raise exception 'Ese correo ya está registrado';
   end if;
 
   insert into usuarios (email) values (trim(p_email))
@@ -66,6 +66,7 @@ begin
 
   insert into jugadores (
     id,
+    usuario_id,
     apodo,
     pin_hash,
     nombre_completo,
@@ -79,6 +80,7 @@ begin
     historial_lesiones,
     perfil_scores
   ) values (
+    v_id,
     v_id,
     trim(p_apodo),
     lower(trim(p_pin_hash)),

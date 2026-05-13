@@ -165,6 +165,7 @@ begin
 
   insert into jugadores (
     id,
+    usuario_id,
     apodo,
     pin_hash,
     nombre_completo,
@@ -179,6 +180,7 @@ begin
     perfil_scores,
     perfil_f5_scores
   ) values (
+    v_id,
     v_id,
     trim(p_apodo),
     lower(trim(p_pin_hash)),
