@@ -3,7 +3,8 @@ import { AuthProvider, useAuth } from "./AuthContext";
 import AuthPage from "./pages/Auth";
 import HomePage from "./pages/Home";
 import PlayerProfilePage from "./pages/PlayerProfile";
-import MyProfilePage from "./pages/MyProfile";
+import MisPerfilesPage from "./pages/MisPerfilesPage";
+import ProximosPartidosPage from "./pages/ProximosPartidosPage";
 import TeamsPage from "./pages/Teams";
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -27,8 +28,11 @@ function Shell({ children }: { children: React.ReactNode }) {
           <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
             Jugadores
           </NavLink>
+          <NavLink to="/proximos-partidos" className={({ isActive }) => (isActive ? "active" : "")}>
+            Próximos partidos
+          </NavLink>
           <NavLink to="/perfil" className={({ isActive }) => (isActive ? "active" : "")}>
-            Mi perfil
+            Mis perfiles
           </NavLink>
           <NavLink to="/equipos" className={({ isActive }) => (isActive ? "active" : "")}>
             Equipos
@@ -56,6 +60,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/proximos-partidos"
+        element={
+          <Shell>
+            <ProximosPartidosPage />
+          </Shell>
+        }
+      />
+      <Route
         path="/jugador/:id"
         element={
           <Shell>
@@ -67,7 +79,7 @@ function AppRoutes() {
         path="/perfil"
         element={
           <Shell>
-            <MyProfilePage />
+            <MisPerfilesPage />
           </Shell>
         }
       />

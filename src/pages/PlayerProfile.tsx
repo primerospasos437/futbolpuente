@@ -127,12 +127,19 @@ export default function PlayerProfilePage() {
           {ficha.posicionAlternativa ?? data.posicionPreferida} · Pie {data.pieDominante}
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginTop: "1rem" }}>
-          <div className="score-pill">Final: {data.finalScore.toFixed(2)}</div>
-          <div className="score-pill">Autopercepción: {data.finalBreakdown.selfAvg.toFixed(2)}</div>
-          <div className="score-pill">
-            Grupo: {data.finalBreakdown.peerAvg != null ? data.finalBreakdown.peerAvg.toFixed(2) : "—"} (
-            {data.peerCount} votos)
-          </div>
+          <div className="score-pill">Perfil completo · final {data.finalScore.toFixed(2)}</div>
+          {data.isSelf ? (
+            <>
+              <div className="score-pill">Tu autopercepción (prom.): {data.finalBreakdown.selfAvg.toFixed(2)}</div>
+              <div className="score-pill">
+                Grupo: {data.finalBreakdown.peerAvg != null ? data.finalBreakdown.peerAvg.toFixed(2) : "—"} (
+                {data.peerCount} votos)
+              </div>
+            </>
+          ) : null}
+          {data.f5FinalScore != null ? (
+            <div className="score-pill">F5 · final {data.f5FinalScore.toFixed(2)}</div>
+          ) : null}
         </div>
       </div>
 
@@ -163,7 +170,7 @@ export default function PlayerProfilePage() {
         </ul>
         {data.isSelf && (
           <p className="muted" style={{ marginBottom: 0, marginTop: "1rem" }}>
-            Historial de lesiones y más datos los editás en «Mi perfil».
+            Historial de lesiones y más datos los editás en «Mis perfiles».
           </p>
         )}
       </div>
@@ -177,18 +184,20 @@ export default function PlayerProfilePage() {
         </div>
       ) : null}
 
-      <div className="card" style={{ marginBottom: "1rem" }}>
-        <h2 style={{ marginTop: 0 }}>Autopercepción de {data.apodo}</h2>
-        {DIMENSION_SECTIONS.map((sec) => (
-          <DimensionReadonlyList
-            key={sec.id}
-            title={sec.title}
-            description={sec.description}
-            keys={sec.keys}
-            values={data.profile}
-          />
-        ))}
-      </div>
+      {data.isSelf ? (
+        <div className="card" style={{ marginBottom: "1rem" }}>
+          <h2 style={{ marginTop: 0 }}>Tu autopercepción (perfil completo)</h2>
+          {DIMENSION_SECTIONS.map((sec) => (
+            <DimensionReadonlyList
+              key={sec.id}
+              title={sec.title}
+              description={sec.description}
+              keys={sec.keys}
+              values={data.profile}
+            />
+          ))}
+        </div>
+      ) : null}
 
       {data.peerCount > 0 && (
         <div className="card" style={{ marginBottom: "1rem" }}>

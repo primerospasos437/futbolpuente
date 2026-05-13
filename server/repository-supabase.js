@@ -75,6 +75,8 @@ export function createSupabaseRepository(url, serviceRoleKey) {
             "peso_kg",
             "historial_lesiones",
             "perfil_scores",
+            "perfil_f5_scores",
+            "es_admin",
             "created_at",
             "updated_at",
           ].join(","),

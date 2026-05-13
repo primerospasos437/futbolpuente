@@ -116,6 +116,11 @@ export function peerAverageForPlayer(ratingsReceived) {
   };
 }
 
+export function usesHighSelfPerception(selfProfile) {
+  const norm = normalizeProfile(selfProfile);
+  return PROFILE_DIMS.some((k) => norm[k] >= 8);
+}
+
 /**
  * Nota final: mezcla autopercepción con compañeros.
  */
@@ -123,9 +128,10 @@ export function finalScore(selfProfile, ratingsReceived) {
   const selfAvg = profileAverage(selfProfile);
   const peer = peerAverageForPlayer(ratingsReceived);
   if (peer?.overall == null) return { value: selfAvg, selfAvg, peerAvg: null, peerCount: 0 };
-  const value = 0.35 * selfAvg + 0.65 * peer.overall;
+  const wSelf = usesHighSelfPerception(selfProfile) ? 0.1 : 0.35;
+  const wPeer = 1 - wSelf;
   return {
-    value,
+    value: wSelf * selfAvg + wPeer * peer.overall,
     selfAvg,
     peerAvg: peer.overall,
     peerCount: peer.count,
