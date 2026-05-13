@@ -1,13 +1,10 @@
-import { useState } from "react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./AuthContext";
-import { GateScreen, isGateUnlocked } from "./GateCode";
 import AuthPage from "./pages/Auth";
 import HomePage from "./pages/Home";
 import PlayerProfilePage from "./pages/PlayerProfile";
 import MyProfilePage from "./pages/MyProfile";
 import TeamsPage from "./pages/Teams";
-import PresenciasPage from "./pages/Presencias";
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { loggedIn, logout, ready } = useAuth();
@@ -24,7 +21,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="shell">
       <header className="topbar">
         <div className="brand">
-          Fútbol <span>Puente Club</span>
+          Fútbol <span>Grupo</span>
         </div>
         <nav className="tabs">
           <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
@@ -35,9 +32,6 @@ function Shell({ children }: { children: React.ReactNode }) {
           </NavLink>
           <NavLink to="/equipos" className={({ isActive }) => (isActive ? "active" : "")}>
             Equipos
-          </NavLink>
-          <NavLink to="/presencias" className={({ isActive }) => (isActive ? "active" : "")}>
-            Presencias
           </NavLink>
           <button type="button" className="btn btn-ghost" onClick={logout}>
             Salir
@@ -85,26 +79,12 @@ function AppRoutes() {
           </Shell>
         }
       />
-      <Route
-        path="/presencias"
-        element={
-          <Shell>
-            <PresenciasPage />
-          </Shell>
-        }
-      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
 
 export default function App() {
-  const [unlocked, setUnlocked] = useState(isGateUnlocked());
-
-  if (!unlocked) {
-    return <GateScreen onUnlock={() => setUnlocked(true)} />;
-  }
-
   return (
     <AuthProvider>
       <AppRoutes />

@@ -18,6 +18,8 @@ import { balanceTwoTeams } from "./teams.js";
 const PORT = Number(process.env.PORT) || 3001;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
+/** Tras Cloudflare u otro proxy TLS (p. ej. túnel): req.protocol / IPs reflejan al cliente. */
+app.set("trust proxy", 1);
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: "2mb" }));
 

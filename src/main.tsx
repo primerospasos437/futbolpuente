@@ -11,14 +11,3 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     </BrowserRouter>
   </React.StrictMode>,
 );
-
-if ("serviceWorker" in navigator) {
-  const swUrl = `/sw.js?v=${encodeURIComponent(__APP_BUILD_ID__)}`;
-  void navigator.serviceWorker
-    .register(swUrl, { scope: "/", updateViaCache: "none" })
-    .then((reg) => {
-      void reg.update();
-      setInterval(() => void reg.update(), 60 * 60 * 1000);
-    })
-    .catch(() => {});
-}

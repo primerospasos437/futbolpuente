@@ -1,3 +1,10 @@
 /// <reference types="vite/client" />
 
-declare const __APP_BUILD_ID__: string;
+interface ImportMetaEnv {
+  /** Origen del API Express (vacío = misma origen / proxy de Vite en dev). En Cloudflare Pages: URL pública del backend. */
+  readonly VITE_API_ORIGIN?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}

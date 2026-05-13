@@ -1,5 +1,18 @@
 import { createClient } from "@supabase/supabase-js";
 
+function fechaNacimientoFromDb(value) {
+  if (value == null || value === "") return "";
+  if (typeof value === "string") return value.trim().slice(0, 10);
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+  return String(value).trim().slice(0, 10);
+}
+
+function fechaNacimientoToDb(value) {
+  if (value == null) return null;
+  const s = String(value).trim();
+  return s === "" ? null : s.slice(0, 10);
+}
+
 function mapRowToPlayer(r) {
   if (!r) return null;
   return {
@@ -10,7 +23,7 @@ function mapRowToPlayer(r) {
     posicionPreferida: r.posicion_preferida,
     posicionAlternativa: r.posicion_alternativa,
     pieDominante: r.pie_dominante,
-    fechaNacimiento: r.fecha_nacimiento ?? "",
+    fechaNacimiento: fechaNacimientoFromDb(r.fecha_nacimiento),
     contacto: r.contacto ?? "",
     alturaCm: r.altura_cm,
     pesoKg: r.peso_kg != null ? Number(r.peso_kg) : null,
@@ -115,29 +128,19 @@ export function createSupabaseRepository(url, serviceRoleKey) {
      * Si falla el segundo, queda usuario huérfano (poco frecuente); podés limpiar a mano.
      */
     async createPlayer(player) {
-      const emailSlug = String(player.apodo)
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, ".")
-        .replace(/[^a-z0-9._-]+/g, "")
-        .replace(/^\.+|\.+$/g, "") || "jugador";
-      const email = `${emailSlug}@futbol.com`;
-
-      const { data: u, error: eu } = await sb.from("usuarios").insert({ email }).select("id").single();
+      const { data: u, error: eu } = await sb.from("usuarios").insert({}).select("id").single();
       if (eu) throw new Error(eu.message);
       const id = u.id;
 
       const row = {
         id,
-        usuario_id: id,
         apodo: player.apodo,
         pin_hash: player.pinHash,
         nombre_completo: player.nombreCompleto,
-        posicion_principal: player.posicionPreferida,
         posicion_preferida: player.posicionPreferida,
         posicion_alternativa: player.posicionAlternativa,
         pie_dominante: player.pieDominante,
-        fecha_nacimiento: player.fechaNacimiento || null,
+        fecha_nacimiento: fechaNacimientoToDb(player.fechaNacimiento),
         contacto: player.contacto ?? "",
         altura_cm: player.alturaCm,
         peso_kg: player.pesoKg,
@@ -159,7 +162,7 @@ export function createSupabaseRepository(url, serviceRoleKey) {
       if (patch.posicionPreferida !== undefined) row.posicion_preferida = patch.posicionPreferida;
       if (patch.posicionAlternativa !== undefined) row.posicion_alternativa = patch.posicionAlternativa;
       if (patch.pieDominante !== undefined) row.pie_dominante = patch.pieDominante;
-      if (patch.fechaNacimiento !== undefined) row.fecha_nacimiento = patch.fechaNacimiento || null;
+      if (patch.fechaNacimiento !== undefined) row.fecha_nacimiento = fechaNacimientoToDb(patch.fechaNacimiento);
       if (patch.contacto !== undefined) row.contacto = patch.contacto;
       if (patch.alturaCm !== undefined) row.altura_cm = patch.alturaCm;
       if (patch.pesoKg !== undefined) row.peso_kg = patch.pesoKg;

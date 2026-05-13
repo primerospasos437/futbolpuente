@@ -68,7 +68,6 @@ export default function PlayerProfilePage() {
   const [scores, setScores] = useState<ProfileScores | null>(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [admin, setAdmin] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -79,17 +78,6 @@ export default function PlayerProfilePage() {
         if (cancelled) return;
         setData(p);
         setScores(p.myRating?.scores ?? defaultScores());
-        // Check admin
-        try {
-          const token = localStorage.getItem("futbol_grupo_token") ?? "";
-          const { getSupabase } = await import("../lib/supabase");
-          const sb = getSupabase();
-          const { data: jData } = await sb.rpc("futbol_list_jugadores", { p_token: token });
-          if (jData) {
-            const { isAdmin } = await import("../api");
-            setAdmin(isAdmin(Array.isArray(jData) ? jData : []));
-          }
-        } catch {}
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       }
@@ -133,25 +121,14 @@ export default function PlayerProfilePage() {
         <Link to="/">← Volver al listado</Link>
       </p>
       <div className="card" style={{ marginBottom: "1rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.5rem" }}>
-          {data.fotoUrl ? (
-            <img src={data.fotoUrl} alt={data.apodo} style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover" }} />
-          ) : (
-            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", flexShrink: 0 }}>⚽</div>
-          )}
-          <div>
-            <h1 style={{ marginBottom: "0.25rem", marginTop: 0 }}>{data.apodo}</h1>
-            <p className="muted" style={{ marginTop: 0, marginBottom: 0 }}>
-              {data.nombreCompleto} · Principal: {data.posicionPreferida} · Alternativa:{" "}
-              {ficha.posicionAlternativa ?? data.posicionPreferida} · Pie {data.pieDominante}
-            </p>
-          </div>
-        </div>
+        <h1 style={{ marginBottom: "0.25rem" }}>{data.apodo}</h1>
+        <p className="muted" style={{ marginTop: 0 }}>
+          {data.nombreCompleto} · Principal: {data.posicionPreferida} · Alternativa:{" "}
+          {ficha.posicionAlternativa ?? data.posicionPreferida} · Pie {data.pieDominante}
+        </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginTop: "1rem" }}>
           <div className="score-pill">Final: {data.finalScore.toFixed(2)}</div>
-          {(data.isSelf || admin) && (
-            <div className="score-pill">Autopercepción: {data.finalBreakdown.selfAvg.toFixed(2)}</div>
-          )}
+          <div className="score-pill">Autopercepción: {data.finalBreakdown.selfAvg.toFixed(2)}</div>
           <div className="score-pill">
             Grupo: {data.finalBreakdown.peerAvg != null ? data.finalBreakdown.peerAvg.toFixed(2) : "—"} (
             {data.peerCount} votos)
@@ -200,24 +177,20 @@ export default function PlayerProfilePage() {
         </div>
       ) : null}
 
-      {(data.isSelf || admin) && (
-        <div className="card" style={{ marginBottom: "1rem" }}>
-          <h2 style={{ marginTop: 0 }}>
-            {data.isSelf ? "Tu autopercepción (detalle por aptitud)" : `Autopercepción de ${data.apodo} (vista admin)`}
-          </h2>
-          {DIMENSION_SECTIONS.map((sec) => (
-            <DimensionReadonlyList
-              key={sec.id}
-              title={sec.title}
-              description={sec.description}
-              keys={sec.keys}
-              values={data.profile}
-            />
-          ))}
-        </div>
-      )}
+      <div className="card" style={{ marginBottom: "1rem" }}>
+        <h2 style={{ marginTop: 0 }}>Autopercepción de {data.apodo}</h2>
+        {DIMENSION_SECTIONS.map((sec) => (
+          <DimensionReadonlyList
+            key={sec.id}
+            title={sec.title}
+            description={sec.description}
+            keys={sec.keys}
+            values={data.profile}
+          />
+        ))}
+      </div>
 
-      {(data.isSelf || admin) && data.peerCount > 0 && (
+      {data.peerCount > 0 && (
         <div className="card" style={{ marginBottom: "1rem" }}>
           <h2 style={{ marginTop: 0 }}>Promedio del grupo por bloque</h2>
           {DIMENSION_SECTIONS.map((sec) => (
@@ -232,47 +205,26 @@ export default function PlayerProfilePage() {
         </div>
       )}
 
-      {canRate ? (() => {
-        const lastUpdate = data.myRating?.updatedAt ? new Date(data.myRating.updatedAt) : null;
-        const now = new Date();
-        const daysSinceUpdate = lastUpdate ? Math.floor((now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24)) : null;
-        const blocked = daysSinceUpdate !== null && daysSinceUpdate < 30;
-        const daysRemaining = blocked ? 30 - daysSinceUpdate : 0;
-
-        return (
-          <div className="card">
-            <h2 style={{ marginTop: 0 }}>Tu valoración de {data.apodo}</h2>
-            {blocked ? (
-              <div style={{ padding: "0.75rem", borderRadius: "6px", background: "rgba(231,76,60,0.1)", border: "1px solid #e74c3c" }}>
-                <p style={{ margin: 0, color: "#e74c3c", fontWeight: 500 }}>
-                  🔒 Ya valoraste a {data.apodo} este mes. Podés actualizar en {daysRemaining} día{daysRemaining !== 1 ? "s" : ""}.
-                </p>
-                <p className="muted" style={{ margin: "0.25rem 0 0", fontSize: "0.8rem" }}>
-                  Última valoración: {lastUpdate!.toLocaleDateString()}
-                </p>
-              </div>
-            ) : (
-              <>
-                <p className="muted">
-                  Valorá cada aspecto del 1 al 10 según lo que ves en entrenamientos y partidos.
-                  {data.myRating ? " Podés actualizar 1 vez por mes." : ""}
-                </p>
-                <form onSubmit={submitRating}>
-                  <ProfileScoreSliders scores={scores} onChange={setScores} />
-                  {msg && (
-                    <p className={msg.includes("guardada") ? "muted" : "error"} style={{ marginTop: "1rem" }}>
-                      {msg}
-                    </p>
-                  )}
-                  <button className="btn btn-primary" type="submit" style={{ marginTop: "1rem" }} disabled={saving}>
-                    {saving ? "Guardando…" : data.myRating ? "Actualizar valoración" : "Enviar valoración"}
-                  </button>
-                </form>
-              </>
+      {canRate ? (
+        <div className="card">
+          <h2 style={{ marginTop: 0 }}>Tu valoración de {data.apodo}</h2>
+          <p className="muted">
+            Valorá cada aspecto del 1 al 10 según lo que ves en entrenamientos y partidos. Podés actualizarla cuando
+            quieras.
+          </p>
+          <form onSubmit={submitRating}>
+            <ProfileScoreSliders scores={scores} onChange={setScores} />
+            {msg && (
+              <p className={msg.includes("guardada") ? "muted" : "error"} style={{ marginTop: "1rem" }}>
+                {msg}
+              </p>
             )}
-          </div>
-        );
-      })() : (
+            <button className="btn btn-primary" type="submit" style={{ marginTop: "1rem" }} disabled={saving}>
+              {saving ? "Guardando…" : data.myRating ? "Actualizar valoración" : "Enviar valoración"}
+            </button>
+          </form>
+        </div>
+      ) : (
         <div className="card">
           <p className="muted" style={{ margin: 0 }}>
             Este es tu perfil: las valoraciones las cargan tus compañeros desde sus cuentas.

@@ -34,8 +34,8 @@ export function emailFromApodo(apodoTrimmed: string): string {
 }
 
 /**
- * `fecha_nacimiento` en DB es TEXT NOT NULL: devuelve '' si vacío/inválido.
- * Si hay fecha, la devuelve **siempre** en ISO estricto `YYYY-MM-DD` (mes y día con 2 dígitos), validada en calendario UTC.
+ * Normaliza para columna/RPC tipo `date` en PostgreSQL: cadena ISO `YYYY-MM-DD` o cadena vacía si no hay fecha válida.
+ * El cliente debe enviar `null` a PostgREST cuando el resultado sea vacío (no `''`), para que coincida con `date`.
  */
 export function normalizeFechaNacimientoForDb(raw: string | null | undefined): string {
   const s = String(raw ?? "").trim();
@@ -126,7 +126,7 @@ export type FutbolAuthRegisterRpcArgs = {
   p_posicion_preferida: PosicionRpc;
   p_posicion_alternativa: PosicionRpc;
   p_pie_dominante: PieRpc;
-  /** Fecha ISO `YYYY-MM-DD` o `null` si no se proporcionó. */
+  /** `null` si no hay fecha; si hay, ISO `YYYY-MM-DD` (Postgres `date`). */
   p_fecha_nacimiento: string | null;
   p_contacto: string;
   p_altura_cm: number | null;
@@ -134,10 +134,14 @@ export type FutbolAuthRegisterRpcArgs = {
   p_perfil_scores: ProfileScores;
 };
 
+/**
+ * Normaliza el formulario de registro antes del RPC `futbol_auth_register`:
+ * strings recortados, enums válidos, fecha solo ISO o null, números y JSON del perfil.
+ */
 export function buildFutbolAuthRegisterRpcArgs(raw: RegisterFormRaw, pinHashHex: string): FutbolAuthRegisterRpcArgs {
   const nombreCompleto = String(raw.nombreCompleto ?? "").trim();
   const apodo = String(raw.apodo ?? "").trim();
-  const pinHash = String(pinHashHex ?? "").trim();
+  const pinHash = String(pinHashHex ?? "").trim().toLowerCase();
   if (!nombreCompleto) throw new Error("El nombre completo es obligatorio");
   if (!apodo) throw new Error("El apodo es obligatorio");
   if (!pinHash) throw new Error("PIN inválido");
@@ -146,7 +150,8 @@ export function buildFutbolAuthRegisterRpcArgs(raw: RegisterFormRaw, pinHashHex:
   const posAlt = sanitizePosicionRpc(raw.posicionAlternativa, posPrincipal);
   const pie = sanitizePieRpc(raw.pieDominante, "derecho");
 
-  const fecha = normalizeFechaNacimientoForDb(raw.fechaNacimiento) || null;
+  const fechaIso = normalizeFechaNacimientoForDb(raw.fechaNacimiento);
+  const fechaRpc = fechaIso === "" ? null : fechaIso;
   const contacto = String(raw.contacto ?? "").trim();
 
   const altura_cm = normalizeAlturaCmRpc(raw.alturaCm);
@@ -163,7 +168,7 @@ export function buildFutbolAuthRegisterRpcArgs(raw: RegisterFormRaw, pinHashHex:
     p_posicion_preferida: posPrincipal,
     p_posicion_alternativa: posAlt,
     p_pie_dominante: pie,
-    p_fecha_nacimiento: fecha,
+    p_fecha_nacimiento: fechaRpc,
     p_contacto: contacto,
     p_altura_cm: altura_cm,
     p_peso_kg: peso_kg,

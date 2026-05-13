@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
-import { setToken, setPlayerId } from "../api";
+import { setToken } from "../api";
 import { useAuth } from "../AuthContext";
 import { defaultScores } from "../dimensions";
 import { loginWithSupabase, registerWithSupabase } from "../lib/futbolAuth";
@@ -32,7 +32,6 @@ export default function AuthPage() {
     try {
       const r = await loginWithSupabase(apodo, pin);
       setToken(r.token);
-      setPlayerId(r.playerId);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
@@ -61,7 +60,6 @@ export default function AuthPage() {
         profile,
       });
       setToken(r.token);
-      setPlayerId(r.playerId);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
@@ -73,7 +71,7 @@ export default function AuthPage() {
   return (
     <div className="shell">
       <div className="card" style={{ maxWidth: 560, margin: "2rem auto" }}>
-        <h1>Fútbol Puente Club</h1>
+        <h1>Bienvenido</h1>
         <p className="sub">
           Registrate con tus datos y completá el perfil deportivo detallado en «Mi perfil»: capacidades técnicas,
           tácticas, físicas y psicológicas (escala 1–10), más ficha técnica e historial de lesiones (solo visible para
