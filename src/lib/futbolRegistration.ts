@@ -1,5 +1,6 @@
 import { DIMENSION_ORDER } from "../dimensions";
-import type { Dimension, Pie, Posicion, ProfileScores } from "../types";
+import { F5_DIMENSION_ORDER } from "../dimensions-f5";
+import type { Dimension, F5ProfileScores, Pie, Posicion, ProfileScores } from "../types";
 
 /**
  * Valores exactos del CHECK en `jugadores` (schema.sql) y del RPC `futbol_auth_register`.
@@ -103,9 +104,36 @@ export function normalizeProfileScoresRpc(profile: ProfileScores | Record<string
   return out as ProfileScores;
 }
 
+/** Garantiza JSONB con números enteros 1–5 en las 12 claves F5. */
+export function normalizeProfileF5ScoresRpc(
+  profile: F5ProfileScores | Record<string, unknown> | null | undefined,
+): F5ProfileScores {
+  const src = profile && typeof profile === "object" ? profile : {};
+  const out = {} as Record<string, number>;
+  for (const key of F5_DIMENSION_ORDER) {
+    const n = Number((src as Record<string, unknown>)[key]);
+    if (!Number.isFinite(n)) {
+      out[key] = 3;
+      continue;
+    }
+    const v = Math.round(n);
+    out[key] = Math.min(5, Math.max(1, v));
+  }
+  return out as F5ProfileScores;
+}
+
+export function normalizeEmailForRegister(raw: string): string {
+  const e = String(raw ?? "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) throw new Error("Correo electrónico inválido");
+  if (e.length > 254) throw new Error("Correo demasiado largo");
+  return e;
+}
+
 export type RegisterFormRaw = {
   nombreCompleto: string;
   apodo: string;
+  /** Correo real para recuperar el PIN (único en el grupo). */
+  email: string;
   pin: string;
   posicionPreferida: Posicion | string;
   posicionAlternativa: Posicion | string;
@@ -158,7 +186,7 @@ export function buildFutbolAuthRegisterRpcArgs(raw: RegisterFormRaw, pinHashHex:
   const peso_kg = normalizePesoKgRpc(raw.pesoKg);
   const perfil_scores = normalizeProfileScoresRpc(raw.profile);
 
-  const pEmail = emailFromApodo(apodo);
+  const pEmail = normalizeEmailForRegister(String(raw.email ?? "").trim());
 
   return {
     p_nombre_completo: nombreCompleto,

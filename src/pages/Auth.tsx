@@ -6,15 +6,19 @@ import { defaultScores } from "../dimensions";
 import { loginWithSupabase, registerWithSupabase } from "../lib/futbolAuth";
 import type { Pie, Posicion } from "../types";
 
+const API_BASE = "";
+
 export default function AuthPage() {
   const { loggedIn, refresh, ready } = useAuth();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "recover">("login");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [recoverStep, setRecoverStep] = useState<1 | 2>(1);
 
   const [apodo, setApodo] = useState("");
   const [pin, setPin] = useState("");
   const [nombreCompleto, setNombreCompleto] = useState("");
+  const [email, setEmail] = useState("");
   const [posicion, setPosicion] = useState<Posicion>("medio");
   const [posicionAlternativa, setPosicionAlternativa] = useState<Posicion>("medio");
   const [pie, setPie] = useState<Pie>("derecho");
@@ -22,6 +26,11 @@ export default function AuthPage() {
   const [contacto, setContacto] = useState("");
   const [alturaStr, setAlturaStr] = useState("");
   const [pesoStr, setPesoStr] = useState("");
+
+  const [recEmail, setRecEmail] = useState("");
+  const [recApodo, setRecApodo] = useState("");
+  const [recCode, setRecCode] = useState("");
+  const [recPin, setRecPin] = useState("");
 
   if (ready && loggedIn) return <Navigate to="/" replace />;
 
@@ -49,6 +58,7 @@ export default function AuthPage() {
       const r = await registerWithSupabase({
         nombreCompleto,
         apodo,
+        email,
         pin,
         posicionPreferida: posicion,
         posicionAlternativa,
@@ -68,30 +78,96 @@ export default function AuthPage() {
     }
   }
 
+  async function onRecoverRequest(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/recover-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: recEmail.trim(), apodo: recApodo.trim() }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error((j as { error?: string }).error || "No se pudo enviar el código");
+      }
+      setRecoverStep(2);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onRecoverConfirm(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/recover-confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: recEmail.trim(),
+          apodo: recApodo.trim(),
+          code: recCode.trim(),
+          newPin: recPin.trim(),
+        }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((j as { error?: string }).error || "No se pudo actualizar el PIN");
+      const r = await loginWithSupabase(recApodo.trim(), recPin.trim());
+      setToken(r.token);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="shell">
       <div className="card" style={{ maxWidth: 560, margin: "2rem auto" }}>
         <h1>Bienvenido</h1>
         <p className="sub">
-          Registrate con tus datos y completá el perfil deportivo detallado en «Mi perfil»: capacidades técnicas,
-          tácticas, físicas y psicológicas (escala 1–10), más ficha técnica e historial de lesiones (solo visible para
-          vos). Después valorá a tus compañeros desde cada perfil.
+          Registrate con correo válido: sirve para recuperar el PIN si lo olvidás. Después completá perfiles en «Mis
+          perfiles» y valorá a tus compañeros desde cada ficha.
         </p>
 
         <div className="tabs" style={{ marginBottom: "1.25rem" }}>
           <button
             type="button"
             className={`btn btn-ghost ${mode === "login" ? "active" : ""}`}
-            onClick={() => setMode("login")}
+            onClick={() => {
+              setMode("login");
+              setRecoverStep(1);
+              setError(null);
+            }}
           >
             Ya tengo cuenta
           </button>
           <button
             type="button"
             className={`btn btn-ghost ${mode === "register" ? "active" : ""}`}
-            onClick={() => setMode("register")}
+            onClick={() => {
+              setMode("register");
+              setError(null);
+            }}
           >
             Registrarme
+          </button>
+          <button
+            type="button"
+            className={`btn btn-ghost ${mode === "recover" ? "active" : ""}`}
+            onClick={() => {
+              setMode("recover");
+              setRecoverStep(1);
+              setError(null);
+            }}
+          >
+            Olvidé el PIN
           </button>
         </div>
 
@@ -117,6 +193,46 @@ export default function AuthPage() {
               {loading ? "Entrando…" : "Entrar"}
             </button>
           </form>
+        ) : mode === "recover" ? (
+          recoverStep === 1 ? (
+            <form onSubmit={onRecoverRequest}>
+              <p className="muted">
+                Te enviamos un código al correo con el que te registraste (revisá spam). En desarrollo, el código
+                aparece en la consola del servidor si no hay API de correo configurada.
+              </p>
+              <div className="row">
+                <label>Correo registrado</label>
+                <input
+                  type="email"
+                  value={recEmail}
+                  onChange={(e) => setRecEmail(e.target.value)}
+                  autoComplete="email"
+                  required
+                />
+              </div>
+              <div className="row">
+                <label>Apodo</label>
+                <input value={recApodo} onChange={(e) => setRecApodo(e.target.value)} required />
+              </div>
+              <button className="btn btn-primary" type="submit" disabled={loading}>
+                {loading ? "Enviando…" : "Enviar código"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={onRecoverConfirm}>
+              <div className="row">
+                <label>Código de 6 dígitos</label>
+                <input value={recCode} onChange={(e) => setRecCode(e.target.value)} inputMode="numeric" required />
+              </div>
+              <div className="row">
+                <label>Nuevo PIN (mínimo 4 caracteres)</label>
+                <input type="password" value={recPin} onChange={(e) => setRecPin(e.target.value)} required minLength={4} />
+              </div>
+              <button className="btn btn-primary" type="submit" disabled={loading}>
+                {loading ? "Guardando…" : "Guardar PIN y entrar"}
+              </button>
+            </form>
+          )
         ) : (
           <form onSubmit={onRegister}>
             <div className="row">
@@ -126,6 +242,16 @@ export default function AuthPage() {
             <div className="row">
               <label>Apodo (único en el grupo)</label>
               <input value={apodo} onChange={(e) => setApodo(e.target.value)} required />
+            </div>
+            <div className="row">
+              <label>Correo electrónico (único, para recuperar el PIN)</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+              />
             </div>
 
             <div className="grid2">
@@ -163,7 +289,6 @@ export default function AuthPage() {
               </div>
               <div className="row">
                 <label>Fecha de nacimiento</label>
-                {/* `type="date"` entrega siempre ISO `YYYY-MM-DD` al estado; `futbolRegistration` la revalida y canoniza antes del RPC. */}
                 <input type="date" value={fechaNacimiento} onChange={(e) => setFechaNacimiento(e.target.value)} />
               </div>
             </div>
@@ -205,8 +330,7 @@ export default function AuthPage() {
             </div>
 
             <p className="muted" style={{ marginTop: "1rem" }}>
-              Las cualidades deportivas arrancan en 5/10 por defecto: ajustalas en «Mi perfil». El historial de lesiones
-              también lo cargás ahí (solo vos lo ves).
+              Las cualidades del perfil completo arrancan en 5/10 por defecto: ajustalas en «Mis perfiles».
             </p>
 
             <button className="btn btn-primary" type="submit" style={{ marginTop: "1rem" }} disabled={loading}>

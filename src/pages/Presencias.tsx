@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, apiPartidos, isAdmin as checkAdmin, type PartidoRow, type PresenciaRow } from "../api";
+import { api, apiPartidos, isAdminFromPlayersList, type PartidoRow, type PresenciaRow } from "../api";
 import type { PlayerSummary } from "../types";
 
 interface RankingEntry {
@@ -26,23 +26,17 @@ export default function PresenciasPage() {
     let cancelled = false;
     (async () => {
       try {
-        const [playerList, partidoList, presenciaList] = await Promise.all([
+        const [payload, partidoList, presenciaList] = await Promise.all([
           api.players(),
           apiPartidos.list(),
           apiPartidos.listPresencias(),
         ]);
         if (cancelled) return;
-        setPlayers(Array.isArray(playerList) ? playerList : []);
+        const playerList = payload.jugadores;
+        setPlayers(playerList);
         setPartidos(Array.isArray(partidoList) ? partidoList : []);
         setPresencias(Array.isArray(presenciaList) ? presenciaList : []);
-        // Check admin
-        try {
-          const token = localStorage.getItem("futbol_grupo_token") ?? "";
-          const { getSupabase } = await import("../lib/supabase");
-          const sb = getSupabase();
-          const { data } = await sb.rpc("futbol_list_jugadores", { p_token: token });
-          if (data) setAdmin(checkAdmin(Array.isArray(data) ? data : []));
-        } catch {}
+        setAdmin(isAdminFromPlayersList(playerList));
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       } finally {

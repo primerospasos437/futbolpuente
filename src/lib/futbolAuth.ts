@@ -12,7 +12,7 @@ export async function sha256Hex(plain: string): Promise<string> {
 
 function rpcErrorMessage(err: { message?: string; details?: string; hint?: string }): string {
   const m = String(err.message || "Error");
-  if (m.includes("Ese apodo ya está registrado")) return "Ese apodo ya está registrado";
+  if (m.includes("Ese correo ya está registrado")) return "Ese correo ya está registrado";
   if (m.includes("Credenciales incorrectas")) return "Credenciales incorrectas";
   if (m.includes("No autorizado")) return "No autorizado";
   return m;

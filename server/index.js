@@ -4,6 +4,7 @@ import cors from "cors";
 import crypto from "crypto";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { registerRecoverPinRoutes } from "./recover-pin.js";
 import { getRepository } from "./repository.js";
 import {
   PROFILE_DIMS,
@@ -377,6 +378,8 @@ app.post("/api/teams/balance", requireAuth(async (req, res) => {
     res.status(code).json({ error: msg });
   }
 }));
+
+registerRecoverPinRoutes(app);
 
 if (process.env.NODE_ENV === "production") {
   const dist = join(__dirname, "..", "dist");

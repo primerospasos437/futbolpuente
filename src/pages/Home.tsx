@@ -85,9 +85,10 @@ export default function HomePage() {
     <div>
       <h1>Jugadores</h1>
       <p className="sub">
-        Perfil completo por bloques (técnico, táctico, físico y psicológico). Tocá un jugador para ver ficha, auto-notas
-        y dejar tu valoración en las mismas dimensiones. La nota final mezcla autopercepción (35%) con el promedio del
-        grupo (65%).
+        Perfil completo por bloques (técnico, táctico, físico y psicológico). Tocá un jugador para ver la ficha y dejar
+        tu valoración. En la ficha de cada compañero solo se muestra la nota final agregada: la autopercepción (cómo se
+        califica a sí mismo) es privada. Recordá completar también el perfil F5 en «Mis perfiles» y pedirles a los demás
+        que hagan lo mismo.
       </p>
 
       {otrosJugadores.length > 0 && (

@@ -1,6 +1,10 @@
 export type Posicion = "portero" | "defensa" | "medio" | "delantero";
 export type Pie = "derecho" | "izquierdo" | "ambos";
 
+import type { F5ProfileScores } from "./dimensions-f5";
+
+export type { F5ProfileScores } from "./dimensions-f5";
+
 /** Dimensiones 1–10 (autopercepción y valoraciones entre compañeros) */
 export type Dimension =
   | "controlPrimerToque"
@@ -43,6 +47,8 @@ export interface PlayerSummary {
   posicionAlternativa: Posicion;
   pieDominante: Pie;
   profile: ProfileScores;
+  /** Perfil F5 (autopercepción 1–5); en listados puede ir sin promedio de grupo. */
+  f5Profile: F5ProfileScores;
   ficha: PlayerFicha;
   profileAverage: number;
   peerAverage: number | null;
@@ -53,6 +59,13 @@ export interface PlayerSummary {
     peerAvg: number | null;
     peerCount: number;
   };
+  f5FinalScore: number | null;
+  f5FinalBreakdown: {
+    selfAvg: number;
+    peerAvg: number | null;
+    peerCount: number;
+  } | null;
+  esAdmin: boolean;
   createdAt: string;
   isSelf: boolean;
   /** Si el usuario actual ya envió una valoración a este jugador (siempre `false` para vos mismo). */
