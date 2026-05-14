@@ -320,3 +320,38 @@ textarea {
   min-height: 88px;
   resize: vertical;
 }
+
+/* Ayuda F5: el texto debe verse al tocar «?» (móvil no muestra title). */
+.f5-help-details {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.25rem;
+}
+.f5-help-details summary.f5-help-summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 1.35rem;
+  height: 1.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  user-select: none;
+}
+.f5-help-details summary.f5-help-summary::-webkit-details-marker {
+  display: none;
+}
+.f5-help-body {
+  margin: 0.4rem 0 0;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+  max-width: min(36rem, 92vw);
+  line-height: 1.45;
+  background: var(--surface2);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}

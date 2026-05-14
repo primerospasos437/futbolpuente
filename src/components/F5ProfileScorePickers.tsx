@@ -18,24 +18,12 @@ export default function F5ProfileScorePickers({
         <div key={dim} className="row" style={{ marginBottom: "0.85rem" }}>
           <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", flexWrap: "wrap" }}>
             {F5_LABELS[dim]}
-            <span
-              className="muted"
-              title={F5_HELP[dim]}
-              style={{
-                cursor: "help",
-                fontSize: "0.85rem",
-                border: "1px solid var(--border)",
-                borderRadius: "50%",
-                width: "1.25rem",
-                height: "1.25rem",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              aria-label={`Ayuda: ${F5_HELP[dim]}`}
-            >
-              ?
-            </span>
+            <details className="f5-help-details">
+              <summary className="f5-help-summary" aria-label={`Qué significa: ${F5_LABELS[dim]}`}>
+                ?
+              </summary>
+              <p className="f5-help-body">{F5_HELP[dim]}</p>
+            </details>
           </label>
           <select
             value={scores[dim]}

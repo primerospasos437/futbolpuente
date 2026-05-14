@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import F5ProfileScorePickers from "../components/F5ProfileScorePickers";
+import ProfileImprovementSummary from "../components/ProfileImprovementSummary";
 import ProfileScoreSliders from "../components/ProfileScoreSliders";
 import { DIMENSION_LABELS, DIMENSION_SECTIONS, defaultScores } from "../dimensions";
 import { F5_LABELS, F5_SECTIONS, defaultF5Scores } from "../dimensions-f5";
@@ -450,6 +451,8 @@ export default function PlayerProfilePage() {
           )}
         </div>
       ) : null}
+
+      {data.isSelf ? <ProfileImprovementSummary data={data} /> : null}
 
       {!canRate ? (
         <div className="card">

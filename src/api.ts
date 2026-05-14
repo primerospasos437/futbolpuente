@@ -335,6 +335,9 @@ export type PartidoRow = {
   creado_por?: string | null;
   created_at?: string;
   confirmado_admin?: boolean;
+  suplentes?: unknown;
+  hora_partido?: string;
+  texto_equipamiento?: string;
 };
 
 export type PresenciaRow = {
@@ -397,21 +400,46 @@ export const apiPartidos = {
     if (error) throw new Error(error.message);
   },
 
-  crearBorrador: async (fecha: string, claros: TeamSlot[], oscuros: TeamSlot[]): Promise<{ id: string }> => {
+  crearBorrador: async (
+    fecha: string,
+    claros: TeamSlot[],
+    oscuros: TeamSlot[],
+    opts?: {
+      suplentes?: { id: string; apodo: string }[];
+      horaPartido?: string;
+      textoEquipamiento?: string;
+    },
+  ): Promise<{ id: string }> => {
     const token = await requireToken();
     const sb = getSupabase();
     const toJson = (slots: TeamSlot[]) =>
       slots.map((s) => ({ id: s.id, apodo: s.apodo, posicionPreferida: s.posicionPreferida, score: s.score }));
+    const supl = (opts?.suplentes ?? []).map((s) => ({ id: s.id, apodo: s.apodo }));
     const { data, error } = await sb.rpc("futbol_crear_partido_borrador", {
       p_token: token,
       p_fecha: fecha,
       p_claros: toJson(claros),
       p_oscuros: toJson(oscuros),
+      p_suplentes: supl,
+      p_hora_partido: opts?.horaPartido?.trim() || null,
+      p_texto_equipamiento: opts?.textoEquipamiento?.trim() || null,
     });
     if (error) throw new Error(error.message);
     const row = data as { id?: string };
     if (!row?.id) throw new Error("Respuesta inválida");
     return { id: row.id };
+  },
+
+  /** Titular se da de baja de un partido ya confirmado; sube el primer suplente si hay. */
+  bajaTitularPartidoConfirmado: async (partidoId: string, jugadorId?: string | null): Promise<void> => {
+    const token = await requireToken();
+    const sb = getSupabase();
+    const { error } = await sb.rpc("futbol_baja_titular_partido_confirmado", {
+      p_token: token,
+      p_partido_id: partidoId,
+      p_jugador_id: jugadorId ?? null,
+    });
+    if (error) throw new Error(error.message);
   },
 
   confirmar: async (partidoId: string): Promise<void> => {
