@@ -160,6 +160,8 @@ export type FutbolAuthRegisterRpcArgs = {
   p_altura_cm: number | null;
   p_peso_kg: number | null;
   p_perfil_scores: ProfileScores;
+  /** Id de `auth.users` tras `signUp`; la cuenta interna `usuarios`/`jugadores` usa el mismo UUID. */
+  p_cuenta_id?: string | null;
 };
 
 /**
