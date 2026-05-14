@@ -210,6 +210,17 @@ async function requireToken(): Promise<string> {
   return t;
 }
 
+/** Notificaciones F5 post-partido (RPC en supabase/11_*.sql). No bloquea si falla. */
+function dispatchF5ValoracionPendientesFireAndForget(token: string): void {
+  const sb = getSupabase();
+  void (async () => {
+    const { error } = await sb.rpc("futbol_dispatch_f5_valoracion_pendientes", { p_token: token });
+    if (error) {
+      /* RPC puede no existir hasta migrar */
+    }
+  })();
+}
+
 async function sessionPlayerId(): Promise<string> {
   const token = await requireToken();
   const sb = getSupabase();
@@ -483,6 +494,7 @@ export function isAdmin(players: PlayerSummary[]): boolean {
 export const api = {
   me: async (): Promise<PlayerSummary> => {
     const token = await requireToken();
+    dispatchF5ValoracionPendientesFireAndForget(token);
     const viewerId = await sessionPlayerId();
     const sb = getSupabase();
     const { data, error } = await sb.from("jugadores_publico").select(JUGADORES_PUBLICO).eq("id", viewerId).maybeSingle();
@@ -499,6 +511,7 @@ export const api = {
 
   players: async (): Promise<PlayersListPayload> => {
     const token = await requireToken();
+    dispatchF5ValoracionPendientesFireAndForget(token);
     const viewerId = await sessionPlayerId();
     const historialSelf = await fetchMyHistorial(token);
     const myRated = await fetchMyRatedTargetIds(viewerId);

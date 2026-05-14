@@ -53,6 +53,9 @@ export default function NotificationsBell() {
     if (n.tipo === "f5_valorar_partido" && typeof d.partido_id === "string") {
       return `/partido/${String(d.partido_id)}/valorar-f5`;
     }
+    if (n.tipo === "convocatoria_rol_actualizado") {
+      return "/proximos-partidos";
+    }
     return null;
   }
 
