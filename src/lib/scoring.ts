@@ -90,7 +90,7 @@ export function peerAverageForPlayer(ratingsReceived: { scores: ProfileScores | 
   };
 }
 
-/** Si en alguna dimensión la autopercepción es 8, 9 o 10, el peso del grupo pasa a 90 %. */
+/** Si en alguna dimensión la autopercepción es 8, 9 o 10, la nota final usa 15 % autopercepción y 85 % grupo (si no, 35 % / 65 %). */
 export function usesHighSelfPerception(selfProfile: ProfileScores | Record<string, unknown>): boolean {
   const norm = normalizeProfile(selfProfile);
   return PROFILE_DIMS.some((k) => norm[k] >= 8);
@@ -103,7 +103,7 @@ export function finalScore(
   const selfAvg = profileAverage(selfProfile);
   const peer = peerAverageForPlayer(ratingsReceived);
   if (peer?.overall == null) return { value: selfAvg, selfAvg, peerAvg: null, peerCount: 0 };
-  const wSelf = usesHighSelfPerception(selfProfile) ? 0.1 : 0.35;
+  const wSelf = usesHighSelfPerception(selfProfile) ? 0.15 : 0.35;
   const wPeer = 1 - wSelf;
   return {
     value: wSelf * selfAvg + wPeer * peer.overall,

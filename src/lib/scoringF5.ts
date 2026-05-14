@@ -21,7 +21,7 @@ function mean(nums: number[]): number {
   return nums.reduce((a, b) => a + b, 0) / nums.length;
 }
 
-/** Si en alguna dimensión la autopercepción es «excelente» (5), el peso del grupo sube al 90 %. */
+/** Si en alguna dimensión la autopercepción es «excelente» (5), la nota final usa 15 % autopercepción y 85 % grupo (si no, 35 % / 65 %). */
 export function f5UsesReducedSelfWeight(self: F5ProfileScores): boolean {
   return F5_DIMENSION_ORDER.some((k) => self[k] === 5);
 }
@@ -57,7 +57,7 @@ export function finalScoreF5(
   const selfAvg = f5ProfileAverage(self);
   const peer = peerAverageF5(ratingsReceived);
   if (peer?.overall == null) return { value: selfAvg, selfAvg, peerAvg: null, peerCount: 0 };
-  const wSelf = f5UsesReducedSelfWeight(self) ? 0.1 : 0.35;
+  const wSelf = f5UsesReducedSelfWeight(self) ? 0.15 : 0.35;
   const wPeer = 1 - wSelf;
   return {
     value: wSelf * selfAvg + wPeer * peer.overall,

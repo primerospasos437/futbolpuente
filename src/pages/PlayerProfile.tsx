@@ -124,20 +124,27 @@ export default function PlayerProfilePage() {
   }, [id]);
 
   useEffect(() => {
-    setValoracionTab(location.hash === "#f5-valoracion" ? "f5" : "completo");
+    if (location.hash === "#f5-valoracion") setValoracionTab("f5");
+    else setValoracionTab("completo");
   }, [id, location.hash]);
 
   const canRate = useMemo(() => data && !data.isSelf, [data]);
 
   useLayoutEffect(() => {
-    if (!canRate || valoracionTab !== "f5" || location.hash !== "#f5-valoracion") return;
-    const el = document.getElementById("f5-valoracion");
-    el?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [canRate, valoracionTab, location.hash, data?.id]);
+    if (!canRate) return;
+    if (location.hash !== "#f5-valoracion" && location.hash !== "#perfil-completo-valoracion") return;
+    requestAnimationFrame(() => {
+      document.getElementById("valoracion-formulario")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [canRate, location.hash, id]);
 
   function setValoracionTabNav(t: "completo" | "f5") {
     setValoracionTab(t);
-    navigate({ pathname: location.pathname, hash: t === "f5" ? "f5-valoracion" : "" }, { replace: true });
+    const hash = t === "f5" ? "f5-valoracion" : "perfil-completo-valoracion";
+    navigate({ pathname: location.pathname, hash }, { replace: true });
+    requestAnimationFrame(() => {
+      document.getElementById("valoracion-formulario")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
   const showDetalleGrupo = Boolean(data && (data.isSelf || data.viewerIsAdmin));
   const showAutopercepcionAjenaAdmin = Boolean(data && !data.isSelf && data.viewerIsAdmin);
@@ -329,6 +336,25 @@ export default function PlayerProfilePage() {
         </div>
       ) : null}
 
+      {canRate ? (
+        <div className="card" id="valoracion-sobre-jugador" style={{ marginBottom: "1rem" }}>
+          <h2 style={{ marginTop: 0 }}>Tu valoración sobre {data.apodo}</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Por defecto, la nota final mezcla un 35 % de autopercepción y un 65 % de cómo lo ven los demás. Si en el
+            perfil completo se autopuntuó con 8, 9 o 10 en alguna dimensión, o en F5 marcó «excelente» (5) en alguna
+            característica, la autopercepción pesa un 15 % y el grupo un 85 %.
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginTop: "1rem" }}>
+            <button type="button" className="btn btn-primary" onClick={() => setValoracionTabNav("completo")}>
+              Valorar perfil completo (1–10)
+            </button>
+            <button type="button" className="btn btn-primary" onClick={() => setValoracionTabNav("f5")}>
+              Valorar perfil F5 (1–5)
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {!showDetalleGrupo && f5PeerN > 0 ? (
         <div className="card" style={{ marginBottom: "1rem" }}>
           <h2 style={{ marginTop: 0 }}>Mirada del grupo (F5)</h2>
@@ -353,10 +379,11 @@ export default function PlayerProfilePage() {
       ) : null}
 
       {canRate ? (
-        <div className="card" style={{ marginBottom: "1rem" }}>
-          <h2 style={{ marginTop: 0 }}>Tu valoración de {data.apodo}</h2>
+        <div className="card" id="valoracion-formulario" style={{ marginBottom: "1rem" }}>
+          <h3 style={{ marginTop: 0, marginBottom: "0.5rem", fontSize: "1.05rem" }}>Formulario de valoración</h3>
           <p className="muted" style={{ marginTop: 0 }}>
-            Elegí el tipo de valoración. Podés actualizarlas cuando quieras.
+            Podés cambiar entre perfil completo y F5 con las solapas o con los botones de arriba. Podés guardar y
+            editar cuando quieras.
           </p>
           <div className="tabs" style={{ marginBottom: "1rem" }}>
             <button
@@ -376,7 +403,7 @@ export default function PlayerProfilePage() {
           </div>
 
           {valoracionTab === "completo" ? (
-            <>
+            <div id="perfil-completo-valoracion">
               <p className="muted">
                 Valorá cada aspecto del 1 al 10 según lo que ves en entrenamientos y partidos.
               </p>
@@ -391,7 +418,7 @@ export default function PlayerProfilePage() {
                   {saving ? "Guardando…" : data.myRating ? "Actualizar valoración" : "Enviar valoración"}
                 </button>
               </form>
-            </>
+            </div>
           ) : (
             <div id="f5-valoracion">
               <p className="muted">

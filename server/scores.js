@@ -128,7 +128,7 @@ export function finalScore(selfProfile, ratingsReceived) {
   const selfAvg = profileAverage(selfProfile);
   const peer = peerAverageForPlayer(ratingsReceived);
   if (peer?.overall == null) return { value: selfAvg, selfAvg, peerAvg: null, peerCount: 0 };
-  const wSelf = usesHighSelfPerception(selfProfile) ? 0.1 : 0.35;
+  const wSelf = usesHighSelfPerception(selfProfile) ? 0.15 : 0.35;
   const wPeer = 1 - wSelf;
   return {
     value: wSelf * selfAvg + wPeer * peer.overall,

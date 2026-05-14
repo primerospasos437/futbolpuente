@@ -47,7 +47,8 @@ function PlayerRowLink({ p, listaTab }: { p: PlayerSummary; listaTab: "completo"
         ? ` · ${f5Peer} valoraciones F5`
         : " · sin valoraciones F5 aún";
 
-  const to = listaTab === "f5" ? `/jugador/${p.id}#f5-valoracion` : `/jugador/${p.id}`;
+  const to =
+    listaTab === "f5" ? `/jugador/${p.id}#f5-valoracion` : `/jugador/${p.id}#perfil-completo-valoracion`;
 
   return (
     <Link key={p.id} to={to} style={{ textDecoration: "none", color: "inherit" }}>
@@ -215,7 +216,11 @@ export default function HomePage() {
                 {faltan.map((p) => (
                   <Link
                     key={p.id}
-                    to={listaTab === "f5" ? `/jugador/${p.id}#f5-valoracion` : `/jugador/${p.id}`}
+                    to={
+                      listaTab === "f5"
+                        ? `/jugador/${p.id}#f5-valoracion`
+                        : `/jugador/${p.id}#perfil-completo-valoracion`
+                    }
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
@@ -269,7 +274,11 @@ export default function HomePage() {
                 {ya.map((p) => (
                   <Link
                     key={p.id}
-                    to={listaTab === "f5" ? `/jugador/${p.id}#f5-valoracion` : `/jugador/${p.id}`}
+                    to={
+                      listaTab === "f5"
+                        ? `/jugador/${p.id}#f5-valoracion`
+                        : `/jugador/${p.id}#perfil-completo-valoracion`
+                    }
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
