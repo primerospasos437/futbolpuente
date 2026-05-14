@@ -38,6 +38,7 @@
    PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -f supabase/02_app_support.sql
    PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -f supabase/04_rpc_futbol_auth.sql
    PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -f supabase/05_rpc_data.sql
+   PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -f supabase/05_client_supabase_reads_writes.sql
    PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -f supabase/06_partidos.sql
    PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -f supabase/07_convocatorias.sql
    PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -f supabase/08_foto.sql
@@ -56,7 +57,8 @@
 ### Gotchas
 
 - The `04_rpc_futbol_auth.sql` RPC references columns `usuario_id` and `posicion_principal` that are NOT in the base `schema.sql`. You must add these columns before running the RPC migrations.
-- The `fecha_nacimiento` column is `text NOT NULL DEFAULT ''` in `schema.sql` but the RPCs cast it to `date` and insert NULL. The column must be altered to nullable `date` type before running RPCs.
+- The `fecha_nacimiento` column is `text NOT NULL DEFAULT ''` in `schema.sql` but the RPCs cast it to `date` and insert NULL. The column must be altered to nullable `date` type before running RPCs. Note: if `02_app_support.sql` has already altered the column to `date`, the `ALTER COLUMN ... TYPE date USING ...` compatibility command will error on the `= ''` comparison (empty string is invalid for date). This is safe to ignore since the column is already the correct type.
+- The migration `05_client_supabase_reads_writes.sql` defines `futbol_auth_session_player_id` which is required for session validation. Registration will fail without it.
 - The gate code to access the app is `fobalpuenteclub` (hardcoded in `src/GateCode.tsx`).
 - There is no ESLint configuration — type checking is done via `npx tsc --noEmit`.
 - No test framework is configured. Validation is done via TypeScript type checking and manual testing.
