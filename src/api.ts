@@ -1,5 +1,7 @@
 import { DIMENSION_ORDER, defaultScoresZeros } from "./dimensions";
 import { defaultF5ScoresZeros } from "./dimensions-f5";
+import { sha256Hex, updateAuthEmailIfPossible } from "./lib/futbolAuth";
+import { normalizeEmailForRegister } from "./lib/futbolRegistration";
 import { getSupabase } from "./lib/supabase";
 import { finalScore, normalizeProfile, peerAverageForPlayer, profileAverage } from "./lib/scoring";
 import { finalScoreF5, normalizeF5Profile, peerAverageF5 } from "./lib/scoringF5";
@@ -778,16 +780,46 @@ export const api = {
     };
   },
 
-  setMisDatosPrivados: async (p: { nombre: string; apellido: string; telefono: string }): Promise<MisDatosPrivados> => {
+  setMisDatosPrivados: async (p: {
+    nombre: string;
+    apellido: string;
+    telefono: string;
+    email: string;
+    pinSiCambiaCorreo?: string;
+  }): Promise<MisDatosPrivados> => {
     const token = await requireToken();
     const sb = getSupabase();
+
+    const { data: curRaw, error: curErr } = await sb.rpc("futbol_mis_datos_privados_get", { p_token: token });
+    if (curErr) throw new Error(curErr.message);
+    const cur = (curRaw ?? {}) as Record<string, unknown>;
+    const prevEmail = String(cur.email ?? "").trim();
+    const nextRaw = String(p.email ?? "").trim();
+    if (!nextRaw) throw new Error("El correo es obligatorio.");
+    const nextNorm = normalizeEmailForRegister(nextRaw);
+
+    const emailCambia = prevEmail.toLowerCase() !== nextNorm.toLowerCase();
+    let pinHash: string | null = null;
+    if (emailCambia) {
+      if (!p.pinSiCambiaCorreo?.trim()) {
+        throw new Error("Para cambiar el correo ingresá tu PIN en el campo «PIN para cambiar el correo».");
+      }
+      pinHash = await sha256Hex(p.pinSiCambiaCorreo.trim());
+    }
+
     const { data, error } = await sb.rpc("futbol_mis_datos_privados_set", {
       p_token: token,
       p_nombre: p.nombre,
       p_apellido: p.apellido,
       p_telefono: p.telefono,
+      p_email: emailCambia ? nextNorm : null,
+      p_pin_hash: pinHash,
     });
     if (error) throw new Error(error.message);
+
+    if (emailCambia && prevEmail) {
+      await updateAuthEmailIfPossible(prevEmail, nextNorm, p.pinSiCambiaCorreo!.trim());
+    }
     const o = (data ?? {}) as Record<string, unknown>;
     return {
       email: String(o.email ?? ""),

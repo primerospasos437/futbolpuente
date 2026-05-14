@@ -19,9 +19,13 @@ update public.jugadores j
 set posicion_principal = j.posicion_preferida
 where j.posicion_principal is distinct from j.posicion_preferida;
 
--- Evita ambigüedad en PostgREST: una sola firma (último parámetro opcional con default).
+-- Si la columna ya existía sin DEFAULT, asegurar default para INSERTs que no la listan.
+alter table public.jugadores alter column posicion_principal set default 'medio';
+
+-- Evita ambigüedad en PostgREST: una sola firma (parámetros opcionales al final).
 drop function if exists public.futbol_auth_register(text, text, text, text, text, text, text, date, text, integer, numeric, jsonb);
 drop function if exists public.futbol_auth_register(text, text, text, text, text, text, text, date, text, integer, numeric, jsonb, uuid);
+drop function if exists public.futbol_auth_register(text, text, text, text, text, text, text, date, text, integer, numeric, jsonb, text, uuid);
 
 create or replace function public.futbol_auth_register(
   p_nombre_completo text,
@@ -36,6 +40,7 @@ create or replace function public.futbol_auth_register(
   p_altura_cm integer,
   p_peso_kg numeric,
   p_perfil_scores jsonb,
+  p_posicion_principal text default null,
   p_cuenta_id uuid default null
 ) returns jsonb
 language plpgsql
@@ -45,6 +50,7 @@ as $$
 declare
   v_id uuid;
   v_token text;
+  v_pos_principal text;
 begin
   if exists (
     select 1
@@ -76,6 +82,11 @@ begin
     raise exception 'No se pudo crear la cuenta (identificador vacío). Reintentá o contactá al administrador.';
   end if;
 
+  v_pos_principal := trim(coalesce(nullif(trim(p_posicion_principal), ''), p_posicion_preferida));
+  if v_pos_principal not in ('portero', 'defensa', 'medio', 'delantero') then
+    v_pos_principal := 'medio';
+  end if;
+
   insert into jugadores (
     id,
     usuario_id,
@@ -84,6 +95,7 @@ begin
     nombre_completo,
     posicion_preferida,
     posicion_alternativa,
+    posicion_principal,
     pie_dominante,
     fecha_nacimiento,
     contacto,
@@ -102,6 +114,7 @@ begin
     trim(p_nombre_completo),
     trim(p_posicion_preferida),
     trim(p_posicion_alternativa),
+    v_pos_principal,
     trim(p_pie_dominante),
     p_fecha_nacimiento,
     trim(coalesce(p_contacto, '')),
@@ -125,9 +138,9 @@ end;
 $$;
 
 revoke all on function public.futbol_auth_register(
-  text, text, text, text, text, text, text, date, text, integer, numeric, jsonb, uuid
+  text, text, text, text, text, text, text, date, text, integer, numeric, jsonb, text, uuid
 ) from public;
 
 grant execute on function public.futbol_auth_register(
-  text, text, text, text, text, text, text, date, text, integer, numeric, jsonb, uuid
+  text, text, text, text, text, text, text, date, text, integer, numeric, jsonb, text, uuid
 ) to anon, authenticated;
