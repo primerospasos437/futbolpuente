@@ -99,11 +99,17 @@ export function usesHighSelfPerception(selfProfile: ProfileScores | Record<strin
 export function finalScore(
   selfProfile: ProfileScores | Record<string, unknown>,
   ratingsReceived: { scores: ProfileScores | Record<string, unknown> }[],
+  opts?: { ignoreSelf?: boolean },
 ): { value: number; selfAvg: number; peerAvg: number | null; peerCount: number } {
+  if (opts?.ignoreSelf) {
+    const peer = peerAverageForPlayer(ratingsReceived);
+    if (peer?.overall == null) return { value: 0, selfAvg: 0, peerAvg: null, peerCount: 0 };
+    return { value: peer.overall, selfAvg: 0, peerAvg: peer.overall, peerCount: peer.count };
+  }
   const selfAvg = profileAverage(selfProfile);
   const peer = peerAverageForPlayer(ratingsReceived);
   if (peer?.overall == null) return { value: selfAvg, selfAvg, peerAvg: null, peerCount: 0 };
-  const wSelf = usesHighSelfPerception(selfProfile) ? 0.1 : 0.35;
+  const wSelf = usesHighSelfPerception(selfProfile) ? 0.15 : 0.35;
   const wPeer = 1 - wSelf;
   return {
     value: wSelf * selfAvg + wPeer * peer.overall,

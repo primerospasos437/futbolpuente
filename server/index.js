@@ -97,7 +97,8 @@ function sanitizeFicha(body = {}, defaults = {}) {
 function playerPublic(p, ratingsReceived, viewerId) {
   const profile = normalizeProfile(p.profile);
   const received = ratingsReceived.map((r) => ({ scores: r.scores }));
-  const fs = finalScore(profile, received);
+  const ignoreSelf = p.perfilCompletoCargado === false;
+  const fs = finalScore(profile, received, { ignoreSelf });
   const peer = peerAverageForPlayer(received);
 
   const showInjury = viewerId === p.id;
@@ -350,7 +351,9 @@ app.post("/api/teams/balance", requireAuth(async (req, res) => {
       selected.map(async (p) => {
         const profile = normalizeProfile(p.profile);
         const received = await repo.ratingsTo(p.id);
-        const fs = finalScore(profile, received.map((r) => ({ scores: r.scores })));
+        const fs = finalScore(profile, received.map((r) => ({ scores: r.scores })), {
+          ignoreSelf: p.perfilCompletoCargado === false,
+        });
         return {
           id: p.id,
           apodo: p.apodo,

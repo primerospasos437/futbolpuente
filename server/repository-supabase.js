@@ -30,6 +30,8 @@ function mapRowToPlayer(r) {
     historialLesiones: r.historial_lesiones ?? "",
     profile: typeof r.perfil_scores === "object" && r.perfil_scores ? r.perfil_scores : {},
     createdAt: r.created_at ?? r.updated_at ?? new Date().toISOString(),
+    perfilCompletoCargado: r.perfil_completo_cargado !== false,
+    perfilF5Cargado: r.perfil_f5_cargado !== false,
   };
 }
 
@@ -76,6 +78,8 @@ export function createSupabaseRepository(url, serviceRoleKey) {
             "historial_lesiones",
             "perfil_scores",
             "perfil_f5_scores",
+            "perfil_completo_cargado",
+            "perfil_f5_cargado",
             "es_admin",
             "created_at",
             "updated_at",
