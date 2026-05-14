@@ -13,6 +13,7 @@ export default function TeamsPage() {
   const [partidos, setPartidos] = useState<PartidoRow[]>([]);
   const [lastBorradorId, setLastBorradorId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [useF5Balance, setUseF5Balance] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,7 +49,7 @@ export default function TeamsPage() {
     setError(null);
     setResult(null);
     try {
-      const r = await api.balanceTeams(chosenIds.length ? chosenIds : undefined);
+      const r = await api.balanceTeams(chosenIds.length ? chosenIds : undefined, { useF5Scores: useF5Balance });
       setResult(r);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -115,9 +116,28 @@ export default function TeamsPage() {
     <div>
       <h1>Armar equipos</h1>
       <p className="sub">
-        Elegí quién juega. El algoritmo reparte en dos equipos parejos según la nota final. Guardá como borrador: no se
-        notifica a nadie. Cuando esté listo, confirmá el partido como administrador para avisar a los convocados.
+        Elegí quién juega. El algoritmo reparte en dos equipos parejos según la nota elegida (perfil completo o F5).
+        Respeta hasta dos exclusiones por jugador («no compartir equipo») configuradas en Próximos partidos. Guardá como
+        borrador: no se notifica a nadie. Cuando esté listo, confirmá el partido como administrador para avisar a los
+        convocados.
       </p>
+
+      <div className="card" style={{ marginBottom: "1rem" }}>
+        <label className="checkbox-row player-row" style={{ cursor: "pointer", marginBottom: 0 }}>
+          <input
+            type="checkbox"
+            checked={useF5Balance}
+            onChange={(e) => setUseF5Balance(e.target.checked)}
+          />
+          <span>
+            <strong>Usar nota final F5</strong>{" "}
+            <span className="muted">
+              (promedio ponderado 1–5 con mirada del grupo). Si lo desmarcás, se usa la nota del perfil completo
+              (1–10).
+            </span>
+          </span>
+        </label>
+      </div>
 
       {admin && (
         <div className="card" style={{ marginBottom: "1rem" }}>
@@ -227,6 +247,15 @@ export default function TeamsPage() {
           <p className="muted" style={{ marginTop: "1rem" }}>
             Diferencia entre equipos (suma de notas): {result.difference.toFixed(3)} · Generado{" "}
             {new Date(result.generatedAt).toLocaleString()}
+            {result.usingF5Scores != null && (
+              <>
+                {" "}
+                · Criterio: {result.usingF5Scores ? "F5 (1–5)" : "perfil completo (1–10)"}
+              </>
+            )}
+            {result.avoidPairsApplied != null && result.avoidPairsApplied > 0 && (
+              <> · Restricciones «no mismo equipo»: {result.avoidPairsApplied} pares</>
+            )}
           </p>
         </>
       )}

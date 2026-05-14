@@ -2,10 +2,11 @@ import { DIMENSION_ORDER } from "./dimensions";
 import { getSupabase } from "./lib/supabase";
 import { finalScore, normalizeProfile, peerAverageForPlayer, profileAverage } from "./lib/scoring";
 import { finalScoreF5, normalizeF5Profile, peerAverageF5 } from "./lib/scoringF5";
-import { balanceTwoTeams } from "./lib/teamsBalance";
+import { balanceTwoTeamsWithAvoid } from "./lib/teamsBalance";
 import type {
   BalanceResponse,
   F5ProfileScores,
+  MisDatosPrivados,
   Pie,
   PlayerDetail,
   PlayerSummary,
@@ -667,20 +668,37 @@ export const api = {
     return out;
   },
 
-  balanceTeams: async (playerIds?: string[]): Promise<BalanceResponse> => {
+  balanceTeams: async (
+    playerIds?: string[],
+    opts?: { useF5Scores?: boolean },
+  ): Promise<BalanceResponse> => {
     const viewerId = await sessionPlayerId();
+    const token = await requireToken();
     const { jugadores: summaries } = await api.players();
     const selected = playerIds?.length ? summaries.filter((p) => playerIds.includes(p.id)) : [...summaries];
     if (selected.length < 4) throw new Error("Selecciona al menos 4 jugadores para armar dos equipos");
 
+    const useF5 = Boolean(opts?.useF5Scores);
     const withScores: TeamSlot[] = selected.map((p) => ({
       id: p.id,
       apodo: p.apodo,
       posicionPreferida: p.posicionPreferida,
-      score: p.finalScore,
+      score: useF5 ? (p.f5FinalScore ?? p.finalScore) : p.finalScore,
     }));
 
-    const { teamA, teamB, diff } = balanceTwoTeams(withScores);
+    let avoidEdges: [string, string][] = [];
+    try {
+      const sb = getSupabase();
+      const { data, error } = await sb.rpc("futbol_evita_equipo_aristas_balanceo", { p_token: token });
+      if (!error && data != null) {
+        const rows = rpcJsonArray<{ a: string; b: string }>(data);
+        avoidEdges = rows.map((r) => [String(r.a), String(r.b)] as [string, string]);
+      }
+    } catch {
+      avoidEdges = [];
+    }
+
+    const { teamA, teamB, diff } = balanceTwoTeamsWithAvoid(withScores, avoidEdges);
     const sum = (arr: TeamSlot[]) => arr.reduce((s, x) => s + x.score, 0);
 
     return {
@@ -691,6 +709,78 @@ export const api = {
       difference: diff,
       pickedBy: viewerId,
       generatedAt: new Date().toISOString(),
+      usingF5Scores: useF5,
+      avoidPairsApplied: avoidEdges.length,
     };
+  },
+
+  misDatosPrivados: async (): Promise<MisDatosPrivados> => {
+    const token = await requireToken();
+    const sb = getSupabase();
+    const { data, error } = await sb.rpc("futbol_mis_datos_privados_get", { p_token: token });
+    if (error) throw new Error(error.message);
+    const o = (data ?? {}) as Record<string, unknown>;
+    return {
+      email: String(o.email ?? ""),
+      nombre: String(o.nombre ?? ""),
+      apellido: String(o.apellido ?? ""),
+      telefono: String(o.telefono ?? ""),
+    };
+  },
+
+  setMisDatosPrivados: async (p: { nombre: string; apellido: string; telefono: string }): Promise<MisDatosPrivados> => {
+    const token = await requireToken();
+    const sb = getSupabase();
+    const { data, error } = await sb.rpc("futbol_mis_datos_privados_set", {
+      p_token: token,
+      p_nombre: p.nombre,
+      p_apellido: p.apellido,
+      p_telefono: p.telefono,
+    });
+    if (error) throw new Error(error.message);
+    const o = (data ?? {}) as Record<string, unknown>;
+    return {
+      email: String(o.email ?? ""),
+      nombre: String(o.nombre ?? ""),
+      apellido: String(o.apellido ?? ""),
+      telefono: String(o.telefono ?? ""),
+    };
+  },
+
+  cambiarPin: async (pinActual: string, pinNuevo: string): Promise<void> => {
+    const token = await requireToken();
+    const { sha256Hex } = await import("./lib/futbolAuth");
+    const a = String(pinActual ?? "").trim();
+    const n = String(pinNuevo ?? "").trim();
+    if (n.length < 4) throw new Error("PIN nuevo: mínimo 4 caracteres");
+    const oldH = await sha256Hex(a);
+    const newH = await sha256Hex(n);
+    const sb = getSupabase();
+    const { error } = await sb.rpc("futbol_cambiar_pin", {
+      p_token: token,
+      p_pin_actual_hash: oldH,
+      p_pin_nuevo_hash: newH,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  evitaCompanerosGet: async (): Promise<{ id: string; apodo: string }[]> => {
+    const token = await requireToken();
+    const sb = getSupabase();
+    const { data, error } = await sb.rpc("futbol_evita_companeros_get", { p_token: token });
+    if (error) throw new Error(error.message);
+    return rpcJsonArray<{ id: string; apodo: string }>(data);
+  },
+
+  evitaCompanerosSet: async (evitaIds: string[]): Promise<{ id: string; apodo: string }[]> => {
+    const token = await requireToken();
+    const uniq = [...new Set(evitaIds.map(String).filter(Boolean))].slice(0, 2);
+    const sb = getSupabase();
+    const { data, error } = await sb.rpc("futbol_evita_companeros_set", {
+      p_token: token,
+      p_evita_ids: uniq,
+    });
+    if (error) throw new Error(error.message);
+    return rpcJsonArray<{ id: string; apodo: string }>(data);
   },
 };
