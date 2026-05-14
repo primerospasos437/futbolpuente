@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
+import { api } from "./api";
 import { AuthProvider, useAuth } from "./AuthContext";
 import AuthPage from "./pages/Auth";
 import HomePage from "./pages/Home";
@@ -12,6 +14,27 @@ import NotificationsBell from "./components/NotificationsBell";
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { loggedIn, logout, ready } = useAuth();
+  const [esAdminNav, setEsAdminNav] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!ready || !loggedIn) {
+      setEsAdminNav(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await api.me();
+        if (!cancelled) setEsAdminNav(Boolean(me.esAdmin));
+      } catch {
+        if (!cancelled) setEsAdminNav(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, loggedIn]);
+
   if (!ready) {
     return (
       <div className="shell">
@@ -40,9 +63,11 @@ function Shell({ children }: { children: React.ReactNode }) {
           <NavLink to="/mis-datos" className={({ isActive }) => (isActive ? "active" : "")}>
             Mis datos
           </NavLink>
-          <NavLink to="/equipos" className={({ isActive }) => (isActive ? "active" : "")}>
-            Equipos
-          </NavLink>
+          {esAdminNav === true ? (
+            <NavLink to="/equipos" className={({ isActive }) => (isActive ? "active" : "")}>
+              Equipos
+            </NavLink>
+          ) : null}
           <button type="button" className="btn btn-ghost" onClick={logout}>
             Salir
           </button>
