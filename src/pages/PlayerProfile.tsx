@@ -130,13 +130,17 @@ export default function PlayerProfilePage() {
 
   const canRate = useMemo(() => data && !data.isSelf, [data]);
 
+  const valoracionFormVisible = useMemo(
+    () => location.hash === "#f5-valoracion" || location.hash === "#perfil-completo-valoracion",
+    [location.hash],
+  );
+
   useLayoutEffect(() => {
-    if (!canRate) return;
-    if (location.hash !== "#f5-valoracion" && location.hash !== "#perfil-completo-valoracion") return;
+    if (!canRate || !valoracionFormVisible) return;
     requestAnimationFrame(() => {
       document.getElementById("valoracion-formulario")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
-  }, [canRate, location.hash, id]);
+  }, [canRate, valoracionFormVisible, id]);
 
   function setValoracionTabNav(t: "completo" | "f5") {
     setValoracionTab(t);
@@ -352,6 +356,12 @@ export default function PlayerProfilePage() {
               Valorar perfil F5 (1–5)
             </button>
           </div>
+          {!valoracionFormVisible ? (
+            <p className="muted" style={{ marginBottom: 0, marginTop: "1rem", fontSize: "0.92rem" }}>
+              Tocá un botón para abrir el formulario debajo. Si no ves esta tarjeta con dos botones verdes, el navegador
+              puede estar sirviendo una versión vieja: probá recargar forzando la caché (Ctrl+F5 o equivalente).
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -378,7 +388,7 @@ export default function PlayerProfilePage() {
         </div>
       ) : null}
 
-      {canRate ? (
+      {canRate && valoracionFormVisible ? (
         <div className="card" id="valoracion-formulario" style={{ marginBottom: "1rem" }}>
           <h3 style={{ marginTop: 0, marginBottom: "0.5rem", fontSize: "1.05rem" }}>Formulario de valoración</h3>
           <p className="muted" style={{ marginTop: 0 }}>
