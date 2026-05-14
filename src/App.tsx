@@ -6,6 +6,8 @@ import PlayerProfilePage from "./pages/PlayerProfile";
 import MisPerfilesPage from "./pages/MisPerfilesPage";
 import ProximosPartidosPage from "./pages/ProximosPartidosPage";
 import TeamsPage from "./pages/Teams";
+import ValorarF5PartidoPage from "./pages/ValorarF5PartidoPage";
+import NotificationsBell from "./components/NotificationsBell";
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { loggedIn, logout, ready } = useAuth();
@@ -24,7 +26,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         <div className="brand">
           Fútbol <span>Grupo</span>
         </div>
-        <nav className="tabs">
+        <nav className="tabs" style={{ flex: 1, display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.25rem" }}>
           <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
             Jugadores
           </NavLink>
@@ -41,6 +43,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             Salir
           </button>
         </nav>
+        <NotificationsBell />
       </header>
       {children}
     </div>
@@ -88,6 +91,14 @@ function AppRoutes() {
         element={
           <Shell>
             <TeamsPage />
+          </Shell>
+        }
+      />
+      <Route
+        path="/partido/:partidoId/valorar-f5"
+        element={
+          <Shell>
+            <ValorarF5PartidoPage />
           </Shell>
         }
       />
