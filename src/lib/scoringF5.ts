@@ -52,12 +52,18 @@ export function peerAverageF5(
 export function finalScoreF5(
   selfProfile: F5ProfileScores | Record<string, unknown>,
   ratingsReceived: { scores: F5ProfileScores | Record<string, unknown> }[],
+  opts?: { ignoreSelf?: boolean },
 ): { value: number; selfAvg: number; peerAvg: number | null; peerCount: number } {
+  if (opts?.ignoreSelf) {
+    const peer = peerAverageF5(ratingsReceived);
+    if (peer?.overall == null) return { value: 0, selfAvg: 0, peerAvg: null, peerCount: 0 };
+    return { value: peer.overall, selfAvg: 0, peerAvg: peer.overall, peerCount: peer.count };
+  }
   const self = normalizeF5Profile(selfProfile);
   const selfAvg = f5ProfileAverage(self);
   const peer = peerAverageF5(ratingsReceived);
   if (peer?.overall == null) return { value: selfAvg, selfAvg, peerAvg: null, peerCount: 0 };
-  const wSelf = f5UsesReducedSelfWeight(self) ? 0.1 : 0.35;
+  const wSelf = f5UsesReducedSelfWeight(self) ? 0.15 : 0.35;
   const wPeer = 1 - wSelf;
   return {
     value: wSelf * selfAvg + wPeer * peer.overall,

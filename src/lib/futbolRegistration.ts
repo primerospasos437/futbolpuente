@@ -184,7 +184,7 @@ export function buildFutbolAuthRegisterRpcArgs(raw: RegisterFormRaw, pinHashHex:
 
   const altura_cm = normalizeAlturaCmRpc(raw.alturaCm);
   const peso_kg = normalizePesoKgRpc(raw.pesoKg);
-  const perfil_scores = normalizeProfileScoresRpc(raw.profile);
+  const perfil_scores = {} as ProfileScores;
 
   const pEmail = normalizeEmailForRegister(String(raw.email ?? "").trim());
 

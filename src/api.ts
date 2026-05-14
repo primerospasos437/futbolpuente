@@ -1,4 +1,5 @@
-import { DIMENSION_ORDER } from "./dimensions";
+import { DIMENSION_ORDER, defaultScoresZeros } from "./dimensions";
+import { defaultF5ScoresZeros } from "./dimensions-f5";
 import { getSupabase } from "./lib/supabase";
 import { finalScore, normalizeProfile, peerAverageForPlayer, profileAverage } from "./lib/scoring";
 import { finalScoreF5, normalizeF5Profile, peerAverageF5 } from "./lib/scoringF5";
@@ -32,7 +33,7 @@ function rpcJsonArray<T>(data: unknown): T[] {
 }
 
 const JUGADORES_PUBLICO =
-  "id,apodo,nombre_completo,posicion_preferida,posicion_alternativa,pie_dominante,fecha_nacimiento,contacto,altura_cm,peso_kg,perfil_scores,perfil_f5_scores,es_admin,created_at,updated_at";
+  "id,apodo,nombre_completo,posicion_preferida,posicion_alternativa,pie_dominante,fecha_nacimiento,contacto,altura_cm,peso_kg,perfil_scores,perfil_f5_scores,perfil_completo_cargado,perfil_f5_cargado,es_admin,created_at,updated_at";
 
 type JugadorPublicoRow = {
   id: string;
@@ -47,6 +48,8 @@ type JugadorPublicoRow = {
   peso_kg: number | string | null;
   perfil_scores: Record<string, unknown> | null;
   perfil_f5_scores?: Record<string, unknown> | null;
+  perfil_completo_cargado?: boolean | null;
+  perfil_f5_cargado?: boolean | null;
   es_admin?: boolean | null;
   created_at: string;
   updated_at?: string;
@@ -89,6 +92,8 @@ type PlayerInternal = {
   f5Profile: Record<string, unknown>;
   esAdmin: boolean;
   createdAt: string;
+  perfilCompletoCargado: boolean;
+  perfilF5Cargado: boolean;
 };
 
 const ALLOW_POS = new Set<string>(["portero", "defensa", "medio", "delantero"]);
@@ -127,7 +132,16 @@ function mapPublicRow(r: JugadorPublicoRow): PlayerInternal {
     f5Profile: typeof r.perfil_f5_scores === "object" && r.perfil_f5_scores ? r.perfil_f5_scores : {},
     esAdmin: Boolean(r.es_admin),
     createdAt: String(r.created_at ?? r.updated_at ?? new Date().toISOString()),
+    perfilCompletoCargado: r.perfil_completo_cargado !== false,
+    perfilF5Cargado: r.perfil_f5_cargado !== false,
   };
+}
+
+async function fetchMiValoracionesPerfilOtrosCount(viewerId: string): Promise<number> {
+  const sb = getSupabase();
+  const { data, error } = await sb.from("valoraciones").select("para_jugador_id").eq("de_jugador_id", viewerId);
+  if (error) return 0;
+  return new Set((data ?? []).map((row: { para_jugador_id: string }) => row.para_jugador_id)).size;
 }
 
 function playerPublic(
@@ -137,11 +151,12 @@ function playerPublic(
   myRatedTargetIds: Set<string>,
   f5PeerRatingsList: { scores: Record<string, unknown> }[] | null,
   myRatedF5PerfilTargetIds: Set<string>,
+  miValoracionesPerfilOtros?: number,
 ): PlayerSummary {
-  const profile = normalizeProfile(p.profile);
-  const f5 = normalizeF5Profile(p.f5Profile);
+  const profile = p.perfilCompletoCargado ? normalizeProfile(p.profile) : defaultScoresZeros();
+  const f5 = p.perfilF5Cargado ? normalizeF5Profile(p.f5Profile) : defaultF5ScoresZeros();
   const received = ratingsReceived.map((row) => ({ scores: row.puntajes ?? {} }));
-  const fs = finalScore(profile, received);
+  const fs = finalScore(profile, received, { ignoreSelf: !p.perfilCompletoCargado });
   const peer = peerAverageForPlayer(received);
   const showInjury = viewerId === p.id;
   const isSelf = viewerId === p.id;
@@ -151,7 +166,7 @@ function playerPublic(
   let f5FinalScore: number | null = null;
   let f5FinalBreakdown: PlayerSummary["f5FinalBreakdown"] = null;
   if (f5PeerRatingsList != null) {
-    const f5s = finalScoreF5(f5, f5PeerRatingsList);
+    const f5s = finalScoreF5(f5, f5PeerRatingsList, { ignoreSelf: !p.perfilF5Cargado });
     f5FinalScore = f5s.value;
     f5FinalBreakdown = {
       selfAvg: f5s.selfAvg,
@@ -190,6 +205,9 @@ function playerPublic(
     f5FinalBreakdown,
     esAdmin: p.esAdmin,
     createdAt: p.createdAt,
+    perfilCompletoCargado: p.perfilCompletoCargado,
+    perfilF5Cargado: p.perfilF5Cargado,
+    ...(isSelf ? { miValoracionesPerfilOtros: miValoracionesPerfilOtros ?? 0 } : {}),
     isSelf,
     ratedByMe,
     ratedF5PerfilByMe,
@@ -536,7 +554,8 @@ export const api = {
     const f5Combined = await buildF5PeerRatingsList(viewerId);
     const myRated = await fetchMyRatedTargetIds(viewerId);
     const myRatedF5 = await fetchMyRatedF5PerfilTargetIds(viewerId);
-    return playerPublic(row, received, viewerId, myRated, f5Combined, myRatedF5);
+    const miValCount = await fetchMiValoracionesPerfilOtrosCount(viewerId);
+    return playerPublic(row, received, viewerId, myRated, f5Combined, myRatedF5, miValCount);
   },
 
   players: async (): Promise<PlayersListPayload> => {
@@ -546,6 +565,7 @@ export const api = {
     const historialSelf = await fetchMyHistorial(token);
     const myRated = await fetchMyRatedTargetIds(viewerId);
     const myRatedF5 = await fetchMyRatedF5PerfilTargetIds(viewerId);
+    const miValCount = await fetchMiValoracionesPerfilOtrosCount(viewerId);
     const sb = getSupabase();
     const { data, error } = await sb.from("jugadores_publico").select(JUGADORES_PUBLICO).order("apodo", { ascending: true });
     if (error) throw new Error(error.message);
@@ -556,7 +576,7 @@ export const api = {
         if (p.id === viewerId) p.historialLesiones = historialSelf;
         const received = await ratingsTo(p.id);
         const f5Combined = await buildF5PeerRatingsList(p.id);
-        return playerPublic(p, received, viewerId, myRated, f5Combined, myRatedF5);
+        return playerPublic(p, received, viewerId, myRated, f5Combined, myRatedF5, miValCount);
       }),
     );
     const otros = jugadores.filter((p) => !p.isSelf);
@@ -584,8 +604,9 @@ export const api = {
     const viewerIsAdmin = Boolean(meRow?.esAdmin);
     const showDetalle = p.id === viewerId || viewerIsAdmin;
     const myF5Row = await findF5PerfilRating(viewerId, p.id);
+    const miValCount = await fetchMiValoracionesPerfilOtrosCount(viewerId);
 
-    const summary = playerPublic(p, received, viewerId, myRated, f5Combined, myRatedF5);
+    const summary = playerPublic(p, received, viewerId, myRated, f5Combined, myRatedF5, miValCount);
     return {
       ...summary,
       dimensions: DIMENSION_ORDER,

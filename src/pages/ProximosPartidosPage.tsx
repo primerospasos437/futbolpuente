@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, apiConvocatorias, apiPartidos, type ConvocatoriaRow, type PartidoRow, type PresenciaRow } from "../api";
+import type { PlayerSummary } from "../types";
 
 const TZ = "America/Argentina/Buenos_Aires";
 
@@ -47,7 +48,7 @@ function myConvocatoria(
 
 export default function ProximosPartidosPage() {
   const [conv, setConv] = useState<ConvocatoriaRow[]>([]);
-  const [meId, setMeId] = useState<string | null>(null);
+  const [me, setMe] = useState<PlayerSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -69,7 +70,7 @@ export default function ProximosPartidosPage() {
     let cancelled = false;
     (async () => {
       try {
-        const [list, me, pl, prt, pres] = await Promise.all([
+        const [list, meRes, pl, prt, pres] = await Promise.all([
           apiConvocatorias.list(),
           api.me(),
           api.players(),
@@ -78,10 +79,10 @@ export default function ProximosPartidosPage() {
         ]);
         if (cancelled) return;
         setConv(Array.isArray(list) ? list : []);
-        setMeId(me.id);
+        setMe(meRes);
         setPartidos(Array.isArray(prt) ? prt : []);
         setPresencias(Array.isArray(pres) ? pres : []);
-        const otros = pl.jugadores.filter((p) => p.id !== me.id).map((p) => ({ id: p.id, apodo: p.apodo }));
+        const otros = pl.jugadores.filter((p) => p.id !== meRes.id).map((p) => ({ id: p.id, apodo: p.apodo }));
         setCompaneros(otros);
         try {
           const ev = await api.evitaCompanerosGet();
@@ -106,6 +107,14 @@ export default function ProximosPartidosPage() {
       cancelled = true;
     };
   }, []);
+
+  const meId = me?.id ?? null;
+
+  const puedeAnotarseConvocatoria =
+    me != null &&
+    me.perfilCompletoCargado &&
+    me.perfilF5Cargado &&
+    (me.miValoracionesPerfilOtros ?? 0) >= 4;
 
   async function refresh() {
     const list = await apiConvocatorias.list();
@@ -194,6 +203,33 @@ export default function ProximosPartidosPage() {
 
       {error && <div className="error">{error}</div>}
 
+      {me && !puedeAnotarseConvocatoria ? (
+        <div className="card" style={{ marginTop: "1rem" }}>
+          <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Requisitos para anotarte</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            El servidor solo permite la inscripción cuando completaste tus perfiles y colaboraste valorando a otros.
+          </p>
+          <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.2rem" }}>
+            {!me.perfilCompletoCargado ? (
+              <li>
+                Guardá tu <strong>perfil completo</strong> (18 características) en «Mis perfiles» → Perfil completo.
+              </li>
+            ) : null}
+            {!me.perfilF5Cargado ? (
+              <li>
+                Guardá tu perfil <strong>F5</strong> en «Mis perfiles» → F5.
+              </li>
+            ) : null}
+            {(me.miValoracionesPerfilOtros ?? 0) < 4 ? (
+              <li>
+                Valorá el perfil completo de al menos <strong>4</strong> compañeros distintos en «Jugadores» (llevás{" "}
+                <strong>{me.miValoracionesPerfilOtros ?? 0}</strong> de 4).
+              </li>
+            ) : null}
+          </ul>
+        </div>
+      ) : null}
+
       {misPartidosTitularConfirmados.length > 0 ? (
         <div className="card" style={{ marginTop: "1rem" }}>
           <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Partidos confirmados (titular)</h2>
@@ -252,7 +288,7 @@ export default function ProximosPartidosPage() {
             <button
               type="button"
               className="btn btn-primary"
-              disabled={busy === `martes-${fechaMartes}`}
+              disabled={busy === `martes-${fechaMartes}` || !puedeAnotarseConvocatoria}
               onClick={() => anotar("martes", fechaMartes)}
             >
               Anotarme
@@ -283,7 +319,7 @@ export default function ProximosPartidosPage() {
             <button
               type="button"
               className="btn btn-primary"
-              disabled={busy === `jueves-${fechaJueves}`}
+              disabled={busy === `jueves-${fechaJueves}` || !puedeAnotarseConvocatoria}
               onClick={() => anotar("jueves", fechaJueves)}
             >
               Anotarme

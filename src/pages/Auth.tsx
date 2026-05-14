@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { setToken } from "../api";
 import { useAuth } from "../AuthContext";
-import { defaultScores } from "../dimensions";
 import { loginWithSupabase, registerWithSupabase } from "../lib/futbolAuth";
 import type { Pie, Posicion } from "../types";
 
@@ -62,7 +61,6 @@ export default function AuthPage() {
     setError(null);
     setLoading(true);
     try {
-      const profile = defaultScores();
       const r = await registerWithSupabase({
         nombreCompleto,
         apodo,
@@ -75,7 +73,6 @@ export default function AuthPage() {
         contacto,
         alturaCm: alturaStr,
         pesoKg: pesoStr,
-        profile,
       });
       setToken(r.token);
       await refresh();

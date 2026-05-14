@@ -110,6 +110,14 @@ export default function MisPerfilesPage() {
         lesiones es privado.
       </p>
 
+      {(!me.perfilCompletoCargado || !me.perfilF5Cargado) && (
+        <p className="muted" style={{ marginBottom: "1rem" }}>
+          Hasta que guardes cada solapa por primera vez, las notas se muestran en <strong>0</strong> y no se usan en
+          promedios como autopercepción. Para anotarte en «Próximos partidos» también necesitás haber valorado el perfil
+          completo de al menos 4 compañeros.
+        </p>
+      )}
+
       <div className="tabs" style={{ marginBottom: "1.25rem" }}>
         <button
           type="button"

@@ -92,4 +92,11 @@ export function defaultF5Scores(): F5ProfileScores {
   return o as F5ProfileScores;
 }
 
+/** Perfil F5 aún no guardado (mostrar 0 hasta guardar en «Mis perfiles»). */
+export function defaultF5ScoresZeros(): F5ProfileScores {
+  const o = {} as Record<F5Dimension, number>;
+  for (const k of F5_DIMENSION_ORDER) o[k] = 0;
+  return o as F5ProfileScores;
+}
+
 export const F5_SCALE_LABELS = ["", "Malo", "Regular", "Bueno", "Muy bueno", "Excelente"] as const;
