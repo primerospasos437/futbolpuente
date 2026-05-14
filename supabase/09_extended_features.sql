@@ -408,7 +408,7 @@ begin
     raise exception 'Día inválido';
   end if;
 
-  public._futbol_convocatoria_validar_ventana(p_dia, p_fecha);
+  perform public._futbol_convocatoria_validar_ventana(p_dia, p_fecha);
 
   select coalesce(max(orden_inscripcion), 0) + 1 into v_next
   from convocatorias
