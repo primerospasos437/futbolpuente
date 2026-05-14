@@ -56,6 +56,9 @@ export default function NotificationsBell() {
     if (n.tipo === "convocatoria_rol_actualizado") {
       return "/proximos-partidos";
     }
+    if (n.tipo === "partido_promovido_suplente") {
+      return "/proximos-partidos";
+    }
     return null;
   }
 

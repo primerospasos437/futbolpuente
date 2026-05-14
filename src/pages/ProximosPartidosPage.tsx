@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { api, apiConvocatorias, type ConvocatoriaRow } from "../api";
+import { api, apiConvocatorias, apiPartidos, type ConvocatoriaRow, type PartidoRow, type PresenciaRow } from "../api";
 
 const TZ = "America/Argentina/Buenos_Aires";
 
@@ -58,6 +58,10 @@ export default function ProximosPartidosPage() {
   const [evitaBusy, setEvitaBusy] = useState(false);
   const [evitaOk, setEvitaOk] = useState<string | null>(null);
 
+  const [partidos, setPartidos] = useState<PartidoRow[]>([]);
+  const [presencias, setPresencias] = useState<PresenciaRow[]>([]);
+  const [bajaPartidoBusy, setBajaPartidoBusy] = useState<string | null>(null);
+
   const fechaMartes = useMemo(() => nextMatchIso("martes"), []);
   const fechaJueves = useMemo(() => nextMatchIso("jueves"), []);
 
@@ -65,10 +69,18 @@ export default function ProximosPartidosPage() {
     let cancelled = false;
     (async () => {
       try {
-        const [list, me, pl] = await Promise.all([apiConvocatorias.list(), api.me(), api.players()]);
+        const [list, me, pl, prt, pres] = await Promise.all([
+          apiConvocatorias.list(),
+          api.me(),
+          api.players(),
+          apiPartidos.list(),
+          apiPartidos.listPresencias(),
+        ]);
         if (cancelled) return;
         setConv(Array.isArray(list) ? list : []);
         setMeId(me.id);
+        setPartidos(Array.isArray(prt) ? prt : []);
+        setPresencias(Array.isArray(pres) ? pres : []);
         const otros = pl.jugadores.filter((p) => p.id !== me.id).map((p) => ({ id: p.id, apodo: p.apodo }));
         setCompaneros(otros);
         try {
@@ -126,6 +138,29 @@ export default function ProximosPartidosPage() {
     }
   }
 
+  const misPartidosTitularConfirmados = useMemo(() => {
+    if (!meId) return [];
+    const confirmados = partidos.filter((p) => p.confirmado_admin === true);
+    const mias = presencias.filter((pr) => pr.jugador_id === meId && pr.estado === "convocado");
+    const map = new Map(mias.map((pr) => [pr.partido_id, pr]));
+    return confirmados.filter((p) => map.has(p.id)).map((p) => ({ partido: p, presencia: map.get(p.id)! }));
+  }, [meId, partidos, presencias]);
+
+  async function bajaTitularPartidoConfirmado(partidoId: string) {
+    setBajaPartidoBusy(partidoId);
+    setError(null);
+    try {
+      await apiPartidos.bajaTitularPartidoConfirmado(partidoId, null);
+      const [prt, pres] = await Promise.all([apiPartidos.list(), apiPartidos.listPresencias()]);
+      setPartidos(Array.isArray(prt) ? prt : []);
+      setPresencias(Array.isArray(pres) ? pres : []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBajaPartidoBusy(null);
+    }
+  }
+
   async function guardarEvitaEquipo() {
     setEvitaBusy(true);
     setEvitaOk(null);
@@ -158,6 +193,33 @@ export default function ProximosPartidosPage() {
       </p>
 
       {error && <div className="error">{error}</div>}
+
+      {misPartidosTitularConfirmados.length > 0 ? (
+        <div className="card" style={{ marginTop: "1rem" }}>
+          <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Partidos confirmados (titular)</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Si no podés ir, avisá con tiempo. Si hay suplentes, sube el primero de la lista y recibe notificación.
+          </p>
+          <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+            {misPartidosTitularConfirmados.map(({ partido: p }) => (
+              <li key={p.id} style={{ marginBottom: "0.65rem" }}>
+                <strong>{p.fecha}</strong>
+                {p.hora_partido ? ` · ${p.hora_partido} hs` : ""}
+                <div style={{ marginTop: "0.35rem" }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={bajaPartidoBusy === p.id}
+                    onClick={() => void bajaTitularPartidoConfirmado(p.id)}
+                  >
+                    {bajaPartidoBusy === p.id ? "Procesando…" : "Darme de baja como titular"}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <div
         style={{
