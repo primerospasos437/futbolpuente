@@ -1,5 +1,9 @@
 import { getSupabase } from "./supabase";
-import { buildFutbolAuthRegisterRpcArgs, type RegisterFormRaw } from "./futbolRegistration";
+import {
+  buildFutbolAuthRegisterRpcArgs,
+  normalizeEmailForRegister,
+  type RegisterFormRaw,
+} from "./futbolRegistration";
 
 export type { RegisterFormRaw } from "./futbolRegistration";
 export { emailFromApodo } from "./futbolRegistration";
@@ -43,7 +47,7 @@ function authSignUpErrorMessage(err: { message?: string; status?: number }): str
 }
 
 /** Contraseña para Supabase Auth (no es el PIN del grupo): larga y determinística a partir del PIN y el mail. */
-function passwordForSupabaseAuth(pin: string, emailNorm: string): string {
+export function passwordForSupabaseAuth(pin: string, emailNorm: string): string {
   const p = String(pin ?? "").trim();
   const e = String(emailNorm ?? "").trim().toLowerCase();
   const combined = `${p}::futbolpuenteclub::${e}`;
@@ -101,6 +105,37 @@ export async function registerWithSupabase(raw: RegisterFormRaw): Promise<{ toke
     await sb.auth.signOut();
     throw e;
   }
+}
+
+/**
+ * Verifica el PIN con el correo actual en Supabase Auth y actualiza el email en `auth.users`.
+ * Cierra la sesión JWT al terminar (la app sigue usando el token de `sesiones`).
+ */
+export async function updateAuthEmailIfPossible(oldEmail: string, newEmail: string, pin: string): Promise<void> {
+  const old = String(oldEmail ?? "").trim().toLowerCase();
+  const neu = normalizeEmailForRegister(String(newEmail ?? "").trim());
+  if (old === neu) return;
+
+  const sb = getSupabase();
+  const pwd = passwordForSupabaseAuth(String(pin ?? "").trim(), old);
+  const { error: signErr } = await sb.auth.signInWithPassword({ email: old, password: pwd });
+  if (signErr) {
+    const m = String(signErr.message ?? "").toLowerCase();
+    if (m.includes("invalid") && (m.includes("credential") || m.includes("login")))
+      throw new Error("PIN incorrecto o el correo actual no coincide con la cuenta de acceso (Supabase Auth).");
+    throw new Error(signErr.message || "No se pudo verificar la cuenta de acceso.");
+  }
+
+  const { error: updErr } = await sb.auth.updateUser({ email: neu });
+  if (updErr) {
+    await sb.auth.signOut();
+    const m2 = String(updErr.message ?? "").toLowerCase();
+    if (m2.includes("already") || m2.includes("registered")) throw new Error("Ese correo ya está en uso.");
+    if (m2.includes("same")) throw new Error("El correo nuevo es igual al actual.");
+    throw new Error(updErr.message || "No se pudo actualizar el correo en la cuenta de acceso.");
+  }
+
+  await sb.auth.signOut();
 }
 
 export async function loginWithSupabase(apodo: string, pin: string): Promise<{ token: string; playerId: string }> {

@@ -11,6 +11,8 @@ export default function MisDatosPage() {
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
   const [telefono, setTelefono] = useState("");
+  const [email, setEmail] = useState("");
+  const [pinCorreo, setPinCorreo] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +33,8 @@ export default function MisDatosPage() {
         setNombre(d.nombre);
         setApellido(d.apellido);
         setTelefono(d.telefono);
+        setEmail(d.email);
+        setPinCorreo("");
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       } finally {
@@ -48,8 +52,16 @@ export default function MisDatosPage() {
     setError(null);
     setOkMsg(null);
     try {
-      const d = await api.setMisDatosPrivados({ nombre, apellido, telefono });
+      const d = await api.setMisDatosPrivados({
+        nombre,
+        apellido,
+        telefono,
+        email: email.trim(),
+        pinSiCambiaCorreo: pinCorreo.trim() || undefined,
+      });
       setData(d);
+      setEmail(d.email);
+      setPinCorreo("");
       setOkMsg("Datos guardados.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
@@ -81,12 +93,14 @@ export default function MisDatosPage() {
   if (!data && error) return <div className="error">{error}</div>;
   if (!data) return <div className="error">No se pudieron cargar tus datos.</div>;
 
+  const correoCambio = email.trim().toLowerCase() !== data.email.trim().toLowerCase();
+
   return (
     <div>
       <h1>Mis datos</h1>
       <p className="sub">
-        Esta información es privada: solo vos la ves acá. El correo viene de tu cuenta; podés anotar nombre, apellido y
-        teléfono para tenerlos a mano.
+        Esta información es privada: solo vos la ves acá. Podés editar el correo (se actualiza en la cuenta de acceso
+        Supabase y en el grupo). Si cambiás el correo, tenés que ingresar tu PIN para verificar la identidad.
       </p>
 
       {error && <div className="error">{error}</div>}
@@ -100,9 +114,25 @@ export default function MisDatosPage() {
         <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Contacto</h2>
         <form onSubmit={guardarDatos}>
           <div className="row">
-            <label>Correo (solo lectura)</label>
-            <input type="email" value={data.email} readOnly disabled className="muted" />
+            <label>Correo</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
           </div>
+          {correoCambio ? (
+            <div className="row">
+              <label>PIN para cambiar el correo</label>
+              <input
+                type="password"
+                value={pinCorreo}
+                onChange={(e) => setPinCorreo(e.target.value)}
+                autoComplete="new-password"
+                placeholder="Tu PIN actual del grupo"
+              />
+              <p className="muted" style={{ marginTop: "0.35rem", marginBottom: 0 }}>
+                Hace falta para verificar en Supabase Auth (misma lógica que al registrarte). Si no cambiás el correo, no
+                hace falta completarlo.
+              </p>
+            </div>
+          ) : null}
           <div className="row">
             <label>Nombre</label>
             <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} autoComplete="given-name" />
