@@ -106,8 +106,26 @@ alter view public.jugadores_publico owner to postgres;
 grant select on public.jugadores_publico to anon, authenticated;
 
 -- ---------------------------------------------------------------------------
--- Corregir mensaje de email duplicado en registro
+-- Corregir mensaje de email duplicado en registro (y una sola firma: fecha date)
 -- ---------------------------------------------------------------------------
+do $$
+declare
+  fn text;
+begin
+  for fn in
+    select format(
+      'public.futbol_auth_register(%s)',
+      pg_catalog.pg_get_function_identity_arguments(p.oid)
+    )
+    from pg_catalog.pg_proc p
+    inner join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+    where p.proname = 'futbol_auth_register'
+      and n.nspname = 'public'
+  loop
+    execute 'drop function if exists ' || fn || ' cascade';
+  end loop;
+end $$;
+
 create or replace function public.futbol_auth_register(
   p_nombre_completo text,
   p_apodo text,
@@ -147,10 +165,12 @@ begin
 
   insert into jugadores (
     id,
+    usuario_id,
     apodo,
     pin_hash,
     nombre_completo,
     posicion_preferida,
+    posicion_principal,
     posicion_alternativa,
     pie_dominante,
     fecha_nacimiento,
@@ -162,9 +182,11 @@ begin
     perfil_f5_scores
   ) values (
     v_id,
+    v_id,
     trim(p_apodo),
     lower(trim(p_pin_hash)),
     trim(p_nombre_completo),
+    trim(p_posicion_preferida),
     trim(p_posicion_preferida),
     trim(p_posicion_alternativa),
     trim(p_pie_dominante),
@@ -347,6 +369,7 @@ begin
   update public.jugadores set
     nombre_completo = new_nombre,
     posicion_preferida = new_pos,
+    posicion_principal = new_pos,
     posicion_alternativa = new_pos_alt,
     pie_dominante = new_pie,
     fecha_nacimiento = new_fecha,

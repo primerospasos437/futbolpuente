@@ -1,9 +1,9 @@
 export type Posicion = "portero" | "defensa" | "medio" | "delantero";
 export type Pie = "derecho" | "izquierdo" | "ambos";
 
-import type { F5ProfileScores } from "./dimensions-f5";
+import type { F5Dimension, F5ProfileScores } from "./dimensions-f5";
 
-export type { F5ProfileScores } from "./dimensions-f5";
+export type { F5Dimension, F5ProfileScores } from "./dimensions-f5";
 
 /** Dimensiones 1–10 (autopercepción y valoraciones entre compañeros) */
 export type Dimension =
@@ -70,6 +70,8 @@ export interface PlayerSummary {
   isSelf: boolean;
   /** Si el usuario actual ya envió una valoración a este jugador (siempre `false` para vos mismo). */
   ratedByMe: boolean;
+  /** Valoración F5 de perfil (1–5) que emitiste vos hacia este jugador. */
+  ratedF5PerfilByMe: boolean;
 }
 
 /** Respuesta de listado de jugadores con bloques para la vista (pendientes vs ya valorados). */
@@ -80,12 +82,20 @@ export interface PlayersListPayload {
   faltanCalificar: PlayerSummary[];
   /** Compañeros que ya valoraste (p. ej. indicador en verde en la lista). */
   yaCalificados: PlayerSummary[];
+  /** Compañeros a los que aún no enviaste valoración F5 de perfil. */
+  faltanCalificarF5: PlayerSummary[];
+  /** Compañeros a los que ya enviaste valoración F5 de perfil. */
+  yaCalificadosF5: PlayerSummary[];
 }
 
 export interface PlayerDetail extends PlayerSummary {
   dimensions: Dimension[];
   peerByDimension: Partial<Record<Dimension, number | null>>;
   myRating: { scores: ProfileScores; updatedAt: string } | null;
+  /** True si el usuario que está mirando la ficha es administrador (ve autopercepción ajena en detalle). */
+  viewerIsAdmin: boolean;
+  peerF5ByDimension: Partial<Record<F5Dimension, number | null>>;
+  myF5PerfilRating: { scores: F5ProfileScores; updatedAt: string } | null;
 }
 
 export interface TeamSlot {
