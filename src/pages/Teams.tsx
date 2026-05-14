@@ -20,7 +20,8 @@ export default function TeamsPage() {
   const [busy, setBusy] = useState(false);
   const [useF5Balance, setUseF5Balance] = useState(true);
   const [horaPartido, setHoraPartido] = useState("21:30");
-  const [textoEquipamiento, setTextoEquipamiento] = useState("");
+  /** Texto libre opcional; en BD sigue siendo `texto_equipamiento` (RPC). */
+  const [observacion, setObservacion] = useState("");
 
   const fechaPartidoCal = useMemo(() => nextMatchIso(diaPartido), [diaPartido]);
 
@@ -168,7 +169,7 @@ export default function TeamsPage() {
     const { id } = await apiPartidos.crearBorrador(fechaPartidoCal, result.teamA, result.teamB, {
       suplentes,
       horaPartido,
-      textoEquipamiento,
+      textoEquipamiento: observacion,
     });
     return id;
   }
@@ -234,7 +235,8 @@ export default function TeamsPage() {
         Solo aparecen los jugadores <strong>anotados</strong> para el próximo partido del día elegido. El campo es{" "}
         <strong>5 vs 5</strong> ({TITULARES_CAMPO} titulares); el resto queda como suplente en orden de anotación. Podés
         balancear por nota F5 o por perfil completo. Las exclusiones «no compartir equipo» (Próximos partidos) se
-        respetan al generar.
+        respetan al generar. Cuando pulsás <strong>Confirmar partido y enviar notificaciones</strong>, la app avisa
+        sola a titulares y suplentes (campanita).
       </p>
 
       <div className="card" style={{ marginBottom: "1rem" }}>
@@ -269,18 +271,22 @@ export default function TeamsPage() {
 
       {admin && (
         <div className="card" style={{ marginBottom: "1rem" }}>
-          <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Detalle para las notificaciones</h2>
+          <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Notificación automática al confirmar</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Fecha y hora se usan para avisar a <strong>titulares</strong> (equipo Claros u Oscuros, día y hora) y a{" "}
+            <strong>suplentes</strong> (solo número de suplente, día y hora; se les avisa aparte si pasan a titular).
+          </p>
           <div className="row">
             <label>Hora del partido (Argentina)</label>
             <input type="time" value={horaPartido} onChange={(e) => setHoraPartido(e.target.value)} />
           </div>
           <div className="row">
-            <label>Equipamiento / colores / cancha</label>
+            <label>Observación (opcional)</label>
             <textarea
-              value={textoEquipamiento}
-              onChange={(e) => setTextoEquipamiento(e.target.value)}
+              value={observacion}
+              onChange={(e) => setObservacion(e.target.value)}
               rows={2}
-              placeholder="Ej.: Claros camiseta blanca · Oscuros verde · Cancha sintética municipal"
+              placeholder="Solo si hace falta otra información (se agrega al mensaje de los titulares)."
               style={{ width: "100%", maxWidth: "480px" }}
             />
           </div>
@@ -403,11 +409,11 @@ export default function TeamsPage() {
               <button type="button" className="btn btn-ghost" disabled={busy} onClick={recalcularEquipos}>
                 Recalcular equipos
               </button>
-              <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void guardarBorrador()}>
-                {busy ? "Guardando…" : "Guardar borrador (no notifica)"}
+              <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void guardarBorrador()}>
+                {busy ? "Guardando…" : "Solo guardar borrador (sin notificar)"}
               </button>
               <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void confirmarNotificar()}>
-                {busy ? "Procesando…" : "Confirmar y notificar a todos"}
+                {busy ? "Procesando…" : "Confirmar partido y enviar notificaciones automáticamente"}
               </button>
               {borradorPartidoId ? (
                 <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => rearmarBorradorDb(borradorPartidoId)}>
