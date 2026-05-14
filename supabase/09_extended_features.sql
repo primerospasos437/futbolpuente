@@ -170,6 +170,7 @@ begin
     pin_hash,
     nombre_completo,
     posicion_preferida,
+    posicion_principal,
     posicion_alternativa,
     pie_dominante,
     fecha_nacimiento,
@@ -185,6 +186,7 @@ begin
     trim(p_apodo),
     lower(trim(p_pin_hash)),
     trim(p_nombre_completo),
+    trim(p_posicion_preferida),
     trim(p_posicion_preferida),
     trim(p_posicion_alternativa),
     trim(p_pie_dominante),
@@ -367,6 +369,7 @@ begin
   update public.jugadores set
     nombre_completo = new_nombre,
     posicion_preferida = new_pos,
+    posicion_principal = new_pos,
     posicion_alternativa = new_pos_alt,
     pie_dominante = new_pie,
     fecha_nacimiento = new_fecha,
