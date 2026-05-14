@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { api, apiConvocatorias, apiPartidos, isAdminFromPlayersList, type ConvocatoriaRow, type PartidoRow } from "../api";
 import type { BalanceResponse, PlayerSummary } from "../types";
 import { nextMatchIso } from "./ProximosPartidosPage";
@@ -14,7 +15,7 @@ export default function TeamsPage() {
   const [result, setResult] = useState<BalanceResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [admin, setAdmin] = useState(false);
+  const [admin, setAdmin] = useState<boolean | null>(null);
   const [partidos, setPartidos] = useState<PartidoRow[]>([]);
   const [borradorPartidoId, setBorradorPartidoId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -227,6 +228,7 @@ export default function TeamsPage() {
 
   if (error && !players) return <div className="error">{error}</div>;
   if (!players) return <p className="muted">Cargando…</p>;
+  if (admin === false) return <Navigate to="/" replace />;
 
   return (
     <div>
@@ -269,7 +271,7 @@ export default function TeamsPage() {
         </label>
       </div>
 
-      {admin && (
+      {admin === true && (
         <div className="card" style={{ marginBottom: "1rem" }}>
           <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Notificación automática al confirmar</h2>
           <p className="muted" style={{ marginTop: 0 }}>
@@ -404,7 +406,7 @@ export default function TeamsPage() {
             </div>
           </div>
 
-          {admin && (
+          {admin === true && (
             <div style={{ marginTop: "1rem", display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" }}>
               <button type="button" className="btn btn-ghost" disabled={busy} onClick={recalcularEquipos}>
                 Recalcular equipos
