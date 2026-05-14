@@ -160,6 +160,8 @@ export type FutbolAuthRegisterRpcArgs = {
   p_altura_cm: number | null;
   p_peso_kg: number | null;
   p_perfil_scores: ProfileScores;
+  /** Misma posición que el selector «Posición principal» del registro; debe coincidir con `p_posicion_principal` en el RPC. */
+  p_posicion_principal: PosicionRpc;
   /** Id de `auth.users` tras `signUp`; la cuenta interna `usuarios`/`jugadores` usa el mismo UUID. */
   p_cuenta_id?: string | null;
 };
@@ -197,6 +199,7 @@ export function buildFutbolAuthRegisterRpcArgs(raw: RegisterFormRaw, pinHashHex:
     p_pin_hash: pinHash,
     p_posicion_preferida: posPrincipal,
     p_posicion_alternativa: posAlt,
+    p_posicion_principal: posPrincipal,
     p_pie_dominante: pie,
     p_fecha_nacimiento: fechaRpc,
     p_contacto: contacto,

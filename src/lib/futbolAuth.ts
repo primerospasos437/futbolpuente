@@ -18,6 +18,9 @@ function rpcErrorMessage(err: { message?: string; details?: string; hint?: strin
   if (m.includes("usuario_id") && m.includes("null")) {
     return "Error de registro en base de datos (cuenta sin vincular). Ejecutá la migración supabase/18_futbol_auth_register_usuario_id_y_cuenta.sql o contactá al administrador.";
   }
+  if (m.includes("posicion_principal") && m.includes("null")) {
+    return "Error de registro: falta la posición principal. Volvé a aplicar la migración SQL en Supabase (versión actual de 18 con p_posicion_principal) o contactá al administrador.";
+  }
   return m;
 }
 
