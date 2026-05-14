@@ -1,9 +1,8 @@
-# Orden: las rutas más específicas primero (Cloudflare aplica la primera coincidencia útil).
-
-/assets/*
+# Orden: las rutas más específicas primero
+/activos/*
   Cache-Control: public, max-age=31536000, immutable
 
-/index.html
+/indice.html
   Cache-Control: public, max-age=0, must-revalidate
 
 /
