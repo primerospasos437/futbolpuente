@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { setToken } from "../api";
 import { useAuth } from "../AuthContext";
 import { defaultScores } from "../dimensions";
@@ -10,6 +10,7 @@ const API_BASE = "";
 
 export default function AuthPage() {
   const { loggedIn, refresh, ready } = useAuth();
+  const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<"login" | "register" | "recover">("login");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -31,6 +32,13 @@ export default function AuthPage() {
   const [recApodo, setRecApodo] = useState("");
   const [recCode, setRecCode] = useState("");
   const [recPin, setRecPin] = useState("");
+
+  useEffect(() => {
+    if (searchParams.get("recuperar") === "1") {
+      setMode("recover");
+      setRecoverStep(1);
+    }
+  }, [searchParams]);
 
   if (ready && loggedIn) return <Navigate to="/" replace />;
 

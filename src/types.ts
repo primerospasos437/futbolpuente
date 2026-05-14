@@ -110,4 +110,16 @@ export interface BalanceResponse {
   difference: number;
   pickedBy: string;
   generatedAt: string;
+  /** Si el balanceo usó la nota final F5 en lugar del perfil completo. */
+  usingF5Scores?: boolean;
+  /** Cantidad de pares «no mismo equipo» tenidos en cuenta (preferencias de jugadores). */
+  avoidPairsApplied?: number;
 }
+
+/** Datos solo visibles para el propio usuario (pestaña Mis datos). */
+export type MisDatosPrivados = {
+  email: string;
+  nombre: string;
+  apellido: string;
+  telefono: string;
+};

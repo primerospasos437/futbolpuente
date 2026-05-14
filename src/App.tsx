@@ -4,6 +4,7 @@ import AuthPage from "./pages/Auth";
 import HomePage from "./pages/Home";
 import PlayerProfilePage from "./pages/PlayerProfile";
 import MisPerfilesPage from "./pages/MisPerfilesPage";
+import MisDatosPage from "./pages/MisDatosPage";
 import ProximosPartidosPage from "./pages/ProximosPartidosPage";
 import TeamsPage from "./pages/Teams";
 import ValorarF5PartidoPage from "./pages/ValorarF5PartidoPage";
@@ -35,6 +36,9 @@ function Shell({ children }: { children: React.ReactNode }) {
           </NavLink>
           <NavLink to="/perfil" className={({ isActive }) => (isActive ? "active" : "")}>
             Mis perfiles
+          </NavLink>
+          <NavLink to="/mis-datos" className={({ isActive }) => (isActive ? "active" : "")}>
+            Mis datos
           </NavLink>
           <NavLink to="/equipos" className={({ isActive }) => (isActive ? "active" : "")}>
             Equipos
@@ -83,6 +87,14 @@ function AppRoutes() {
         element={
           <Shell>
             <MisPerfilesPage />
+          </Shell>
+        }
+      />
+      <Route
+        path="/mis-datos"
+        element={
+          <Shell>
+            <MisDatosPage />
           </Shell>
         }
       />

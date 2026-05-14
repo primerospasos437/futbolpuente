@@ -52,6 +52,12 @@ export default function ProximosPartidosPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
+  const [companeros, setCompaneros] = useState<{ id: string; apodo: string }[]>([]);
+  const [evita1, setEvita1] = useState("");
+  const [evita2, setEvita2] = useState("");
+  const [evitaBusy, setEvitaBusy] = useState(false);
+  const [evitaOk, setEvitaOk] = useState<string | null>(null);
+
   const fechaMartes = useMemo(() => nextMatchIso("martes"), []);
   const fechaJueves = useMemo(() => nextMatchIso("jueves"), []);
 
@@ -59,10 +65,25 @@ export default function ProximosPartidosPage() {
     let cancelled = false;
     (async () => {
       try {
-        const [list, me] = await Promise.all([apiConvocatorias.list(), api.me()]);
+        const [list, me, pl] = await Promise.all([apiConvocatorias.list(), api.me(), api.players()]);
         if (cancelled) return;
         setConv(Array.isArray(list) ? list : []);
         setMeId(me.id);
+        const otros = pl.jugadores.filter((p) => p.id !== me.id).map((p) => ({ id: p.id, apodo: p.apodo }));
+        setCompaneros(otros);
+        try {
+          const ev = await api.evitaCompanerosGet();
+          if (!cancelled) {
+            const ids = ev.map((x) => x.id);
+            setEvita1(ids[0] ?? "");
+            setEvita2(ids[1] ?? "");
+          }
+        } catch {
+          if (!cancelled) {
+            setEvita1("");
+            setEvita2("");
+          }
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       } finally {
@@ -102,6 +123,22 @@ export default function ProximosPartidosPage() {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function guardarEvitaEquipo() {
+    setEvitaBusy(true);
+    setEvitaOk(null);
+    setError(null);
+    try {
+      const raw = [evita1, evita2].filter((x) => x && x.length > 0);
+      const uniq = [...new Set(raw)];
+      await api.evitaCompanerosSet(uniq);
+      setEvitaOk("Preferencias guardadas. Se usan al armar equipos (martes y jueves).");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setEvitaBusy(false);
     }
   }
 
@@ -191,6 +228,45 @@ export default function ProximosPartidosPage() {
             </button>
           )}
         </div>
+      </div>
+
+      <div className="card" style={{ marginTop: "1.5rem" }}>
+        <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Preferencia personal (privada)</h2>
+        <p className="muted" style={{ marginTop: 0 }}>
+          Podés elegir hasta <strong>dos</strong> compañeros con los que preferís <strong>no compartir equipo</strong>. Solo
+          vos ves esta elección. Se tiene en cuenta al generar equipos parejos (martes y jueves) para separarlos en
+          equipos distintos cuando sea posible.
+        </p>
+        {evitaOk && (
+          <p className="muted" style={{ color: "var(--ok, #2e7d32)", marginTop: 0 }}>
+            {evitaOk}
+          </p>
+        )}
+        <div className="row">
+          <label>Jugador 1 (opcional)</label>
+          <select value={evita1} onChange={(e) => setEvita1(e.target.value)}>
+            <option value="">— Ninguno —</option>
+            {companeros.map((c) => (
+              <option key={c.id} value={c.id} disabled={c.id === evita2}>
+                {c.apodo}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="row">
+          <label>Jugador 2 (opcional)</label>
+          <select value={evita2} onChange={(e) => setEvita2(e.target.value)}>
+            <option value="">— Ninguno —</option>
+            {companeros.map((c) => (
+              <option key={c.id} value={c.id} disabled={c.id === evita1}>
+                {c.apodo}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button type="button" className="btn btn-primary" disabled={evitaBusy} onClick={guardarEvitaEquipo}>
+          {evitaBusy ? "Guardando…" : "Guardar preferencias"}
+        </button>
       </div>
     </div>
   );
