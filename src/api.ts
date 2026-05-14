@@ -407,6 +407,7 @@ export const apiPartidos = {
     opts?: {
       suplentes?: { id: string; apodo: string }[];
       horaPartido?: string;
+      /** Observación opcional; se guarda en `partidos.texto_equipamiento` y solo va a titulares al confirmar. */
       textoEquipamiento?: string;
     },
   ): Promise<{ id: string }> => {
