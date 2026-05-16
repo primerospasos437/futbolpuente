@@ -17,6 +17,21 @@ import type {
   TeamSlot,
 } from "./types";
 
+// Incluye el campo apodo en misDatosPrivados y setMisDatosPrivados
+export let misDatosPrivados: MisDatosPrivados | null = null;
+
+export function setMisDatosPrivados(data: Partial<MisDatosPrivados> | null) {
+  if (data) {
+    misDatosPrivados = {
+      ...misDatosPrivados,
+      ...data,
+      apodo: data.apodo ?? misDatosPrivados?.apodo ?? "",
+    } as MisDatosPrivados;
+  } else {
+    misDatosPrivados = null;
+  }
+}
+
 const TOKEN_KEY = "futbol_grupo_token";
 
 function rpcJsonArray<T>(data: unknown): T[] {
@@ -770,27 +785,55 @@ export const api = {
     const { data, error } = await sb.rpc("futbol_mis_datos_privados_get", { p_token: token });
     if (error) throw new Error(error.message);
     const o = (data ?? {}) as Record<string, unknown>;
+    let apodo = String(o.apodo ?? "").trim();
+    if (!apodo) {
+      const me = await api.me();
+      apodo = me.apodo;
+    }
     return {
       email: String(o.email ?? ""),
+      apodo,
       nombre: String(o.nombre ?? ""),
       apellido: String(o.apellido ?? ""),
       telefono: String(o.telefono ?? ""),
     };
   },
 
-  setMisDatosPrivados: async (p: { nombre: string; apellido: string; telefono: string }): Promise<MisDatosPrivados> => {
+  setMisDatosPrivados: async (p: {
+    nombre: string;
+    apellido: string;
+    telefono: string;
+    apodo: string;
+    email?: string;
+    pin?: string;
+  }): Promise<MisDatosPrivados> => {
     const token = await requireToken();
     const sb = getSupabase();
-    const { data, error } = await sb.rpc("futbol_mis_datos_privados_set", {
+    const { sha256Hex } = await import("./lib/futbolAuth");
+
+    const apodoTrim = String(p.apodo ?? "").trim();
+    if (!apodoTrim) throw new Error("El apodo es obligatorio");
+
+    const payload: Record<string, unknown> = {
       p_token: token,
       p_nombre: p.nombre,
       p_apellido: p.apellido,
       p_telefono: p.telefono,
-    });
+      p_apodo: apodoTrim,
+    };
+
+    const emailNorm = p.email?.trim().toLowerCase();
+    if (emailNorm) {
+      payload.p_email = emailNorm;
+      payload.p_pin_hash = await sha256Hex(String(p.pin ?? "").trim());
+    }
+
+    const { data, error } = await sb.rpc("futbol_mis_datos_privados_set", payload);
     if (error) throw new Error(error.message);
     const o = (data ?? {}) as Record<string, unknown>;
     return {
       email: String(o.email ?? ""),
+      apodo: String(o.apodo ?? apodoTrim),
       nombre: String(o.nombre ?? ""),
       apellido: String(o.apellido ?? ""),
       telefono: String(o.telefono ?? ""),

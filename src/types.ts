@@ -128,6 +128,7 @@ export interface BalanceResponse {
 /** Datos solo visibles para el propio usuario (pestaña Mis datos). */
 export type MisDatosPrivados = {
   email: string;
+  apodo: string;
   nombre: string;
   apellido: string;
   telefono: string;

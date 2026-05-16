@@ -4,13 +4,20 @@ import { api } from "../api";
 import { useAuth } from "../AuthContext";
 import type { MisDatosPrivados } from "../types";
 
+function normEmail(s: string): string {
+  return String(s ?? "").trim().toLowerCase();
+}
+
 export default function MisDatosPage() {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState<MisDatosPrivados | null>(null);
+  const [apodo, setApodo] = useState("");
+  const [email, setEmail] = useState("");
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
   const [telefono, setTelefono] = useState("");
+  const [pinParaEmail, setPinParaEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +28,9 @@ export default function MisDatosPage() {
   const [pinNuevo2, setPinNuevo2] = useState("");
   const [pinBusy, setPinBusy] = useState(false);
 
+  const emailOriginal = data ? normEmail(data.email) : "";
+  const emailCambia = data != null && normEmail(email) !== emailOriginal;
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -28,6 +38,8 @@ export default function MisDatosPage() {
         const d = await api.misDatosPrivados();
         if (cancelled) return;
         setData(d);
+        setApodo(d.apodo);
+        setEmail(d.email);
         setNombre(d.nombre);
         setApellido(d.apellido);
         setTelefono(d.telefono);
@@ -48,9 +60,33 @@ export default function MisDatosPage() {
     setError(null);
     setOkMsg(null);
     try {
-      const d = await api.setMisDatosPrivados({ nombre, apellido, telefono });
+      const apodoTrim = apodo.trim();
+      if (!apodoTrim) throw new Error("El apodo es obligatorio");
+
+      const emailNorm = normEmail(email);
+      if (emailNorm && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailNorm)) {
+        throw new Error("Correo electrónico inválido");
+      }
+      if (emailCambia && !pinParaEmail.trim()) {
+        throw new Error("Para cambiar el correo ingresá tu PIN actual.");
+      }
+
+      const d = await api.setMisDatosPrivados({
+        nombre,
+        apellido,
+        telefono,
+        apodo: apodoTrim,
+        ...(emailCambia ? { email: emailNorm, pin: pinParaEmail } : {}),
+      });
       setData(d);
-      setOkMsg("Datos guardados.");
+      setEmail(d.email);
+      setApodo(d.apodo);
+      setPinParaEmail("");
+      setOkMsg(
+        emailCambia
+          ? "Datos guardados. Si tu proyecto exige confirmar el correo, revisá la bandeja del mail nuevo."
+          : "Datos guardados.",
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
     } finally {
@@ -85,8 +121,7 @@ export default function MisDatosPage() {
     <div>
       <h1>Mis datos</h1>
       <p className="sub">
-        Esta información es privada: solo vos la ves acá. El correo viene de tu cuenta; podés anotar nombre, apellido y
-        teléfono para tenerlos a mano.
+        Datos privados de tu cuenta. El apodo es el que usás para entrar. Si cambiás el correo, necesitás tu PIN actual.
       </p>
 
       {error && <div className="error">{error}</div>}
@@ -97,12 +132,43 @@ export default function MisDatosPage() {
       )}
 
       <div className="card" style={{ marginTop: "1rem" }}>
-        <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Contacto</h2>
+        <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Cuenta y contacto</h2>
         <form onSubmit={guardarDatos}>
           <div className="row">
-            <label>Correo (solo lectura)</label>
-            <input type="email" value={data.email} readOnly disabled className="muted" />
+            <label>Apodo</label>
+            <input
+              type="text"
+              value={apodo}
+              onChange={(e) => setApodo(e.target.value)}
+              autoComplete="username"
+              required
+            />
+            <p className="muted" style={{ margin: "0.35rem 0 0", fontSize: "0.85rem" }}>
+              Es el nombre con el que iniciás sesión. Si lo cambiás, usá el nuevo apodo la próxima vez que entres.
+            </p>
           </div>
+          <div className="row">
+            <label>Correo</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              required
+            />
+          </div>
+          {emailCambia && (
+            <div className="row">
+              <label>PIN actual (para confirmar el cambio de correo)</label>
+              <input
+                type="password"
+                value={pinParaEmail}
+                onChange={(e) => setPinParaEmail(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+            </div>
+          )}
           <div className="row">
             <label>Nombre</label>
             <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} autoComplete="given-name" />
