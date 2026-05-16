@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
+import { formatRating } from "../lib/formatRating";
 import F5ProfileScorePickers from "../components/F5ProfileScorePickers";
 import ProfileImprovementSummary from "../components/ProfileImprovementSummary";
 import ProfileScoreSliders from "../components/ProfileScoreSliders";
@@ -55,7 +56,7 @@ function DimensionPeerList({
           return (
             <li key={d}>
               <strong style={{ color: "var(--text)" }}>{DIMENSION_LABELS[d]}:</strong>{" "}
-              {v != null ? v.toFixed(2) : "—"}
+              {formatRating(v)}
             </li>
           );
         })}
@@ -82,7 +83,7 @@ function F5PeerDimensionList({
           return (
             <li key={d}>
               <strong style={{ color: "var(--text)" }}>{F5_LABELS[d]}:</strong>{" "}
-              {v != null ? v.toFixed(2) : "—"}
+              {formatRating(v)}
             </li>
           );
         })}
@@ -214,12 +215,12 @@ export default function PlayerProfilePage() {
           {ficha.posicionAlternativa ?? data.posicionPreferida} · Pie {data.pieDominante}
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginTop: "1rem" }}>
-          <div className="score-pill">Perfil completo · final {data.finalScore.toFixed(2)}</div>
+          <div className="score-pill">Perfil completo · final {formatRating(data.finalScore)}</div>
           {data.isSelf ? (
             <>
-              <div className="score-pill">Tu autopercepción (prom.): {data.finalBreakdown.selfAvg.toFixed(2)}</div>
+              <div className="score-pill">Tu autopercepción (prom.): {formatRating(data.finalBreakdown.selfAvg)}</div>
               <div className="score-pill">
-                Grupo: {data.finalBreakdown.peerAvg != null ? data.finalBreakdown.peerAvg.toFixed(2) : "—"} (
+                Grupo: {formatRating(data.finalBreakdown.peerAvg)} (
                 {data.peerCount} votos)
               </div>
             </>
@@ -229,13 +230,13 @@ export default function PlayerProfilePage() {
             </div>
           )}
           {data.f5FinalScore != null ? (
-            <div className="score-pill">F5 · final {data.f5FinalScore.toFixed(2)}</div>
+            <div className="score-pill">F5 · final {formatRating(data.f5FinalScore)}</div>
           ) : null}
           {data.isSelf && data.f5FinalBreakdown ? (
             <>
-              <div className="score-pill">F5 autopercepción (prom.): {data.f5FinalBreakdown.selfAvg.toFixed(2)}</div>
+              <div className="score-pill">F5 autopercepción (prom.): {formatRating(data.f5FinalBreakdown.selfAvg)}</div>
               <div className="score-pill">
-                F5 grupo: {data.f5FinalBreakdown.peerAvg != null ? data.f5FinalBreakdown.peerAvg.toFixed(2) : "—"} (
+                F5 grupo: {formatRating(data.f5FinalBreakdown.peerAvg)} (
                 {data.f5FinalBreakdown.peerCount} valoraciones)
               </div>
             </>
@@ -321,7 +322,7 @@ export default function PlayerProfilePage() {
             Solo se muestra el promedio agregado. El detalle por característica lo ven el jugador y los administradores.
           </p>
           <p style={{ marginBottom: 0 }}>
-            <strong>Promedio del grupo:</strong> {data.finalBreakdown.peerAvg != null ? data.finalBreakdown.peerAvg.toFixed(2) : "—"}{" "}
+            <strong>Promedio del grupo:</strong> {formatRating(data.finalBreakdown.peerAvg)}{" "}
             <span className="muted">({data.peerCount} valoraciones)</span>
           </p>
         </div>
@@ -375,7 +376,7 @@ export default function PlayerProfilePage() {
           </p>
           <p style={{ marginBottom: 0 }}>
             <strong>Promedio F5 del grupo:</strong>{" "}
-            {data.f5FinalBreakdown?.peerAvg != null ? data.f5FinalBreakdown.peerAvg.toFixed(2) : "—"}{" "}
+            {formatRating(data.f5FinalBreakdown?.peerAvg)}{" "}
             <span className="muted">({f5PeerN} valoraciones)</span>
           </p>
         </div>

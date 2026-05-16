@@ -1,15 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { api, apiConvocatorias, apiPartidos, isAdminFromPlayersList, type ConvocatoriaRow, type PartidoRow } from "../api";
+import { formatRating } from "../lib/formatRating";
 import type { BalanceResponse, PlayerSummary } from "../types";
 import { nextMatchIso } from "./ProximosPartidosPage";
 
 const TITULARES_CAMPO = 10;
 
+type ModoFuente = "anotados" | "manual";
+
+function playerScoreLine(p: PlayerSummary): string {
+  const f11 = formatRating(p.finalScore);
+  const f5 = p.f5FinalScore != null ? ` · F5 ${formatRating(p.f5FinalScore)}` : "";
+  return `(${p.posicionPreferida}) · F11 ${f11}${f5}`;
+}
+
 export default function TeamsPage() {
   const [players, setPlayers] = useState<PlayerSummary[] | null>(null);
   const [convocatorias, setConvocatorias] = useState<ConvocatoriaRow[]>([]);
   const [diaPartido, setDiaPartido] = useState<"martes" | "jueves">("martes");
+  const [modoFuente, setModoFuente] = useState<ModoFuente>("anotados");
+  const [manualPoolIds, setManualPoolIds] = useState<string[]>([]);
+  const [busquedaManual, setBusquedaManual] = useState("");
   const [titularIds, setTitularIds] = useState<string[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [result, setResult] = useState<BalanceResponse | null>(null);
@@ -21,7 +33,6 @@ export default function TeamsPage() {
   const [busy, setBusy] = useState(false);
   const [useF5Balance, setUseF5Balance] = useState(true);
   const [horaPartido, setHoraPartido] = useState("21:30");
-  /** Texto libre opcional; en BD sigue siendo `texto_equipamiento` (RPC). */
   const [observacion, setObservacion] = useState("");
 
   const fechaPartidoCal = useMemo(() => nextMatchIso(diaPartido), [diaPartido]);
@@ -46,10 +57,34 @@ export default function TeamsPage() {
     return uniqIds.map((id) => map.get(id)).filter((p): p is PlayerSummary => Boolean(p));
   }, [convFiltradas, players]);
 
+  const poolPlayers = useMemo(() => {
+    if (modoFuente === "anotados") return anotadosPlayers;
+    if (!players) return [];
+    const set = new Set(manualPoolIds);
+    return players.filter((p) => set.has(p.id)).sort((a, b) => a.apodo.localeCompare(b.apodo, "es"));
+  }, [modoFuente, anotadosPlayers, players, manualPoolIds]);
+
   const suplentesPlayers = useMemo(
-    () => anotadosPlayers.filter((p) => !titularIds.includes(p.id)),
-    [anotadosPlayers, titularIds],
+    () => poolPlayers.filter((p) => !titularIds.includes(p.id)),
+    [poolPlayers, titularIds],
   );
+
+  const busquedaManualNorm = busquedaManual.trim().toLowerCase();
+
+  const jugadoresBusqueda = useMemo(() => {
+    if (!players || modoFuente !== "manual") return [];
+    const enPool = new Set(manualPoolIds);
+    return players
+      .filter((p) => !enPool.has(p.id))
+      .filter((p) => {
+        if (!busquedaManualNorm) return true;
+        return (
+          p.apodo.toLowerCase().includes(busquedaManualNorm) ||
+          p.nombreCompleto.toLowerCase().includes(busquedaManualNorm)
+        );
+      })
+      .slice(0, 25);
+  }, [players, modoFuente, manualPoolIds, busquedaManualNorm]);
 
   const refreshPartidos = useCallback(async () => {
     const pl = await apiPartidos.list();
@@ -79,15 +114,17 @@ export default function TeamsPage() {
     };
   }, []);
 
+  const poolKey = poolPlayers.map((p) => p.id).join("|");
+
   useEffect(() => {
-    const first = anotadosPlayers.slice(0, TITULARES_CAMPO).map((p) => p.id);
+    const first = poolPlayers.slice(0, TITULARES_CAMPO).map((p) => p.id);
     setTitularIds(first);
     const n: Record<string, boolean> = {};
-    for (const p of anotadosPlayers) n[p.id] = first.includes(p.id);
+    for (const p of poolPlayers) n[p.id] = first.includes(p.id);
     setSelected(n);
     setResult(null);
     setBorradorPartidoId(null);
-  }, [diaPartido, fechaPartidoCal, anotadosPlayers.map((p) => p.id).join("|")]);
+  }, [diaPartido, fechaPartidoCal, modoFuente, poolKey]);
 
   function syncTitularFromSelected(next: Record<string, boolean>) {
     const on = Object.entries(next)
@@ -108,6 +145,27 @@ export default function TeamsPage() {
     () => partidos.filter((p) => p.confirmado_admin !== true).sort((a, b) => (b.fecha > a.fecha ? 1 : -1)),
     [partidos],
   );
+
+  function agregarAlPool(playerId: string) {
+    setManualPoolIds((prev) => (prev.includes(playerId) ? prev : [...prev, playerId]));
+    setBusquedaManual("");
+    setError(null);
+  }
+
+  function quitarDelPool(playerId: string) {
+    setManualPoolIds((prev) => prev.filter((id) => id !== playerId));
+    setError(null);
+  }
+
+  function importarAnotadosAlPool() {
+    const ids = anotadosPlayers.map((p) => p.id);
+    setManualPoolIds((prev) => {
+      const set = new Set(prev);
+      for (const id of ids) set.add(id);
+      return [...set];
+    });
+    setError(null);
+  }
 
   async function confirmarDesdeLista(partidoId: string) {
     setBusy(true);
@@ -153,13 +211,13 @@ export default function TeamsPage() {
   function toggleAllTitulares(on: boolean) {
     if (!on) {
       const cleared: Record<string, boolean> = {};
-      for (const p of anotadosPlayers) cleared[p.id] = false;
+      for (const p of poolPlayers) cleared[p.id] = false;
       syncTitularFromSelected(cleared);
       return;
     }
-    const first = anotadosPlayers.slice(0, TITULARES_CAMPO);
+    const first = poolPlayers.slice(0, TITULARES_CAMPO);
     const next: Record<string, boolean> = {};
-    for (const p of anotadosPlayers) next[p.id] = first.some((x) => x.id === p.id);
+    for (const p of poolPlayers) next[p.id] = first.some((x) => x.id === p.id);
     syncTitularFromSelected(next);
   }
 
@@ -234,12 +292,40 @@ export default function TeamsPage() {
     <div>
       <h1>Armar equipos</h1>
       <p className="sub">
-        Solo aparecen los jugadores <strong>anotados</strong> para el próximo partido del día elegido. El campo es{" "}
-        <strong>5 vs 5</strong> ({TITULARES_CAMPO} titulares); el resto queda como suplente en orden de anotación. Podés
-        balancear por nota F5 o por perfil completo. Las exclusiones «no compartir equipo» (Próximos partidos) se
-        respetan al generar. Cuando pulsás <strong>Confirmar partido y enviar notificaciones</strong>, la app avisa
-        sola a titulares y suplentes (campanita).
+        Armá el partido <strong>5 vs 5</strong> ({TITULARES_CAMPO} titulares). Podés usar solo los{" "}
+        <strong>anotados</strong> o armar una lista <strong>manual</strong> con cualquier jugador registrado. El balanceo
+        puede usar nota F5 o perfil completo (F11); se respetan las exclusiones «no compartir equipo».
       </p>
+
+      <div className="card" style={{ marginBottom: "1rem" }}>
+        <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Origen de jugadores</h2>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
+          <button
+            type="button"
+            className={`btn ${modoFuente === "anotados" ? "btn-primary" : "btn-ghost"}`}
+            onClick={() => setModoFuente("anotados")}
+          >
+            Solo anotados
+          </button>
+          <button
+            type="button"
+            className={`btn ${modoFuente === "manual" ? "btn-primary" : "btn-ghost"}`}
+            onClick={() => setModoFuente("manual")}
+          >
+            Selección manual
+          </button>
+        </div>
+        {modoFuente === "anotados" ? (
+          <p className="muted" style={{ margin: 0 }}>
+            Aparecen los jugadores anotados en «Próximos partidos» para el día y fecha elegidos.
+          </p>
+        ) : (
+          <p className="muted" style={{ margin: 0 }}>
+            Buscá jugadores registrados y agregalos al partido aunque no se hayan anotado. En el pool marcá quiénes son
+            titulares.
+          </p>
+        )}
+      </div>
 
       <div className="card" style={{ marginBottom: "1rem" }}>
         <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Partido a armar</h2>
@@ -251,25 +337,89 @@ export default function TeamsPage() {
           </select>
         </div>
         <p className="muted" style={{ marginBottom: 0 }}>
-          Fecha de convocatoria (Argentina): <strong>{fechaPartidoCal}</strong> · {anotadosPlayers.length} anotados
+          Fecha de convocatoria (Argentina): <strong>{fechaPartidoCal}</strong>
+          {modoFuente === "anotados" ? (
+            <>
+              {" "}
+              · {anotadosPlayers.length} anotados
+            </>
+          ) : (
+            <>
+              {" "}
+              · {poolPlayers.length} en el pool manual
+            </>
+          )}
         </p>
       </div>
 
       <div className="card" style={{ marginBottom: "1rem" }}>
         <label className="checkbox-row player-row" style={{ cursor: "pointer", marginBottom: 0 }}>
-          <input
-            type="checkbox"
-            checked={useF5Balance}
-            onChange={(e) => setUseF5Balance(e.target.checked)}
-          />
+          <input type="checkbox" checked={useF5Balance} onChange={(e) => setUseF5Balance(e.target.checked)} />
           <span>
             <strong>Usar nota final F5</strong>{" "}
-            <span className="muted">
-              (promedio 1–5 con mirada del grupo). Si lo desmarcás, se usa el perfil completo (1–10).
-            </span>
+            <span className="muted">(1–5). Si lo desmarcás, se usa el perfil completo F11 (1–10).</span>
           </span>
         </label>
       </div>
+
+      {modoFuente === "manual" && (
+        <div className="card" style={{ marginBottom: "1rem" }}>
+          <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Agregar jugadores al partido</h2>
+          <div className="row">
+            <label>Buscar por apodo o nombre</label>
+            <input
+              type="search"
+              value={busquedaManual}
+              onChange={(e) => setBusquedaManual(e.target.value)}
+              placeholder="Ej: Juan, Messi…"
+              autoComplete="off"
+            />
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={anotadosPlayers.length === 0}
+              onClick={importarAnotadosAlPool}
+            >
+              Importar anotados del día ({anotadosPlayers.length})
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={manualPoolIds.length === 0}
+              onClick={() => setManualPoolIds([])}
+            >
+              Vaciar pool
+            </button>
+          </div>
+          {jugadoresBusqueda.length === 0 ? (
+            <p className="muted" style={{ margin: 0 }}>
+              {busquedaManualNorm
+                ? "No hay jugadores que coincidan o ya están en el pool."
+                : "Escribí para buscar o importá los anotados."}
+            </p>
+          ) : (
+            <ul className="list" style={{ margin: 0, padding: 0, listStyle: "none" }}>
+              {jugadoresBusqueda.map((p) => (
+                <li
+                  key={p.id}
+                  className="player-row"
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}
+                >
+                  <span>
+                    <strong>{p.apodo}</strong>{" "}
+                    <span className="muted">{playerScoreLine(p)}</span>
+                  </span>
+                  <button type="button" className="btn btn-primary" onClick={() => agregarAlPool(p.id)}>
+                    Agregar
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {admin === true && (
         <div className="card" style={{ marginBottom: "1rem" }}>
@@ -321,35 +471,45 @@ export default function TeamsPage() {
       )}
 
       <div className="card" style={{ marginBottom: "1rem" }}>
-        <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Titulares ({titularIds.length}/{TITULARES_CAMPO})</h2>
-        {anotadosPlayers.length === 0 ? (
-          <p className="muted">No hay jugadores anotados para esta fecha y día. Pediles que se anoten en «Próximos partidos».</p>
+        <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>
+          Titulares ({titularIds.length}/{TITULARES_CAMPO})
+          {modoFuente === "manual" ? " · pool manual" : ""}
+        </h2>
+        {poolPlayers.length === 0 ? (
+          <p className="muted">
+            {modoFuente === "anotados"
+              ? "No hay jugadores anotados para esta fecha y día. Pediles que se anoten en «Próximos partidos» o usá selección manual."
+              : "Agregá jugadores al pool con la búsqueda de arriba."}
+          </p>
         ) : (
           <>
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
               <button type="button" className="btn btn-ghost" onClick={() => toggleAllTitulares(true)}>
-                Primeros {TITULARES_CAMPO} por orden de anotación
+                Primeros {TITULARES_CAMPO} del pool
               </button>
               <button type="button" className="btn btn-ghost" onClick={() => toggleAllTitulares(false)}>
                 Quitar titulares
               </button>
             </div>
             <div className="list">
-              {anotadosPlayers.map((p) => (
-                <label key={p.id} className="checkbox-row player-row" style={{ cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={selected[p.id] ?? false}
-                    onChange={(e) => toggleTitular(p.id, e.target.checked)}
-                  />
-                  <span>
-                    <strong>{p.apodo}</strong>{" "}
-                    <span className="muted">
-                      ({p.posicionPreferida}) · final {p.finalScore.toFixed(2)}
-                      {p.f5FinalScore != null ? ` · F5 ${p.f5FinalScore.toFixed(2)}` : ""}
+              {poolPlayers.map((p) => (
+                <div key={p.id} className="checkbox-row player-row" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <label style={{ cursor: "pointer", flex: 1, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <input
+                      type="checkbox"
+                      checked={selected[p.id] ?? false}
+                      onChange={(e) => toggleTitular(p.id, e.target.checked)}
+                    />
+                    <span>
+                      <strong>{p.apodo}</strong> <span className="muted">{playerScoreLine(p)}</span>
                     </span>
-                  </span>
-                </label>
+                  </label>
+                  {modoFuente === "manual" ? (
+                    <button type="button" className="btn btn-ghost" onClick={() => quitarDelPool(p.id)}>
+                      Quitar
+                    </button>
+                  ) : null}
+                </div>
               ))}
             </div>
           </>
@@ -365,13 +525,13 @@ export default function TeamsPage() {
           type="button"
           style={{ marginTop: "1rem" }}
           onClick={() => void generate()}
-          disabled={loading || anotadosPlayers.length < TITULARES_CAMPO}
+          disabled={loading || poolPlayers.length < TITULARES_CAMPO}
         >
           {loading ? "Calculando…" : "Generar equipos 5 vs 5"}
         </button>
-        {anotadosPlayers.length < TITULARES_CAMPO ? (
+        {poolPlayers.length < TITULARES_CAMPO ? (
           <p className="muted" style={{ marginTop: "0.5rem", marginBottom: 0 }}>
-            Hacen falta al menos {TITULARES_CAMPO} anotados para armar el partido.
+            Hacen falta al menos {TITULARES_CAMPO} jugadores en el pool para armar el partido.
           </p>
         ) : null}
         {error && (
@@ -385,21 +545,21 @@ export default function TeamsPage() {
         <>
           <div className="team-grid">
             <div className="card team-card">
-              <h3>Equipo A · suma {result.sumA.toFixed(2)}</h3>
+              <h3>Equipo A · suma {formatRating(result.sumA)}</h3>
               <ul>
                 {result.teamA.map((x) => (
                   <li key={x.id}>
-                    {x.apodo} · {x.posicionPreferida} · {x.score.toFixed(2)}
+                    {x.apodo} · {x.posicionPreferida} · {formatRating(x.score)}
                   </li>
                 ))}
               </ul>
             </div>
             <div className="card team-card">
-              <h3>Equipo B · suma {result.sumB.toFixed(2)}</h3>
+              <h3>Equipo B · suma {formatRating(result.sumB)}</h3>
               <ul>
                 {result.teamB.map((x) => (
                   <li key={x.id}>
-                    {x.apodo} · {x.posicionPreferida} · {x.score.toFixed(2)}
+                    {x.apodo} · {x.posicionPreferida} · {formatRating(x.score)}
                   </li>
                 ))}
               </ul>
@@ -426,12 +586,12 @@ export default function TeamsPage() {
           )}
 
           <p className="muted" style={{ marginTop: "1rem" }}>
-            Diferencia entre equipos (suma de notas): {result.difference.toFixed(3)} · Generado{" "}
+            Diferencia entre equipos (suma de notas): {formatRating(result.difference)} · Generado{" "}
             {new Date(result.generatedAt).toLocaleString()}
             {result.usingF5Scores != null && (
               <>
                 {" "}
-                · Criterio: {result.usingF5Scores ? "F5 (1–5)" : "perfil completo (1–10)"}
+                · Criterio: {result.usingF5Scores ? "F5 (1–5)" : "perfil completo F11 (1–10)"}
               </>
             )}
             {result.avoidPairsApplied != null && result.avoidPairsApplied > 0 && (

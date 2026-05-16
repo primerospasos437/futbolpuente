@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { formatRating } from "../lib/formatRating";
 import ProfileScoreSliders from "../components/ProfileScoreSliders";
 import F5ProfileScorePickers from "../components/F5ProfileScorePickers";
 import { normalizeProfileF5ScoresRpc } from "../lib/futbolRegistration";
@@ -133,9 +134,9 @@ export default function MisPerfilesPage() {
 
       <div className="card" style={{ marginBottom: "1rem" }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
-          <div className="score-pill">Completo · final {me.finalScore.toFixed(2)}</div>
+          <div className="score-pill">Completo · final {formatRating(me.finalScore)}</div>
           {me.f5FinalScore != null ? (
-            <div className="score-pill">F5 · final {me.f5FinalScore.toFixed(2)}</div>
+            <div className="score-pill">F5 · final {formatRating(me.f5FinalScore)}</div>
           ) : (
             <div className="score-pill muted">F5 · sin datos de grupo aún</div>
           )}

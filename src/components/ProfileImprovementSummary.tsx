@@ -1,4 +1,5 @@
 import { DIMENSION_LABELS, DIMENSION_ORDER } from "../dimensions";
+import { formatRating } from "../lib/formatRating";
 import { F5_DIMENSION_ORDER, F5_LABELS } from "../dimensions-f5";
 import type { Dimension, F5Dimension, PlayerDetail, ProfileScores } from "../types";
 
@@ -91,7 +92,7 @@ export default function ProfileImprovementSummary({ data }: { data: PlayerDetail
                 {low.map(({ key, peer }) => (
                   <li key={key}>
                     <strong style={{ color: "var(--text)" }}>{DIMENSION_LABELS[key]}</strong> — promedio del grupo{" "}
-                    {peer.toFixed(2)}. Qué hacer: pedí feedback concreto después del partido o en entrenamiento, filmá
+                    {formatRating(peer)}. Qué hacer: pedí feedback concreto después del partido o en entrenamiento, filmá
                     situaciones similares y repetí con calidad (pocos toques, buena toma de decisión).
                   </li>
                 ))}
@@ -105,7 +106,7 @@ export default function ProfileImprovementSummary({ data }: { data: PlayerDetail
                 {highSelf.map(({ key, gap }) => (
                   <li key={key}>
                     <strong style={{ color: "var(--text)" }}>{DIMENSION_LABELS[key]}</strong> — diferencia aprox.{" "}
-                    {gap.toFixed(1)} puntos. Qué hacer: alineá expectativas con lo que ven los demás; mostrá esas
+                    {formatRating(gap)} puntos. Qué hacer: alineá expectativas con lo que ven los demás; mostrá esas
                     cualidades de forma más estable en partido (menos “picos” y más constancia).
                   </li>
                 ))}
@@ -126,7 +127,7 @@ export default function ProfileImprovementSummary({ data }: { data: PlayerDetail
               <ul style={{ margin: 0, paddingLeft: "1.1rem", color: "var(--muted)", lineHeight: 1.65 }}>
                 {lowF5.map(({ key, peer }) => (
                   <li key={key}>
-                    <strong style={{ color: "var(--text)" }}>{F5_LABELS[key]}</strong> — promedio {peer.toFixed(2)}. Qué
+                    <strong style={{ color: "var(--text)" }}>{F5_LABELS[key]}</strong> — promedio {formatRating(peer)}. Qué
                     hacer: practicá micro-situaciones (transiciones, duelos, comunicación) y pedí una mirada honesta a
                     un compañero después del partido.
                   </li>
@@ -140,7 +141,7 @@ export default function ProfileImprovementSummary({ data }: { data: PlayerDetail
               <ul style={{ margin: 0, paddingLeft: "1.1rem", color: "var(--muted)", lineHeight: 1.65 }}>
                 {highSelfF5.map(({ key, gap }) => (
                   <li key={key}>
-                    <strong style={{ color: "var(--text)" }}>{F5_LABELS[key]}</strong> — diferencia ~{gap.toFixed(2)} en
+                    <strong style={{ color: "var(--text)" }}>{F5_LABELS[key]}</strong> — diferencia ~{formatRating(gap)} en
                     escala 1–5. Qué hacer: buscá evidencia en video o pedí ejemplos concretos a quienes te valoran más
                     bajo para entender el gap.
                   </li>

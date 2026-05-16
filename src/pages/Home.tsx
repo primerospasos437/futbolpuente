@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
+import { formatRating } from "../lib/formatRating";
 import type { PlayerSummary, PlayersListPayload } from "../types";
 
 const posLabel: Record<string, string> = {
@@ -36,7 +37,7 @@ function PlayerRowLink({ p, listaTab }: { p: PlayerSummary; listaTab: "completo"
           ? " · ya valoraste el F5"
           : " · pendiente: F5";
 
-  const scoreLabel = listaTab === "completo" ? p.finalScore.toFixed(2) : (p.f5FinalScore ?? "—").toString();
+  const scoreLabel = listaTab === "completo" ? formatRating(p.finalScore) : formatRating(p.f5FinalScore);
   const f5Peer = p.f5FinalBreakdown?.peerCount ?? 0;
   const valoracionesMeta =
     listaTab === "completo"
