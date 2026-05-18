@@ -3,7 +3,11 @@ import { defaultF5ScoresZeros } from "./dimensions-f5";
 import { getSupabase } from "./lib/supabase";
 import { finalScore, normalizeProfile, peerAverageForPlayer, profileAverage } from "./lib/scoring";
 import { finalScoreF5, normalizeF5Profile, peerAverageF5 } from "./lib/scoringF5";
-import { balanceTwoTeamsWithAvoid } from "./lib/teamsBalance";
+import {
+  balanceTwoTeamsWithAvoid,
+  playerToBalanceInput,
+  teamAverageScore,
+} from "./lib/teamsBalance";
 import type {
   BalanceResponse,
   ConvocatoriaRow,
@@ -736,12 +740,7 @@ export const api = {
     if (selected.length < 4) throw new Error("Selecciona al menos 4 jugadores para armar dos equipos");
 
     const useF5 = Boolean(opts?.useF5Scores);
-    const withScores: TeamSlot[] = selected.map((p) => ({
-      id: p.id,
-      apodo: p.apodo,
-      posicionPreferida: p.posicionPreferida,
-      score: useF5 ? (p.f5FinalScore ?? p.finalScore) : p.finalScore,
-    }));
+    const inputs = selected.map((p) => playerToBalanceInput(p, useF5));
 
     let avoidEdges: [string, string][] = [];
     try {
@@ -755,14 +754,20 @@ export const api = {
       avoidEdges = [];
     }
 
-    const { teamA, teamB, diff } = balanceTwoTeamsWithAvoid(withScores, avoidEdges);
-    const sum = (arr: TeamSlot[]) => arr.reduce((s, x) => s + x.score, 0);
+    const { teamA, teamB, diff } = balanceTwoTeamsWithAvoid(inputs, avoidEdges);
+    const toSlots = (arr: typeof teamA): TeamSlot[] =>
+      arr.map((p) => ({
+        id: p.id,
+        apodo: p.apodo,
+        posicionPreferida: p.posicionPreferida,
+        score: p.score,
+      }));
 
     return {
-      teamA,
-      teamB,
-      sumA: sum(teamA),
-      sumB: sum(teamB),
+      teamA: toSlots(teamA),
+      teamB: toSlots(teamB),
+      sumA: teamAverageScore(teamA),
+      sumB: teamAverageScore(teamB),
       difference: diff,
       pickedBy: viewerId,
       generatedAt: new Date().toISOString(),

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { api, apiConvocatorias, apiPartidos, isAdminFromPlayersList, type ConvocatoriaRow, type PartidoRow } from "../api";
 import { formatRating } from "../lib/formatRating";
+import { TEAM_LABEL_CLAROS, TEAM_LABEL_OSCUROS } from "../lib/teamsBalance";
 import type { BalanceResponse, PlayerSummary } from "../types";
 import { nextMatchIso } from "./ProximosPartidosPage";
 
@@ -294,7 +295,8 @@ export default function TeamsPage() {
       <p className="sub">
         Armá el partido <strong>5 vs 5</strong> ({TITULARES_CAMPO} titulares). Podés usar solo los{" "}
         <strong>anotados</strong> o armar una lista <strong>manual</strong> con cualquier jugador registrado. El balanceo
-        puede usar nota F5 o perfil completo (F11); se respetan las exclusiones «no compartir equipo».
+        equilibra el <strong>promedio en cada característica</strong> (F5 o F11) y reparte defensas, mediocampistas y
+        delanteros según puesto principal o alternativo; se respetan las exclusiones «no compartir equipo».
       </p>
 
       <div className="card" style={{ marginBottom: "1rem" }}>
@@ -545,7 +547,7 @@ export default function TeamsPage() {
         <>
           <div className="team-grid">
             <div className="card team-card">
-              <h3>Equipo A · suma {formatRating(result.sumA)}</h3>
+              <h3>{TEAM_LABEL_CLAROS} · prom. {formatRating(result.sumA)}</h3>
               <ul>
                 {result.teamA.map((x) => (
                   <li key={x.id}>
@@ -555,7 +557,7 @@ export default function TeamsPage() {
               </ul>
             </div>
             <div className="card team-card">
-              <h3>Equipo B · suma {formatRating(result.sumB)}</h3>
+              <h3>{TEAM_LABEL_OSCUROS} · prom. {formatRating(result.sumB)}</h3>
               <ul>
                 {result.teamB.map((x) => (
                   <li key={x.id}>
@@ -586,7 +588,8 @@ export default function TeamsPage() {
           )}
 
           <p className="muted" style={{ marginTop: "1rem" }}>
-            Diferencia entre equipos (suma de notas): {formatRating(result.difference)} · Generado{" "}
+            Desbalance entre equipos (suma de diferencias por característica): {formatRating(result.difference)} ·
+            Generado{" "}
             {new Date(result.generatedAt).toLocaleString()}
             {result.usingF5Scores != null && (
               <>

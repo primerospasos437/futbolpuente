@@ -12,7 +12,7 @@ import type {
   ProfileScores,
   TeamSlot,
 } from "../types";
-import { balanceTwoTeamsWithAvoid } from "./teamsBalance";
+import { balanceTwoTeamsWithAvoid, playerToBalanceInput, teamAverageScore } from "./teamsBalance";
 import { DEMO_GUEST_ID } from "./demoMode";
 import {
   buildPlayerDetail,
@@ -90,19 +90,20 @@ export const demoApi = {
     const { jugadores } = buildPlayersList(viewerId());
     const selected = playerIds?.length ? jugadores.filter((p) => playerIds.includes(p.id)) : [...jugadores];
     const useF5 = Boolean(opts?.useF5Scores);
-    const withScores: TeamSlot[] = selected.map((p) => ({
-      id: p.id,
-      apodo: p.apodo,
-      posicionPreferida: p.posicionPreferida,
-      score: useF5 ? (p.f5FinalScore ?? p.finalScore) : p.finalScore,
-    }));
-    const { teamA, teamB, diff } = balanceTwoTeamsWithAvoid(withScores, []);
-    const sum = (arr: TeamSlot[]) => arr.reduce((s, x) => s + x.score, 0);
+    const inputs = selected.map((p) => playerToBalanceInput(p, useF5));
+    const { teamA, teamB, diff } = balanceTwoTeamsWithAvoid(inputs, []);
+    const toSlots = (arr: typeof teamA): TeamSlot[] =>
+      arr.map((p) => ({
+        id: p.id,
+        apodo: p.apodo,
+        posicionPreferida: p.posicionPreferida,
+        score: p.score,
+      }));
     return delay({
-      teamA,
-      teamB,
-      sumA: sum(teamA),
-      sumB: sum(teamB),
+      teamA: toSlots(teamA),
+      teamB: toSlots(teamB),
+      sumA: teamAverageScore(teamA),
+      sumB: teamAverageScore(teamB),
       difference: diff,
       pickedBy: viewerId(),
       generatedAt: new Date().toISOString(),

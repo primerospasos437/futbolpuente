@@ -112,10 +112,15 @@ export interface TeamSlot {
 }
 
 export interface BalanceResponse {
+  /** Equipo CLAROS (teamA en API). */
   teamA: TeamSlot[];
+  /** Equipo OSCUROS (teamB en API). */
   teamB: TeamSlot[];
+  /** Promedio de notas del equipo CLAROS. */
   sumA: number;
+  /** Promedio de notas del equipo OSCUROS. */
   sumB: number;
+  /** Suma de |promedio dimensión CLAROS − promedio dimensión OSCUROS| por cada característica. */
   difference: number;
   pickedBy: string;
   generatedAt: string;
