@@ -47,16 +47,16 @@ export default function NotificationsBell() {
 
   function hrefFor(n: NotificacionRow): string | null {
     const d = n.datos ?? {};
-    if (n.tipo === "partido_confirmado" && typeof d.partido_id === "string") {
-      return `/equipos`;
-    }
-    if (n.tipo === "f5_valorar_partido" && typeof d.partido_id === "string") {
-      return `/partido/${String(d.partido_id)}/valorar-f5`;
+    const partidoId = d.partido_id;
+    if (typeof partidoId === "string" && partidoId.length > 0) {
+      if (n.tipo === "partido_confirmado" || n.tipo === "partido_promovido_suplente") {
+        return `/proximos-partidos/${partidoId}`;
+      }
+      if (n.tipo === "f5_valorar_partido") {
+        return `/partido/${partidoId}/valorar-f5`;
+      }
     }
     if (n.tipo === "convocatoria_rol_actualizado") {
-      return "/proximos-partidos";
-    }
-    if (n.tipo === "partido_promovido_suplente") {
       return "/proximos-partidos";
     }
     return null;

@@ -109,6 +109,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/proximos-partidos/:partidoId"
+        element={
+          <Shell>
+            <ProximosPartidosPage />
+          </Shell>
+        }
+      />
+      <Route
         path="/proximos-partidos"
         element={
           <Shell>

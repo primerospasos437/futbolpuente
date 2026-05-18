@@ -1,5 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { api, apiConvocatorias, apiPartidos, type ConvocatoriaRow, type PartidoRow, type PresenciaRow } from "../api";
+import PartidoEquiposView from "../components/PartidoEquiposView";
+import {
+  miEquipoEnPartido,
+  parseEquipoNombres,
+  partidoTieneEquiposPublicados,
+} from "../lib/partidoEquipos";
 import type { PlayerSummary } from "../types";
 
 const TZ = "America/Argentina/Buenos_Aires";
@@ -46,7 +53,21 @@ function myConvocatoria(
   return list.find((c) => c.dia === dia && c.fecha_partido === fecha && c.jugador_id === jugadorId);
 }
 
+function formatFechaPartido(fecha: string): string {
+  const [y, m, d] = fecha.split("-").map(Number);
+  if (!y || !m || !d) return fecha;
+  return new Date(y, m - 1, d).toLocaleDateString("es-AR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 export default function ProximosPartidosPage() {
+  const { partidoId: partidoIdParam } = useParams<{ partidoId?: string }>();
+  const detalleRef = useRef<HTMLDivElement>(null);
+
   const [conv, setConv] = useState<ConvocatoriaRow[]>([]);
   const [me, setMe] = useState<PlayerSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -147,13 +168,32 @@ export default function ProximosPartidosPage() {
     }
   }
 
+  const partidosConEquipos = useMemo(
+    () =>
+      partidos
+        .filter(partidoTieneEquiposPublicados)
+        .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0)),
+    [partidos],
+  );
+
   const misPartidosTitularConfirmados = useMemo(() => {
     if (!meId) return [];
-    const confirmados = partidos.filter((p) => p.confirmado_admin === true);
     const mias = presencias.filter((pr) => pr.jugador_id === meId && pr.estado === "convocado");
     const map = new Map(mias.map((pr) => [pr.partido_id, pr]));
-    return confirmados.filter((p) => map.has(p.id)).map((p) => ({ partido: p, presencia: map.get(p.id)! }));
-  }, [meId, partidos, presencias]);
+    return partidosConEquipos.filter((p) => map.has(p.id)).map((p) => ({ partido: p, presencia: map.get(p.id)! }));
+  }, [meId, partidosConEquipos, presencias]);
+
+  const partidoDetalle = useMemo(() => {
+    if (!partidoIdParam) return null;
+    return partidos.find((p) => p.id === partidoIdParam) ?? null;
+  }, [partidoIdParam, partidos]);
+
+  const partidoDetallePublicado = partidoDetalle && partidoTieneEquiposPublicados(partidoDetalle);
+
+  useEffect(() => {
+    if (!partidoIdParam || !partidoDetallePublicado) return;
+    detalleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [partidoIdParam, partidoDetallePublicado]);
 
   async function bajaTitularPartidoConfirmado(partidoId: string) {
     setBajaPartidoBusy(partidoId);
@@ -203,6 +243,75 @@ export default function ProximosPartidosPage() {
 
       {error && <div className="error">{error}</div>}
 
+      {partidoIdParam ? (
+        <div ref={detalleRef} className="card" style={{ marginTop: "1rem" }}>
+          <Link to="/proximos-partidos" className="muted" style={{ fontSize: "0.9rem", textDecoration: "none" }}>
+            ← Volver a próximos partidos
+          </Link>
+          {!partidoDetalle ? (
+            <p className="error" style={{ marginTop: "1rem", marginBottom: 0 }}>
+              No encontramos ese partido.
+            </p>
+          ) : !partidoDetallePublicado ? (
+            <p className="muted" style={{ marginTop: "1rem", marginBottom: 0 }}>
+              Este partido aún no tiene equipos publicados. Cuando el administrador confirme, vas a poder ver compañeros
+              y rivales en esta pantalla.
+            </p>
+          ) : (
+            <>
+              <h2 style={{ marginTop: "0.75rem", marginBottom: "0.25rem" }}>
+                {formatFechaPartido(partidoDetalle.fecha)}
+                {partidoDetalle.hora_partido ? ` · ${partidoDetalle.hora_partido} hs` : ""}
+              </h2>
+              <p className="muted" style={{ marginTop: 0 }}>
+                Equipos confirmados. Solo se muestran los nombres de los jugadores.
+              </p>
+              {partidoDetalle.texto_equipamiento?.trim() ? (
+                <p style={{ marginTop: "0.75rem", marginBottom: 0, fontSize: "0.95rem" }}>
+                  <strong>Observación:</strong> {partidoDetalle.texto_equipamiento.trim()}
+                </p>
+              ) : null}
+              <PartidoEquiposView
+                claros={parseEquipoNombres(partidoDetalle.equipo_claros)}
+                oscuros={parseEquipoNombres(partidoDetalle.equipo_oscuros)}
+                miEquipo={miEquipoEnPartido(partidoDetalle.id, meId, presencias)}
+              />
+              {misPartidosTitularConfirmados.some(({ partido }) => partido.id === partidoDetalle.id) ? (
+                <div style={{ marginTop: "1rem" }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={bajaPartidoBusy === partidoDetalle.id}
+                    onClick={() => void bajaTitularPartidoConfirmado(partidoDetalle.id)}
+                  >
+                    {bajaPartidoBusy === partidoDetalle.id ? "Procesando…" : "Darme de baja como titular"}
+                  </button>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+      ) : null}
+
+      {!partidoIdParam && partidosConEquipos.length > 0 ? (
+        <div className="card" style={{ marginTop: "1rem" }}>
+          <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Partidos con equipos confirmados</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Tocá un partido para ver quién juega en CLAROS y OSCUROS (solo nombres).
+          </p>
+          <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+            {partidosConEquipos.map((p) => (
+              <li key={p.id} style={{ marginBottom: "0.4rem" }}>
+                <Link to={`/proximos-partidos/${p.id}`}>
+                  {formatFechaPartido(p.fecha)}
+                  {p.hora_partido ? ` · ${p.hora_partido} hs` : ""}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {me && !puedeAnotarseConvocatoria ? (
         <div className="card" style={{ marginTop: "1rem" }}>
           <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Requisitos para anotarte</h2>
@@ -239,8 +348,10 @@ export default function ProximosPartidosPage() {
           <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
             {misPartidosTitularConfirmados.map(({ partido: p }) => (
               <li key={p.id} style={{ marginBottom: "0.65rem" }}>
-                <strong>{p.fecha}</strong>
-                {p.hora_partido ? ` · ${p.hora_partido} hs` : ""}
+                <Link to={`/proximos-partidos/${p.id}`}>
+                  <strong>{formatFechaPartido(p.fecha)}</strong>
+                  {p.hora_partido ? ` · ${p.hora_partido} hs` : ""}
+                </Link>
                 <div style={{ marginTop: "0.35rem" }}>
                   <button
                     type="button"
