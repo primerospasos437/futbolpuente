@@ -1,5 +1,9 @@
+import { initDemoSession } from "./demoApi";
+import { DEMO_GUEST_EMAIL, startDemoSession } from "./demoMode";
 import { getSupabase } from "./supabase";
 import { buildFutbolAuthRegisterRpcArgs, type RegisterFormRaw } from "./futbolRegistration";
+
+export { DEMO_GUEST_EMAIL as GUEST_DEMO_EMAIL };
 
 export type { RegisterFormRaw } from "./futbolRegistration";
 export { emailFromApodo } from "./futbolRegistration";
@@ -98,6 +102,12 @@ export async function registerWithSupabase(raw: RegisterFormRaw): Promise<{ toke
     await sb.auth.signOut();
     throw e;
   }
+}
+
+/** Modo invitado: sesión local con datos mock. No llama a Supabase. */
+export async function loginAsGuestDemo(): Promise<{ token: string; playerId: string }> {
+  initDemoSession();
+  return startDemoSession();
 }
 
 export async function loginWithSupabase(apodo: string, pin: string): Promise<{ token: string; playerId: string }> {

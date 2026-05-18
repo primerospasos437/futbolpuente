@@ -125,6 +125,47 @@ export interface BalanceResponse {
   avoidPairsApplied?: number;
 }
 
+export type PartidoRow = {
+  id: string;
+  fecha: string;
+  equipo_claros: unknown;
+  equipo_oscuros: unknown;
+  estado: string;
+  creado_por?: string | null;
+  created_at?: string;
+  confirmado_admin?: boolean;
+  suplentes?: unknown;
+  hora_partido?: string;
+  texto_equipamiento?: string;
+};
+
+export type PresenciaRow = {
+  partido_id: string;
+  jugador_id: string;
+  equipo: "claros" | "oscuros";
+  estado: "convocado" | "presente" | "ausente" | "reemplazado";
+};
+
+export type ConvocatoriaRow = {
+  id: string;
+  dia: "martes" | "jueves";
+  fecha_partido: string;
+  jugador_id: string;
+  orden_inscripcion?: number;
+  rol_convocatoria?: string;
+  created_at?: string;
+};
+
+export type NotificacionRow = {
+  id: string;
+  tipo: string;
+  titulo: string;
+  cuerpo: string;
+  datos: Record<string, unknown>;
+  leida: boolean;
+  created_at: string;
+};
+
 /** Datos solo visibles para el propio usuario (pestaña Mis datos). */
 export type MisDatosPrivados = {
   email: string;

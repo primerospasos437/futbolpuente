@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { api } from "./api";
 import { AuthProvider, useAuth } from "./AuthContext";
+import { isDemoMode } from "./lib/demoMode";
 import AuthPage from "./pages/Auth";
 import HomePage from "./pages/Home";
 import PlayerProfilePage from "./pages/PlayerProfile";
@@ -46,6 +47,22 @@ function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="shell">
+      {isDemoMode() ? (
+        <div
+          className="card"
+          style={{
+            marginBottom: "0.75rem",
+            padding: "0.5rem 0.75rem",
+            background: "rgba(255, 193, 7, 0.12)",
+            borderColor: "rgba(255, 193, 7, 0.35)",
+          }}
+        >
+          <strong>Modo demostración</strong>
+          <span className="muted" style={{ marginLeft: "0.5rem" }}>
+            Datos ficticios locales. Nada se guarda en Supabase (invitado@futbolpuente.com).
+          </span>
+        </div>
+      ) : null}
       <header className="topbar">
         <div className="brand">
           Fútbol <span>Grupo</span>

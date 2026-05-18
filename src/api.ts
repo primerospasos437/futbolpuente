@@ -6,16 +6,22 @@ import { finalScoreF5, normalizeF5Profile, peerAverageF5 } from "./lib/scoringF5
 import { balanceTwoTeamsWithAvoid } from "./lib/teamsBalance";
 import type {
   BalanceResponse,
+  ConvocatoriaRow,
   F5ProfileScores,
   MisDatosPrivados,
+  NotificacionRow,
+  PartidoRow,
   Pie,
   PlayerDetail,
   PlayerSummary,
   PlayersListPayload,
   Posicion,
+  PresenciaRow,
   ProfileScores,
   TeamSlot,
 } from "./types";
+import { clearDemoSession, getDemoPlayerId, isDemoMode } from "./lib/demoMode";
+import { demoApi, demoConvocatorias, demoNotificaciones, demoPartidos } from "./lib/demoApi";
 
 // Incluye el campo apodo en misDatosPrivados y setMisDatosPrivados
 export let misDatosPrivados: MisDatosPrivados | null = null;
@@ -235,7 +241,10 @@ export function getToken(): string | null {
 
 export function setToken(t: string | null) {
   if (t) localStorage.setItem(TOKEN_KEY, t);
-  else localStorage.removeItem(TOKEN_KEY);
+  else {
+    localStorage.removeItem(TOKEN_KEY);
+    clearDemoSession();
+  }
 }
 
 async function requireToken(): Promise<string> {
@@ -256,6 +265,7 @@ function dispatchF5ValoracionPendientesFireAndForget(token: string): void {
 }
 
 async function sessionPlayerId(): Promise<string> {
+  if (isDemoMode()) return getDemoPlayerId();
   const token = await requireToken();
   const sb = getSupabase();
   const { data, error } = await sb.rpc("futbol_auth_session_player_id", { p_token: token });
@@ -359,46 +369,7 @@ async function fetchJugadorPublico(id: string): Promise<PlayerInternal | null> {
   return mapPublicRow(data as JugadorPublicoRow);
 }
 
-export type PartidoRow = {
-  id: string;
-  fecha: string;
-  equipo_claros: unknown;
-  equipo_oscuros: unknown;
-  estado: string;
-  creado_por?: string | null;
-  created_at?: string;
-  confirmado_admin?: boolean;
-  suplentes?: unknown;
-  hora_partido?: string;
-  texto_equipamiento?: string;
-};
-
-export type PresenciaRow = {
-  partido_id: string;
-  jugador_id: string;
-  equipo: "claros" | "oscuros";
-  estado: "convocado" | "presente" | "ausente" | "reemplazado";
-};
-
-export type ConvocatoriaRow = {
-  id: string;
-  dia: "martes" | "jueves";
-  fecha_partido: string;
-  jugador_id: string;
-  orden_inscripcion?: number;
-  rol_convocatoria?: string;
-  created_at?: string;
-};
-
-export type NotificacionRow = {
-  id: string;
-  tipo: string;
-  titulo: string;
-  cuerpo: string;
-  datos: Record<string, unknown>;
-  leida: boolean;
-  created_at: string;
-};
+export type { PartidoRow, PresenciaRow, ConvocatoriaRow, NotificacionRow } from "./types";
 
 export function isAdminFromPlayersList(players: PlayerSummary[]): boolean {
   return players.some((p) => p.isSelf && p.esAdmin);
@@ -406,6 +377,7 @@ export function isAdminFromPlayersList(players: PlayerSummary[]): boolean {
 
 export const apiPartidos = {
   list: async (): Promise<PartidoRow[]> => {
+    if (isDemoMode()) return demoPartidos.list();
     const token = await requireToken();
     const sb = getSupabase();
     const { data, error } = await sb.rpc("futbol_list_partidos", { p_token: token });
@@ -414,6 +386,7 @@ export const apiPartidos = {
   },
 
   listPresencias: async (): Promise<PresenciaRow[]> => {
+    if (isDemoMode()) return demoPartidos.listPresencias();
     const token = await requireToken();
     const sb = getSupabase();
     const { data, error } = await sb.rpc("futbol_list_presencias", { p_token: token });
@@ -422,6 +395,7 @@ export const apiPartidos = {
   },
 
   marcarPresencia: async (partidoId: string, jugadorId: string, estado: string): Promise<void> => {
+    if (isDemoMode()) return demoPartidos.marcarPresencia(partidoId, jugadorId, estado);
     const token = await requireToken();
     const sb = getSupabase();
     const { error } = await sb.rpc("futbol_marcar_presencia", {
@@ -444,6 +418,7 @@ export const apiPartidos = {
       textoEquipamiento?: string;
     },
   ): Promise<{ id: string }> => {
+    if (isDemoMode()) return demoPartidos.crearBorrador(fecha, claros, oscuros, opts);
     const token = await requireToken();
     const sb = getSupabase();
     const toJson = (slots: TeamSlot[]) =>
@@ -466,6 +441,7 @@ export const apiPartidos = {
 
   /** Titular se da de baja de un partido ya confirmado; sube el primer suplente si hay. */
   bajaTitularPartidoConfirmado: async (partidoId: string, jugadorId?: string | null): Promise<void> => {
+    if (isDemoMode()) return demoPartidos.bajaTitularPartidoConfirmado(partidoId, jugadorId);
     const token = await requireToken();
     const sb = getSupabase();
     const { error } = await sb.rpc("futbol_baja_titular_partido_confirmado", {
@@ -477,6 +453,7 @@ export const apiPartidos = {
   },
 
   confirmar: async (partidoId: string): Promise<void> => {
+    if (isDemoMode()) return demoPartidos.confirmar(partidoId);
     const token = await requireToken();
     const sb = getSupabase();
     const { error } = await sb.rpc("futbol_confirmar_partido_admin", {
@@ -487,6 +464,7 @@ export const apiPartidos = {
   },
 
   rearmar: async (partidoId: string): Promise<void> => {
+    if (isDemoMode()) return demoPartidos.rearmar(partidoId);
     const token = await requireToken();
     const sb = getSupabase();
     const { error } = await sb.rpc("futbol_rearmar_partido_admin", {
@@ -499,6 +477,7 @@ export const apiPartidos = {
 
 export const apiConvocatorias = {
   list: async (): Promise<ConvocatoriaRow[]> => {
+    if (isDemoMode()) return demoConvocatorias.list();
     const token = await requireToken();
     const sb = getSupabase();
     const { data, error } = await sb.rpc("futbol_list_convocatorias", { p_token: token });
@@ -507,6 +486,7 @@ export const apiConvocatorias = {
   },
 
   anotarse: async (dia: "martes" | "jueves", fechaPartido: string): Promise<void> => {
+    if (isDemoMode()) return demoConvocatorias.anotarse(dia, fechaPartido);
     const token = await requireToken();
     const sb = getSupabase();
     const { error } = await sb.rpc("futbol_anotarse", {
@@ -518,6 +498,7 @@ export const apiConvocatorias = {
   },
 
   desanotarse: async (dia: "martes" | "jueves", fechaPartido: string): Promise<void> => {
+    if (isDemoMode()) return demoConvocatorias.desanotarse(dia, fechaPartido);
     const token = await requireToken();
     const sb = getSupabase();
     const { error } = await sb.rpc("futbol_desanotarse", {
@@ -531,6 +512,7 @@ export const apiConvocatorias = {
 
 export const apiNotificaciones = {
   list: async (): Promise<NotificacionRow[]> => {
+    if (isDemoMode()) return demoNotificaciones.list();
     const token = await requireToken();
     const sb = getSupabase();
     const { data, error } = await sb.rpc("futbol_list_notificaciones", { p_token: token, p_limite: 80 });
@@ -542,6 +524,7 @@ export const apiNotificaciones = {
   },
 
   marcarLeida: async (id: string): Promise<void> => {
+    if (isDemoMode()) return demoNotificaciones.marcarLeida(id);
     const token = await requireToken();
     const sb = getSupabase();
     const { error } = await sb.rpc("futbol_marcar_notificacion_leida", { p_token: token, p_id: id });
@@ -556,6 +539,7 @@ export function isAdmin(players: PlayerSummary[]): boolean {
 
 export const api = {
   me: async (): Promise<PlayerSummary> => {
+    if (isDemoMode()) return demoApi.me();
     const token = await requireToken();
     dispatchF5ValoracionPendientesFireAndForget(token);
     const viewerId = await sessionPlayerId();
@@ -574,6 +558,7 @@ export const api = {
   },
 
   players: async (): Promise<PlayersListPayload> => {
+    if (isDemoMode()) return demoApi.players();
     const token = await requireToken();
     dispatchF5ValoracionPendientesFireAndForget(token);
     const viewerId = await sessionPlayerId();
@@ -603,6 +588,7 @@ export const api = {
   },
 
   player: async (id: string): Promise<PlayerDetail> => {
+    if (isDemoMode()) return demoApi.player(id);
     const token = await requireToken();
     const viewerId = await sessionPlayerId();
     const p = await fetchJugadorPublico(id);
@@ -638,6 +624,7 @@ export const api = {
   },
 
   updateMe: async (body: Record<string, unknown>): Promise<PlayerSummary> => {
+    if (isDemoMode()) return demoApi.updateMe(body);
     const token = await requireToken();
     const sb = getSupabase();
     const { error } = await sb.rpc("futbol_update_mi_perfil", { p_token: token, p_body: body });
@@ -649,6 +636,7 @@ export const api = {
     id: string,
     scores: ProfileScores,
   ): Promise<{ saved: boolean; target: PlayerSummary }> => {
+    if (isDemoMode()) return demoApi.ratePlayer(id, scores);
     const token = await requireToken();
     const viewerId = await sessionPlayerId();
     const sb = getSupabase();
@@ -669,6 +657,7 @@ export const api = {
   },
 
   ratePlayerF5Perfil: async (id: string, scores: F5ProfileScores): Promise<void> => {
+    if (isDemoMode()) return demoApi.ratePlayerF5Perfil(id, scores);
     const token = await requireToken();
     const sb = getSupabase();
     const { error } = await sb.rpc("futbol_valorar_f5_perfil", {
@@ -680,6 +669,7 @@ export const api = {
   },
 
   ratePlayerF5Partido: async (partidoId: string, paraId: string, scores: F5ProfileScores): Promise<void> => {
+    if (isDemoMode()) return demoApi.ratePlayerF5Partido(partidoId, paraId, scores);
     const token = await requireToken();
     const sb = getSupabase();
     const { error } = await sb.rpc("futbol_valorar_f5_partido", {
@@ -694,6 +684,7 @@ export const api = {
   pendientesValoracionF5Partidos: async (): Promise<
     { partido: PartidoRow; companeros: { id: string; apodo: string }[] }[]
   > => {
+    if (isDemoMode()) return demoApi.pendientesValoracionF5Partidos();
     await requireToken();
     const viewerId = await sessionPlayerId();
     const sb = getSupabase();
@@ -737,6 +728,7 @@ export const api = {
     playerIds?: string[],
     opts?: { useF5Scores?: boolean },
   ): Promise<BalanceResponse> => {
+    if (isDemoMode()) return demoApi.balanceTeams(playerIds, opts);
     const viewerId = await sessionPlayerId();
     const token = await requireToken();
     const { jugadores: summaries } = await api.players();
@@ -780,6 +772,7 @@ export const api = {
   },
 
   misDatosPrivados: async (): Promise<MisDatosPrivados> => {
+    if (isDemoMode()) return demoApi.misDatosPrivados();
     const token = await requireToken();
     const sb = getSupabase();
     const { data, error } = await sb.rpc("futbol_mis_datos_privados_get", { p_token: token });
@@ -807,6 +800,7 @@ export const api = {
     email?: string;
     pin?: string;
   }): Promise<MisDatosPrivados> => {
+    if (isDemoMode()) return demoApi.setMisDatosPrivados(p);
     const token = await requireToken();
     const sb = getSupabase();
     const { sha256Hex } = await import("./lib/futbolAuth");
@@ -841,6 +835,7 @@ export const api = {
   },
 
   cambiarPin: async (pinActual: string, pinNuevo: string): Promise<void> => {
+    if (isDemoMode()) return demoApi.cambiarPin();
     const token = await requireToken();
     const { sha256Hex } = await import("./lib/futbolAuth");
     const a = String(pinActual ?? "").trim();
@@ -858,6 +853,7 @@ export const api = {
   },
 
   evitaCompanerosGet: async (): Promise<{ id: string; apodo: string }[]> => {
+    if (isDemoMode()) return demoApi.evitaCompanerosGet();
     const token = await requireToken();
     const sb = getSupabase();
     const { data, error } = await sb.rpc("futbol_evita_companeros_get", { p_token: token });
@@ -866,6 +862,7 @@ export const api = {
   },
 
   evitaCompanerosSet: async (evitaIds: string[]): Promise<{ id: string; apodo: string }[]> => {
+    if (isDemoMode()) return demoApi.evitaCompanerosSet(evitaIds);
     const token = await requireToken();
     const uniq = [...new Set(evitaIds.map(String).filter(Boolean))].slice(0, 2);
     const sb = getSupabase();

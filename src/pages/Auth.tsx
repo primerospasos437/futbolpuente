@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { setToken } from "../api";
 import { useAuth } from "../AuthContext";
-import { loginWithSupabase, registerWithSupabase } from "../lib/futbolAuth";
+import { loginAsGuestDemo, loginWithSupabase, registerWithSupabase } from "../lib/futbolAuth";
 import type { Pie, Posicion } from "../types";
 
 const API_BASE = "";
@@ -47,6 +47,20 @@ export default function AuthPage() {
     setLoading(true);
     try {
       const r = await loginWithSupabase(apodo, pin);
+      setToken(r.token);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onGuestLogin() {
+    setError(null);
+    setLoading(true);
+    try {
+      const r = await loginAsGuestDemo();
       setToken(r.token);
       await refresh();
     } catch (err) {
@@ -197,6 +211,32 @@ export default function AuthPage() {
             <button className="btn btn-primary" type="submit" disabled={loading}>
               {loading ? "Entrando…" : "Entrar"}
             </button>
+            <div
+              style={{
+                marginTop: "1.25rem",
+                paddingTop: "1.25rem",
+                borderTop: "1px solid var(--border, rgba(255,255,255,0.12))",
+                textAlign: "center",
+              }}
+            >
+              <p className="muted" style={{ margin: "0 0 0.75rem", fontSize: "0.9rem" }}>
+                ¿Querés explorar sin registrarte?
+              </p>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{
+                  width: "100%",
+                  maxWidth: "320px",
+                  border: "1px dashed var(--border, rgba(255,255,255,0.2))",
+                  padding: "0.65rem 1rem",
+                }}
+                disabled={loading}
+                onClick={() => void onGuestLogin()}
+              >
+                {loading ? "Entrando…" : "Probar demo · Entrar como invitado"}
+              </button>
+            </div>
           </form>
         ) : mode === "recover" ? (
           recoverStep === 1 ? (

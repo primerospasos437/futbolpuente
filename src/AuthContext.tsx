@@ -1,10 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getToken, setToken } from "./api";
+import { isDemoMode } from "./lib/demoMode";
 import { validateSessionWithSupabase } from "./lib/futbolAuth";
 
 type AuthState = {
   ready: boolean;
   loggedIn: boolean;
+  isDemo: boolean;
+  demoEmail: string | null;
   refresh: () => Promise<void>;
   logout: () => void;
 };
@@ -19,6 +22,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const t = getToken();
     if (!t) {
       setLoggedIn(false);
+      setReady(true);
+      return;
+    }
+    if (isDemoMode()) {
+      setLoggedIn(true);
       setReady(true);
       return;
     }
@@ -44,7 +52,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ ready, loggedIn, refresh, logout }),
+    () => ({
+      ready,
+      loggedIn,
+      isDemo: loggedIn && isDemoMode(),
+      demoEmail: isDemoMode() ? "invitado@futbolpuente.com" : null,
+      refresh,
+      logout,
+    }),
     [ready, loggedIn, refresh, logout],
   );
 
