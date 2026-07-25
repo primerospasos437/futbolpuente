@@ -81,7 +81,7 @@ export const DIMENSION_SECTIONS: DimensionSection[] = [
 ];
 
 export function defaultScores(): ProfileScores {
-  return Object.fromEntries(DIMENSION_ORDER.map((k) => [k, 5])) as ProfileScores;
+  return Object.fromEntries(DIMENSION_ORDER.map((k) => [k, 3])) as ProfileScores;
 }
 
 /** Autopercepción aún no guardada (UI y promedio mostrado como 0 hasta el primer guardado en «Mis perfiles»). */

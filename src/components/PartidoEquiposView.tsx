@@ -11,22 +11,19 @@ type Props = {
 function ListaEquipo({
   titulo,
   jugadores,
+  tone,
   destacado,
 }: {
   titulo: string;
   jugadores: PartidoJugadorNombre[];
+  tone: "claros" | "oscuros";
   destacado: boolean;
 }) {
   return (
     <div
-      className="card team-card"
-      style={
-        destacado
-          ? { borderColor: "var(--accent, #4caf50)", boxShadow: "0 0 0 1px var(--accent, #4caf50)" }
-          : undefined
-      }
+      className={`card team-card team-card--${tone}${destacado ? " team-card--mine" : ""}`}
     >
-      <h3 style={{ marginTop: 0 }}>
+      <h3>
         {titulo}
         {destacado ? (
           <span className="muted" style={{ fontSize: "0.85rem", fontWeight: 500, marginLeft: "0.35rem" }}>
@@ -39,7 +36,7 @@ function ListaEquipo({
           Sin jugadores cargados.
         </p>
       ) : (
-        <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+        <ul>
           {jugadores.map((j) => (
             <li key={j.id}>{j.apodo}</li>
           ))}
@@ -52,8 +49,18 @@ function ListaEquipo({
 export default function PartidoEquiposView({ claros, oscuros, miEquipo }: Props) {
   return (
     <div className="team-grid" style={{ marginTop: "1rem" }}>
-      <ListaEquipo titulo={TEAM_LABEL_CLAROS} jugadores={claros} destacado={miEquipo === "claros"} />
-      <ListaEquipo titulo={TEAM_LABEL_OSCUROS} jugadores={oscuros} destacado={miEquipo === "oscuros"} />
+      <ListaEquipo
+        titulo={TEAM_LABEL_CLAROS}
+        jugadores={claros}
+        tone="claros"
+        destacado={miEquipo === "claros"}
+      />
+      <ListaEquipo
+        titulo={TEAM_LABEL_OSCUROS}
+        jugadores={oscuros}
+        tone="oscuros"
+        destacado={miEquipo === "oscuros"}
+      />
     </div>
   );
 }

@@ -375,7 +375,7 @@ export default function AuthPage() {
             </div>
 
             <p className="muted" style={{ marginTop: "1rem" }}>
-              Las cualidades del perfil completo arrancan en 5/10 por defecto: ajustalas en «Mis perfiles».
+              Las cualidades del perfil completo arrancan en 3/5 por defecto: ajustalas con estrellas en «Mis perfiles».
             </p>
 
             <button className="btn btn-primary" type="submit" style={{ marginTop: "1rem" }} disabled={loading}>

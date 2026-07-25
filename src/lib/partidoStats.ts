@@ -1,0 +1,820 @@
+import type { PartidoRow, PresenciaRow } from "../types";
+import { parseEquipoNombres } from "./partidoEquipos";
+
+export type ResultLetter = "G" | "P" | "E";
+
+export type PlayerMatchStat = {
+  jugadorId: string;
+  apodo: string;
+  pj: number;
+  g: number;
+  p: number;
+  e: number;
+  pctVict: number;
+  /** Racha actual: "G3", "P2", "E1" o "—" */
+  racha: string;
+};
+
+export type ClarosOscurosStandings = {
+  clarosWins: number;
+  oscurosWins: number;
+  empates: number;
+  partidosConResultado: number;
+};
+
+export type LastFinishedMatch = {
+  partido: PartidoRow;
+  golesClaros: number;
+  golesOscuros: number;
+  ganador: "claros" | "oscuros" | "empate";
+  mvpId: string | null;
+  comentario: string | null;
+};
+
+export type FunStatCard = {
+  id: string;
+  title: string;
+  value: string;
+  detail?: string;
+  /** Nombres extras debajo del valor principal */
+  names?: string[];
+  tone?: "gold" | "red" | "green" | "orange" | "blue" | "purple";
+};
+
+export type PairStat = {
+  aId: string;
+  bId: string;
+  aApodo: string;
+  bApodo: string;
+  pj: number;
+  g: number;
+  p: number;
+  e: number;
+  pctVict: number;
+};
+
+export type MatchDifficulty = "facil" | "parejo" | "disparejo";
+
+export type SeasonSummary = {
+  totalPartidos: number;
+  clarosWins: number;
+  oscurosWins: number;
+  empates: number;
+  facil: number;
+  parejo: number;
+  disparejo: number;
+  jugadoresUnicos: number;
+};
+
+export type WinEvolutionPoint = {
+  fecha: string;
+  label: string;
+  claros: number;
+  oscuros: number;
+};
+
+export type RecentMatchStat = {
+  id: string;
+  fecha: string;
+  golesClaros: number;
+  golesOscuros: number;
+  dificultad: MatchDifficulty;
+  mvpId: string | null;
+  comentario: string | null;
+};
+
+export type DifficultyRow = {
+  jugadorId: string;
+  apodo: string;
+  facil: { pj: number; g: number; pct: number };
+  parejo: { pj: number; g: number; pct: number };
+  disparejo: { pj: number; g: number; pct: number };
+};
+
+export type CuriosityCard = {
+  id: string;
+  title: string;
+  body: string;
+  tone: "gold" | "red" | "green" | "orange" | "blue" | "purple";
+};
+
+export function classifyDifficulty(gc: number, go: number): MatchDifficulty {
+  const diff = Math.abs(gc - go);
+  if (diff <= 1) return "parejo";
+  if (diff === 2) return "disparejo";
+  return "facil";
+}
+
+export function difficultyLabel(d: MatchDifficulty): string {
+  if (d === "facil") return "FÁCIL";
+  if (d === "parejo") return "PAREJO";
+  return "DISPAREJO";
+}
+
+export type RivalNemesisRow = {
+  jugadorId: string;
+  apodo: string;
+  rivalId: string | null;
+  rivalApodo: string | null;
+  winsVs: number;
+  nemesisId: string | null;
+  nemesisApodo: string | null;
+  lossesVs: number;
+};
+
+type LineupSlot = { id: string; equipo: "claros" | "oscuros"; apodo: string };
+
+export function partidoTieneResultado(p: PartidoRow): boolean {
+  return p.goles_claros != null && p.goles_oscuros != null;
+}
+
+export function finishedMatchesDesc(partidos: PartidoRow[]): PartidoRow[] {
+  return partidos
+    .filter((p) => p.confirmado_admin === true && partidoTieneResultado(p))
+    .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+}
+
+function resultForTeam(gc: number, go: number, equipo: "claros" | "oscuros"): ResultLetter {
+  if (gc === go) return "E";
+  if (equipo === "claros") return gc > go ? "G" : "P";
+  return go > gc ? "G" : "P";
+}
+
+function streakLabel(results: ResultLetter[]): string {
+  if (!results.length) return "—";
+  const first = results[0];
+  let n = 0;
+  for (const r of results) {
+    if (r !== first) break;
+    n += 1;
+  }
+  return `${first}${n}`;
+}
+
+function maxStreakOf(resultsChronoOldestFirst: ResultLetter[], letter: "G" | "P"): number {
+  let best = 0;
+  let cur = 0;
+  for (const r of resultsChronoOldestFirst) {
+    if (r === letter) {
+      cur += 1;
+      if (cur > best) best = cur;
+    } else {
+      cur = 0;
+    }
+  }
+  return best;
+}
+
+function pairKey(a: string, b: string): string {
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+export function lineupForMatch(
+  p: PartidoRow,
+  presencias: PresenciaRow[],
+  apodoById: Map<string, string>,
+): LineupSlot[] {
+  const fromPres = presencias.filter(
+    (pr) =>
+      pr.partido_id === p.id && (pr.estado === "convocado" || pr.estado === "presente"),
+  );
+  if (fromPres.length > 0) {
+    return fromPres.map((pr) => ({
+      id: pr.jugador_id,
+      equipo: pr.equipo,
+      apodo: apodoById.get(pr.jugador_id) ?? pr.jugador_id.slice(0, 6),
+    }));
+  }
+  return [
+    ...parseEquipoNombres(p.equipo_claros).map((x) => ({
+      id: x.id,
+      equipo: "claros" as const,
+      apodo: x.apodo,
+    })),
+    ...parseEquipoNombres(p.equipo_oscuros).map((x) => ({
+      id: x.id,
+      equipo: "oscuros" as const,
+      apodo: x.apodo,
+    })),
+  ];
+}
+
+/**
+ * Ranking a partir de partidos con resultado + planteles (JSON o presencias).
+ * Orden: % victoria desc, luego G desc, luego PJ desc.
+ */
+export function buildPlayerRanking(
+  partidos: PartidoRow[],
+  presencias: PresenciaRow[],
+  apodoById: Map<string, string>,
+): PlayerMatchStat[] {
+  const finished = finishedMatchesDesc(partidos);
+
+  type Acc = {
+    apodo: string;
+    pj: number;
+    g: number;
+    p: number;
+    e: number;
+    /** Más reciente primero */
+    recent: ResultLetter[];
+    /** Más antiguo primero (para rachas máximas) */
+    chrono: ResultLetter[];
+  };
+  const byId = new Map<string, Acc>();
+
+  function ensure(id: string, apodo: string) {
+    let a = byId.get(id);
+    if (!a) {
+      a = { apodo, pj: 0, g: 0, p: 0, e: 0, recent: [], chrono: [] };
+      byId.set(id, a);
+    }
+    return a;
+  }
+
+  // Procesar de más viejo a más nuevo para chrono; recent se arma al revés
+  const oldestFirst = [...finished].reverse();
+  for (const p of oldestFirst) {
+    const gc = Number(p.goles_claros);
+    const go = Number(p.goles_oscuros);
+    const slots = lineupForMatch(p, presencias, apodoById);
+    for (const s of slots) {
+      const acc = ensure(s.id, s.apodo || apodoById.get(s.id) || s.id);
+      if (apodoById.has(s.id)) acc.apodo = apodoById.get(s.id)!;
+      const r = resultForTeam(gc, go, s.equipo);
+      acc.pj += 1;
+      if (r === "G") acc.g += 1;
+      else if (r === "P") acc.p += 1;
+      else acc.e += 1;
+      acc.chrono.push(r);
+    }
+  }
+
+  for (const a of byId.values()) {
+    a.recent = [...a.chrono].reverse();
+  }
+
+  const rows: PlayerMatchStat[] = [...byId.entries()].map(([jugadorId, a]) => ({
+    jugadorId,
+    apodo: a.apodo,
+    pj: a.pj,
+    g: a.g,
+    p: a.p,
+    e: a.e,
+    pctVict: a.pj > 0 ? (a.g / a.pj) * 100 : 0,
+    racha: streakLabel(a.recent),
+  }));
+
+  rows.sort((a, b) => {
+    if (b.pctVict !== a.pctVict) return b.pctVict - a.pctVict;
+    if (b.g !== a.g) return b.g - a.g;
+    return b.pj - a.pj;
+  });
+  return rows;
+}
+
+/** Expone rachas máximas por jugador (uso interno de fun stats). */
+function playerChronoMap(
+  partidos: PartidoRow[],
+  presencias: PresenciaRow[],
+  apodoById: Map<string, string>,
+): Map<string, { apodo: string; chrono: ResultLetter[]; g: number; p: number; pj: number }> {
+  const finished = finishedMatchesDesc(partidos);
+  const oldestFirst = [...finished].reverse();
+  const byId = new Map<string, { apodo: string; chrono: ResultLetter[]; g: number; p: number; pj: number }>();
+
+  for (const p of oldestFirst) {
+    const gc = Number(p.goles_claros);
+    const go = Number(p.goles_oscuros);
+    for (const s of lineupForMatch(p, presencias, apodoById)) {
+      let a = byId.get(s.id);
+      if (!a) {
+        a = { apodo: apodoById.get(s.id) ?? s.apodo, chrono: [], g: 0, p: 0, pj: 0 };
+        byId.set(s.id, a);
+      }
+      if (apodoById.has(s.id)) a.apodo = apodoById.get(s.id)!;
+      const r = resultForTeam(gc, go, s.equipo);
+      a.chrono.push(r);
+      a.pj += 1;
+      if (r === "G") a.g += 1;
+      if (r === "P") a.p += 1;
+    }
+  }
+  return byId;
+}
+
+export function buildFunStats(
+  partidos: PartidoRow[],
+  presencias: PresenciaRow[],
+  apodoById: Map<string, string>,
+): FunStatCard[] {
+  const cards: FunStatCard[] = [];
+  const chrono = playerChronoMap(partidos, presencias, apodoById);
+  const finished = finishedMatchesDesc(partidos);
+
+  const mvpCount = new Map<string, number>();
+  for (const p of finished) {
+    if (!p.mvp_jugador_id) continue;
+    mvpCount.set(p.mvp_jugador_id, (mvpCount.get(p.mvp_jugador_id) ?? 0) + 1);
+  }
+  const mvpSorted = [...mvpCount.entries()].sort((a, b) => b[1] - a[1]);
+  const mvpTop = mvpSorted[0];
+  cards.push({
+    id: "mvp",
+    title: "MVP histórico",
+    value: mvpTop ? (apodoById.get(mvpTop[0]) ?? "—") : "—",
+    detail: mvpTop ? `${mvpTop[1]} vez${mvpTop[1] === 1 ? "" : "es"}` : "Sin MVPs cargados",
+    names: mvpSorted.slice(1, 4).map(([id, n]) => `${apodoById.get(id) ?? id.slice(0, 6)} (${n})`),
+    tone: "gold",
+  });
+
+  const byLosses = [...chrono.entries()]
+    .map(([id, a]) => ({ id, apodo: a.apodo, p: a.p }))
+    .filter((x) => x.p > 0)
+    .sort((a, b) => b.p - a.p);
+  cards.push({
+    id: "losses",
+    title: "Rey de derrotas",
+    value: byLosses[0]?.apodo ?? "—",
+    detail: byLosses[0] ? `${byLosses[0].p} derrota${byLosses[0].p === 1 ? "" : "s"}` : undefined,
+    names: byLosses.slice(1, 4).map((x) => `${x.apodo} (${x.p})`),
+    tone: "red",
+  });
+
+  const drySpell = [...chrono.entries()]
+    .map(([id, a]) => {
+      const recent = [...a.chrono].reverse();
+      let n = 0;
+      for (const r of recent) {
+        if (r === "G") break;
+        n += 1;
+      }
+      return { id, apodo: a.apodo, n, pj: a.pj, g: a.g };
+    })
+    .filter((x) => x.n >= 2 || (x.pj > 0 && x.g === 0))
+    .sort((a, b) => b.n - a.n || b.pj - a.pj);
+  cards.push({
+    id: "dry",
+    title: "Más partidos sin ganar",
+    value: drySpell[0]?.apodo ?? "—",
+    detail: drySpell[0]
+      ? drySpell[0].g === 0
+        ? `${drySpell[0].pj} PJ sin victoria`
+        : `${drySpell[0].n} seguidos`
+      : undefined,
+    names: drySpell.slice(1, 3).map((x) => x.apodo),
+    tone: "purple",
+  });
+
+  let bestWin: { apodo: string; n: number } | null = null;
+  let bestLoss: { apodo: string; n: number } | null = null;
+  const winStreakNames: string[] = [];
+  const lossStreakNames: string[] = [];
+  for (const a of chrono.values()) {
+    const wg = maxStreakOf(a.chrono, "G");
+    const wl = maxStreakOf(a.chrono, "P");
+    if (wg > 0) {
+      if (!bestWin || wg > bestWin.n) {
+        if (bestWin) winStreakNames.unshift(`${bestWin.apodo} (${bestWin.n})`);
+        bestWin = { apodo: a.apodo, n: wg };
+      } else if (wg === bestWin.n && a.apodo !== bestWin.apodo) {
+        winStreakNames.push(`${a.apodo} (${wg})`);
+      }
+    }
+    if (wl > 0) {
+      if (!bestLoss || wl > bestLoss.n) {
+        if (bestLoss) lossStreakNames.unshift(`${bestLoss.apodo} (${bestLoss.n})`);
+        bestLoss = { apodo: a.apodo, n: wl };
+      } else if (wl === bestLoss.n && a.apodo !== bestLoss.apodo) {
+        lossStreakNames.push(`${a.apodo} (${wl})`);
+      }
+    }
+  }
+  cards.push({
+    id: "win-streak",
+    title: "Mayor racha ganadora",
+    value: bestWin ? bestWin.apodo : "—",
+    detail: bestWin ? `${bestWin.n} seguidas` : undefined,
+    names: winStreakNames.slice(0, 3),
+    tone: "orange",
+  });
+  cards.push({
+    id: "loss-streak",
+    title: "Mayor racha perdedora",
+    value: bestLoss ? bestLoss.apodo : "—",
+    detail: bestLoss ? `${bestLoss.n} seguidas` : undefined,
+    names: lossStreakNames.slice(0, 3),
+    tone: "blue",
+  });
+
+  return cards;
+}
+
+export function buildPairStats(
+  partidos: PartidoRow[],
+  presencias: PresenciaRow[],
+  apodoById: Map<string, string>,
+): {
+  mejores: PairStat[];
+  peores: PairStat[];
+  masJuntas: PairStat[];
+  invictas: PairStat[];
+  invictasCount: number;
+} {
+  type Acc = { aId: string; bId: string; pj: number; g: number; p: number; e: number };
+  const pairs = new Map<string, Acc>();
+
+  const finished = finishedMatchesDesc(partidos);
+  for (const p of finished) {
+    const gc = Number(p.goles_claros);
+    const go = Number(p.goles_oscuros);
+    const slots = lineupForMatch(p, presencias, apodoById);
+    const byTeam: Record<"claros" | "oscuros", string[]> = { claros: [], oscuros: [] };
+    for (const s of slots) byTeam[s.equipo].push(s.id);
+
+    for (const equipo of ["claros", "oscuros"] as const) {
+      const ids = byTeam[equipo];
+      const r = resultForTeam(gc, go, equipo);
+      for (let i = 0; i < ids.length; i += 1) {
+        for (let j = i + 1; j < ids.length; j += 1) {
+          const a = ids[i];
+          const b = ids[j];
+          const key = pairKey(a, b);
+          let acc = pairs.get(key);
+          if (!acc) {
+            acc = { aId: a < b ? a : b, bId: a < b ? b : a, pj: 0, g: 0, p: 0, e: 0 };
+            pairs.set(key, acc);
+          }
+          acc.pj += 1;
+          if (r === "G") acc.g += 1;
+          else if (r === "P") acc.p += 1;
+          else acc.e += 1;
+        }
+      }
+    }
+  }
+
+  const all: PairStat[] = [...pairs.values()].map((a) => ({
+    aId: a.aId,
+    bId: a.bId,
+    aApodo: apodoById.get(a.aId) ?? a.aId.slice(0, 6),
+    bApodo: apodoById.get(a.bId) ?? a.bId.slice(0, 6),
+    pj: a.pj,
+    g: a.g,
+    p: a.p,
+    e: a.e,
+    pctVict: a.pj > 0 ? (a.g / a.pj) * 100 : 0,
+  }));
+
+  const conMin = (minPj: number) => all.filter((x) => x.pj >= minPj);
+  const minForPct = Math.max(1, Math.min(2, finished.length));
+
+  const mejores = [...conMin(minForPct)].sort((a, b) => {
+    if (b.pctVict !== a.pctVict) return b.pctVict - a.pctVict;
+    return b.pj - a.pj;
+  }).slice(0, 5);
+
+  const peores = [...conMin(minForPct)].sort((a, b) => {
+    if (a.pctVict !== b.pctVict) return a.pctVict - b.pctVict;
+    return b.pj - a.pj;
+  }).slice(0, 5);
+
+  const masJuntas = [...all].sort((a, b) => b.pj - a.pj || b.pctVict - a.pctVict).slice(0, 5);
+  const invictas = all
+    .filter((x) => x.pj >= 1 && x.p === 0 && x.g > 0)
+    .sort((a, b) => b.pj - a.pj || b.g - a.g)
+    .slice(0, 5);
+
+  return { mejores, peores, masJuntas, invictas, invictasCount: invictas.length };
+}
+
+export function buildSeasonSummary(
+  partidos: PartidoRow[],
+  presencias: PresenciaRow[],
+  apodoById: Map<string, string>,
+): SeasonSummary {
+  const finished = finishedMatchesDesc(partidos);
+  let clarosWins = 0;
+  let oscurosWins = 0;
+  let empates = 0;
+  let facil = 0;
+  let parejo = 0;
+  let disparejo = 0;
+  const players = new Set<string>();
+
+  for (const p of finished) {
+    const gc = Number(p.goles_claros);
+    const go = Number(p.goles_oscuros);
+    if (gc > go) clarosWins += 1;
+    else if (go > gc) oscurosWins += 1;
+    else empates += 1;
+    const d = classifyDifficulty(gc, go);
+    if (d === "facil") facil += 1;
+    else if (d === "parejo") parejo += 1;
+    else disparejo += 1;
+    for (const s of lineupForMatch(p, presencias, apodoById)) players.add(s.id);
+  }
+
+  return {
+    totalPartidos: finished.length,
+    clarosWins,
+    oscurosWins,
+    empates,
+    facil,
+    parejo,
+    disparejo,
+    jugadoresUnicos: players.size,
+  };
+}
+
+export function buildWinEvolution(partidos: PartidoRow[]): WinEvolutionPoint[] {
+  const oldest = [...finishedMatchesDesc(partidos)].reverse();
+  let claros = 0;
+  let oscuros = 0;
+  const points: WinEvolutionPoint[] = [];
+  for (const p of oldest) {
+    const gc = Number(p.goles_claros);
+    const go = Number(p.goles_oscuros);
+    if (gc > go) claros += 1;
+    else if (go > gc) oscuros += 1;
+    const [, m, d] = p.fecha.split("-");
+    points.push({
+      fecha: p.fecha,
+      label: `${d}/${m}`,
+      claros,
+      oscuros,
+    });
+  }
+  return points;
+}
+
+export function buildRecentMatches(partidos: PartidoRow[], limit = 6): RecentMatchStat[] {
+  return finishedMatchesDesc(partidos)
+    .slice(0, limit)
+    .map((p) => {
+      const gc = Number(p.goles_claros);
+      const go = Number(p.goles_oscuros);
+      return {
+        id: p.id,
+        fecha: p.fecha,
+        golesClaros: gc,
+        golesOscuros: go,
+        dificultad: classifyDifficulty(gc, go),
+        mvpId: p.mvp_jugador_id ?? null,
+        comentario: p.comentario_partido?.trim() || null,
+      };
+    });
+}
+
+export function buildDifficultyPerformance(
+  partidos: PartidoRow[],
+  presencias: PresenciaRow[],
+  apodoById: Map<string, string>,
+): DifficultyRow[] {
+  type Bucket = { pj: number; g: number };
+  const byId = new Map<
+    string,
+    { apodo: string; facil: Bucket; parejo: Bucket; disparejo: Bucket }
+  >();
+
+  for (const p of finishedMatchesDesc(partidos)) {
+    const gc = Number(p.goles_claros);
+    const go = Number(p.goles_oscuros);
+    const diff = classifyDifficulty(gc, go);
+    for (const s of lineupForMatch(p, presencias, apodoById)) {
+      let a = byId.get(s.id);
+      if (!a) {
+        a = {
+          apodo: apodoById.get(s.id) ?? s.apodo,
+          facil: { pj: 0, g: 0 },
+          parejo: { pj: 0, g: 0 },
+          disparejo: { pj: 0, g: 0 },
+        };
+        byId.set(s.id, a);
+      }
+      if (apodoById.has(s.id)) a.apodo = apodoById.get(s.id)!;
+      const bucket = a[diff];
+      bucket.pj += 1;
+      if (resultForTeam(gc, go, s.equipo) === "G") bucket.g += 1;
+    }
+  }
+
+  const pct = (b: Bucket) => (b.pj > 0 ? (b.g / b.pj) * 100 : 0);
+  return [...byId.entries()]
+    .map(([jugadorId, a]) => ({
+      jugadorId,
+      apodo: a.apodo,
+      facil: { ...a.facil, pct: pct(a.facil) },
+      parejo: { ...a.parejo, pct: pct(a.parejo) },
+      disparejo: { ...a.disparejo, pct: pct(a.disparejo) },
+    }))
+    .sort((a, b) => a.apodo.localeCompare(b.apodo, "es"));
+}
+
+export function buildCuriosidades(
+  partidos: PartidoRow[],
+  presencias: PresenciaRow[],
+  apodoById: Map<string, string>,
+  pairs: { mejores: PairStat[]; invictas: PairStat[] },
+  ranking: PlayerMatchStat[],
+): CuriosityCard[] {
+  const cards: CuriosityCard[] = [];
+  const finished = finishedMatchesDesc(partidos);
+  if (!finished.length) return cards;
+
+  if (pairs.mejores[0]) {
+    const p = pairs.mejores[0];
+    cards.push({
+      id: "duo",
+      title: "Dupla letal",
+      body: `${p.aApodo} + ${p.bApodo} ganan el ${p.pctVict.toFixed(0)}% juntos (${p.pj} PJ).`,
+      tone: "green",
+    });
+  }
+  if (pairs.invictas[0]) {
+    const p = pairs.invictas[0];
+    cards.push({
+      id: "invicta",
+      title: "Invictos juntos",
+      body: `${p.aApodo} + ${p.bApodo}: ${p.g} victorias sin derrota.`,
+      tone: "blue",
+    });
+  }
+  const top = ranking[0];
+  if (top && top.pj > 0) {
+    cards.push({
+      id: "leader",
+      title: "Líder del ranking",
+      body: `${top.apodo} manda con ${top.pctVict.toFixed(0)}% de victorias (${top.g}G-${top.p}P).`,
+      tone: "gold",
+    });
+  }
+  const last = finished[0];
+  if (last?.mvp_jugador_id) {
+    cards.push({
+      id: "last-mvp",
+      title: "Último MVP",
+      body: `${apodoById.get(last.mvp_jugador_id) ?? "Jugador"} brilló en el ${Number(last.goles_claros)}-${Number(last.goles_oscuros)}.`,
+      tone: "orange",
+    });
+  }
+  const undefeated = ranking.filter((r) => r.pj >= 2 && r.p === 0);
+  if (undefeated[0]) {
+    cards.push({
+      id: "undefeated",
+      title: "Imparable",
+      body: `${undefeated[0].apodo} sigue sin perder (${undefeated[0].pj} PJ).`,
+      tone: "purple",
+    });
+  }
+  const unique = new Set<string>();
+  for (const p of finished) {
+    for (const s of lineupForMatch(p, presencias, apodoById)) unique.add(s.id);
+  }
+  if (unique.size) {
+    cards.push({
+      id: "roster",
+      title: "Plantel activo",
+      body: `${unique.size} jugadores distintos ya sumaron minutos esta temporada.`,
+      tone: "blue",
+    });
+  }
+  return cards.slice(0, 6);
+}
+
+export function buildRivalNemesis(
+  partidos: PartidoRow[],
+  presencias: PresenciaRow[],
+  apodoById: Map<string, string>,
+): RivalNemesisRow[] {
+  /** wins[a][b] = veces que a ganó contra b (equipos opuestos) */
+  const wins = new Map<string, Map<string, number>>();
+
+  function addWin(winner: string, loser: string) {
+    let m = wins.get(winner);
+    if (!m) {
+      m = new Map();
+      wins.set(winner, m);
+    }
+    m.set(loser, (m.get(loser) ?? 0) + 1);
+  }
+
+  for (const p of finishedMatchesDesc(partidos)) {
+    const gc = Number(p.goles_claros);
+    const go = Number(p.goles_oscuros);
+    if (gc === go) continue;
+    const slots = lineupForMatch(p, presencias, apodoById);
+    const claros = slots.filter((s) => s.equipo === "claros").map((s) => s.id);
+    const oscuros = slots.filter((s) => s.equipo === "oscuros").map((s) => s.id);
+    const winners = gc > go ? claros : oscuros;
+    const losers = gc > go ? oscuros : claros;
+    for (const w of winners) {
+      for (const l of losers) addWin(w, l);
+    }
+  }
+
+  const playerIds = new Set<string>();
+  for (const [w, m] of wins) {
+    playerIds.add(w);
+    for (const l of m.keys()) playerIds.add(l);
+  }
+
+  const rows: RivalNemesisRow[] = [];
+  for (const id of playerIds) {
+    let rivalId: string | null = null;
+    let winsVs = 0;
+    const myWins = wins.get(id);
+    if (myWins) {
+      for (const [opp, n] of myWins) {
+        if (n > winsVs) {
+          winsVs = n;
+          rivalId = opp;
+        }
+      }
+    }
+
+    let nemesisId: string | null = null;
+    let lossesVs = 0;
+    for (const [other, m] of wins) {
+      const n = m.get(id) ?? 0;
+      if (n > lossesVs) {
+        lossesVs = n;
+        nemesisId = other;
+      }
+    }
+
+    rows.push({
+      jugadorId: id,
+      apodo: apodoById.get(id) ?? id.slice(0, 6),
+      rivalId,
+      rivalApodo: rivalId ? apodoById.get(rivalId) ?? null : null,
+      winsVs,
+      nemesisId,
+      nemesisApodo: nemesisId ? apodoById.get(nemesisId) ?? null : null,
+      lossesVs,
+    });
+  }
+
+  rows.sort((a, b) => a.apodo.localeCompare(b.apodo, "es"));
+  return rows;
+}
+
+export type TrendBuckets = {
+  subiendo: { id: string; apodo: string; racha: string }[];
+  bajando: { id: string; apodo: string; racha: string }[];
+  sinGanar: { id: string; apodo: string; pj: number }[];
+  invictos: { id: string; apodo: string; pj: number }[];
+};
+
+export function buildTrends(ranking: PlayerMatchStat[]): TrendBuckets {
+  const subiendo = ranking
+    .filter((r) => r.racha.startsWith("G") && Number(r.racha.slice(1)) >= 2)
+    .map((r) => ({ id: r.jugadorId, apodo: r.apodo, racha: r.racha }))
+    .slice(0, 6);
+  const bajando = ranking
+    .filter((r) => r.racha.startsWith("P") && Number(r.racha.slice(1)) >= 2)
+    .map((r) => ({ id: r.jugadorId, apodo: r.apodo, racha: r.racha }))
+    .slice(0, 6);
+  const sinGanar = ranking
+    .filter((r) => r.pj > 0 && r.g === 0)
+    .map((r) => ({ id: r.jugadorId, apodo: r.apodo, pj: r.pj }))
+    .slice(0, 8);
+  const invictos = ranking
+    .filter((r) => r.pj >= 2 && r.p === 0)
+    .map((r) => ({ id: r.jugadorId, apodo: r.apodo, pj: r.pj }))
+    .slice(0, 6);
+  return { subiendo, bajando, sinGanar, invictos };
+}
+
+export function buildClarosOscurosStandings(partidos: PartidoRow[]): ClarosOscurosStandings {
+  let clarosWins = 0;
+  let oscurosWins = 0;
+  let empates = 0;
+  let n = 0;
+  for (const p of partidos) {
+    if (!partidoTieneResultado(p) || p.confirmado_admin !== true) continue;
+    n += 1;
+    const gc = Number(p.goles_claros);
+    const go = Number(p.goles_oscuros);
+    if (gc > go) clarosWins += 1;
+    else if (go > gc) oscurosWins += 1;
+    else empates += 1;
+  }
+  return { clarosWins, oscurosWins, empates, partidosConResultado: n };
+}
+
+export function getLastFinishedMatch(partidos: PartidoRow[]): LastFinishedMatch | null {
+  const finished = finishedMatchesDesc(partidos);
+  const p = finished[0];
+  if (!p) return null;
+  const gc = Number(p.goles_claros);
+  const go = Number(p.goles_oscuros);
+  return {
+    partido: p,
+    golesClaros: gc,
+    golesOscuros: go,
+    ganador: gc > go ? "claros" : go > gc ? "oscuros" : "empate",
+    mvpId: p.mvp_jugador_id ?? null,
+    comentario: p.comentario_partido?.trim() || null,
+  };
+}

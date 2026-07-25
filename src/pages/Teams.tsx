@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { api, apiConvocatorias, apiPartidos, isAdminFromPlayersList, type ConvocatoriaRow, type PartidoRow } from "../api";
+import { FootballStrip, PageCheer } from "../components/FunDecor";
 import { formatRating } from "../lib/formatRating";
 import { TEAM_LABEL_CLAROS, TEAM_LABEL_OSCUROS } from "../lib/teamsBalance";
 import type { BalanceResponse, PlayerSummary } from "../types";
@@ -290,16 +291,20 @@ export default function TeamsPage() {
   if (admin === false) return <Navigate to="/" replace />;
 
   return (
-    <div>
-      <h1>Armar equipos</h1>
-      <p className="sub">
-        Armá el partido <strong>5 vs 5</strong> ({TITULARES_CAMPO} titulares). Podés usar solo los{" "}
-        <strong>anotados</strong> o armar una lista <strong>manual</strong> con cualquier jugador registrado. El balanceo
-        equilibra el <strong>promedio en cada característica</strong> (F5 o F11) y reparte defensas, mediocampistas y
-        delanteros según puesto principal o alternativo; se respetan las exclusiones «no compartir equipo».
-      </p>
+    <div className="page-shell">
+      <PageCheer quote="Claros ☀️ · Oscuros 🌙 · que sea parejo." icon="⚖️" />
+      <FootballStrip items={["⚖️", "☀️", "🌙", "⚽", "🧤", "🏆"]} />
+      <header className="page-hero">
+        <h1>⚖️ Armar equipos</h1>
+        <p className="sub">
+          Armá el partido <strong>5 vs 5</strong> ({TITULARES_CAMPO} titulares). Podés usar solo los{" "}
+          <strong>anotados</strong> o armar una lista <strong>manual</strong> con cualquier jugador registrado. El balanceo
+          equilibra el <strong>promedio en cada característica</strong> (F5 o F11) y reparte defensas, mediocampistas y
+          delanteros según puesto principal o alternativo; se respetan las exclusiones «no compartir equipo».
+        </p>
+      </header>
 
-      <div className="card" style={{ marginBottom: "1rem" }}>
+      <div className="card card--blue" style={{ marginBottom: "1rem" }}>
         <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Origen de jugadores</h2>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
           <button
@@ -359,7 +364,7 @@ export default function TeamsPage() {
           <input type="checkbox" checked={useF5Balance} onChange={(e) => setUseF5Balance(e.target.checked)} />
           <span>
             <strong>Usar nota final F5</strong>{" "}
-            <span className="muted">(1–5). Si lo desmarcás, se usa el perfil completo F11 (1–10).</span>
+            <span className="muted">(1–5). Si lo desmarcás, se usa el perfil completo (también 1–5).</span>
           </span>
         </label>
       </div>
@@ -546,7 +551,7 @@ export default function TeamsPage() {
       {result && (
         <>
           <div className="team-grid">
-            <div className="card team-card">
+            <div className="card team-card team-card--claros">
               <h3>{TEAM_LABEL_CLAROS} · prom. {formatRating(result.sumA)}</h3>
               <ul>
                 {result.teamA.map((x) => (
@@ -556,7 +561,7 @@ export default function TeamsPage() {
                 ))}
               </ul>
             </div>
-            <div className="card team-card">
+            <div className="card team-card team-card--oscuros">
               <h3>{TEAM_LABEL_OSCUROS} · prom. {formatRating(result.sumB)}</h3>
               <ul>
                 {result.teamB.map((x) => (
@@ -594,7 +599,7 @@ export default function TeamsPage() {
             {result.usingF5Scores != null && (
               <>
                 {" "}
-                · Criterio: {result.usingF5Scores ? "F5 (1–5)" : "perfil completo F11 (1–10)"}
+                · Criterio: {result.usingF5Scores ? "F5 (1–5)" : "perfil completo (1–5)"}
               </>
             )}
             {result.avoidPairsApplied != null && result.avoidPairsApplied > 0 && (

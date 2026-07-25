@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, apiConvocatorias, apiPartidos, type ConvocatoriaRow, type PartidoRow, type PresenciaRow } from "../api";
+import { FootballStrip, PageCheer } from "../components/FunDecor";
 import PartidoEquiposView from "../components/PartidoEquiposView";
 import {
   miEquipoEnPartido,
@@ -233,18 +234,22 @@ export default function ProximosPartidosPage() {
   const cJ = myConvocatoria(conv, "jueves", fechaJueves, meId);
 
   return (
-    <div>
-      <h1>Próximos partidos</h1>
-      <p className="sub">
-        Anotate para el próximo martes o el próximo jueves. El servidor valida el horario (Argentina): desde ese día a
-        las 22:00 hasta el día de partido a las 20:00. Cuando el administrador confirme equipos, vas a recibir una
-        notificación con fecha, rivales y color de camiseta.
-      </p>
+    <div className="page-shell">
+      <PageCheer quote="Anotate, jugá, y que hablen las stats." icon="🏟️" />
+      <FootballStrip items={["🏟️", "⚽", "🗓️", "👟", "🏆", "🥅"]} />
+      <header className="page-hero">
+        <h1>🏟️ Próximos partidos</h1>
+        <p className="sub">
+          Anotate para el próximo martes o el próximo jueves. El servidor valida el horario (Argentina): desde ese día a
+          las 22:00 hasta el día de partido a las 20:00. Cuando el administrador confirme equipos, vas a recibir una
+          notificación con fecha, rivales y color de camiseta.
+        </p>
+      </header>
 
       {error && <div className="error">{error}</div>}
 
       {partidoIdParam ? (
-        <div ref={detalleRef} className="card" style={{ marginTop: "1rem" }}>
+        <div ref={detalleRef} className="card card--glow" style={{ marginTop: "1rem" }}>
           <Link to="/proximos-partidos" className="muted" style={{ fontSize: "0.9rem", textDecoration: "none" }}>
             ← Volver a próximos partidos
           </Link>
@@ -294,7 +299,7 @@ export default function ProximosPartidosPage() {
       ) : null}
 
       {!partidoIdParam && partidosConEquipos.length > 0 ? (
-        <div className="card" style={{ marginTop: "1rem" }}>
+        <div className="card card--ok" style={{ marginTop: "1rem" }}>
           <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Partidos con equipos confirmados</h2>
           <p className="muted" style={{ marginTop: 0 }}>
             Tocá un partido para ver quién juega en CLAROS y OSCUROS (solo nombres).
@@ -313,7 +318,7 @@ export default function ProximosPartidosPage() {
       ) : null}
 
       {me && !puedeAnotarseConvocatoria ? (
-        <div className="card" style={{ marginTop: "1rem" }}>
+        <div className="card card--warn" style={{ marginTop: "1rem" }}>
           <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Requisitos para anotarte</h2>
           <p className="muted" style={{ marginTop: 0 }}>
             El servidor solo permite la inscripción cuando completaste tus perfiles y colaboraste valorando a otros.
@@ -321,12 +326,12 @@ export default function ProximosPartidosPage() {
           <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.2rem" }}>
             {!me.perfilCompletoCargado ? (
               <li>
-                Guardá tu <strong>perfil completo</strong> (18 características) en «Mis perfiles» → Perfil completo.
+                Guardá tu <strong>perfil completo</strong> (estrellas 1–5) en «Mis perfiles» → Perfil completo.
               </li>
             ) : null}
             {!me.perfilF5Cargado ? (
               <li>
-                Guardá tu perfil <strong>F5</strong> en «Mis perfiles» → F5.
+                Guardá tu perfil <strong>F5</strong> (5 métricas con estrellas) en «Mis perfiles» → F5.
               </li>
             ) : null}
             {(me.miValoracionesPerfilOtros ?? 0) < 4 ? (
@@ -340,7 +345,7 @@ export default function ProximosPartidosPage() {
       ) : null}
 
       {misPartidosTitularConfirmados.length > 0 ? (
-        <div className="card" style={{ marginTop: "1rem" }}>
+        <div className="card card--blue" style={{ marginTop: "1rem" }}>
           <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Partidos confirmados (titular)</h2>
           <p className="muted" style={{ marginTop: 0 }}>
             Si no podés ir, avisá con tiempo. Si hay suplentes, sube el primero de la lista y recibe notificación.
@@ -376,7 +381,7 @@ export default function ProximosPartidosPage() {
           marginTop: "1rem",
         }}
       >
-        <div className="card">
+        <div className="card card--purple">
           <h2 style={{ marginTop: 0 }}>Martes</h2>
           <p className="muted">Partido: {fechaMartes}</p>
           {cM ? (
@@ -407,7 +412,7 @@ export default function ProximosPartidosPage() {
           )}
         </div>
 
-        <div className="card">
+        <div className="card card--blue">
           <h2 style={{ marginTop: 0 }}>Jueves</h2>
           <p className="muted">Partido: {fechaJueves}</p>
           {cJ ? (
@@ -439,7 +444,7 @@ export default function ProximosPartidosPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: "1.5rem" }}>
+      <div className="card card--purple" style={{ marginTop: "1.5rem" }}>
         <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Preferencia personal (privada)</h2>
         <p className="muted" style={{ marginTop: 0 }}>
           Podés elegir hasta <strong>dos</strong> compañeros con los que preferís <strong>no compartir equipo</strong>. Solo

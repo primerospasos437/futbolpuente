@@ -1,5 +1,12 @@
-import { F5_DIMENSION_ORDER, F5_HELP, F5_LABELS, F5_SCALE_LABELS } from "../dimensions-f5";
+import {
+  F5_DIMENSION_ORDER,
+  F5_HELP,
+  F5_ICONS,
+  F5_LABELS,
+  F5_SHORT,
+} from "../dimensions-f5";
 import type { F5ProfileScores } from "../types";
+import StarRating from "./StarRating";
 
 export default function F5ProfileScorePickers({
   scores,
@@ -14,28 +21,28 @@ export default function F5ProfileScorePickers({
 
   return (
     <div className="f5-pickers">
-      {F5_DIMENSION_ORDER.map((dim) => (
-        <div key={dim} className="row" style={{ marginBottom: "0.85rem" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", flexWrap: "wrap" }}>
-            {F5_LABELS[dim]}
+      <p className="muted profile-score-intro">
+        Tocá las estrellas doradas (1–5). Carga ultrarrápida: solo cinco métricas.
+      </p>
+      {F5_DIMENSION_ORDER.map((dim, i) => (
+        <div key={dim} className={`star-metric-row star-metric-row--tone${(i % 4) + 1}`}>
+          <div className="star-metric-head">
+            <span className="star-metric-title">
+              <span aria-hidden>{F5_ICONS[dim]}</span> {F5_LABELS[dim]}
+            </span>
+            <span className="muted star-metric-short">{F5_SHORT[dim]}</span>
             <details className="f5-help-details">
               <summary className="f5-help-summary" aria-label={`Qué significa: ${F5_LABELS[dim]}`}>
                 ?
               </summary>
               <p className="f5-help-body">{F5_HELP[dim]}</p>
             </details>
-          </label>
-          <select
+          </div>
+          <StarRating
             value={scores[dim]}
-            onChange={(e) => setDim(dim, Number(e.target.value))}
-            style={{ width: "100%", maxWidth: "320px" }}
-          >
-            {[1, 2, 3, 4, 5].map((n) => (
-              <option key={n} value={n}>
-                {F5_SCALE_LABELS[n]}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setDim(dim, v)}
+            aria-label={`${F5_LABELS[dim]}`}
+          />
         </div>
       ))}
     </div>

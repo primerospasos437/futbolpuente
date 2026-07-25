@@ -1,15 +1,19 @@
 /**
  * Cálculo de promedios y nota final (misma lógica que server/scores.js), para uso en el cliente.
+ * Escala unificada 1–5 (estrellas). Valores legacy 6–10 se mapean a 1–5.
  */
 import { DIMENSION_ORDER } from "../dimensions";
 import type { Dimension, ProfileScores } from "../types";
 
 const PROFILE_DIMS = DIMENSION_ORDER;
 
-function clamp10(n: unknown): number | null {
-  const v = Math.round(Number(n));
-  if (!Number.isFinite(v)) return null;
-  return Math.min(10, Math.max(1, v));
+/** Convierte nota a escala 1–5 (acepta legacy 1–10). */
+function toStar5(n: unknown): number | null {
+  const raw = Number(n);
+  if (!Number.isFinite(raw)) return null;
+  const v = Math.round(raw);
+  if (v > 5) return Math.min(5, Math.max(1, Math.round(v / 2)));
+  return Math.min(5, Math.max(1, v));
 }
 
 function isLegacyProfile(p: Record<string, unknown>): boolean {
@@ -17,13 +21,13 @@ function isLegacyProfile(p: Record<string, unknown>): boolean {
 }
 
 function legacyDimension(k: Dimension, p: Record<string, unknown>): number {
-  const t = clamp10(p.tecnica) ?? 5;
-  const r = clamp10(p.remate) ?? 5;
-  const v = clamp10(p.velocidad) ?? 5;
-  const res = clamp10(p.resistencia) ?? 5;
-  const vi = clamp10(p.visionJuego) ?? 5;
-  const d = clamp10(p.defensa) ?? 5;
-  const m = clamp10(p.mentalidadEquipo) ?? 5;
+  const t = toStar5(p.tecnica) ?? 3;
+  const r = toStar5(p.remate) ?? 3;
+  const v = toStar5(p.velocidad) ?? 3;
+  const res = toStar5(p.resistencia) ?? 3;
+  const vi = toStar5(p.visionJuego) ?? 3;
+  const d = toStar5(p.defensa) ?? 3;
+  const m = toStar5(p.mentalidadEquipo) ?? 3;
   const map: Record<Dimension, number> = {
     controlPrimerToque: t,
     pase: t,
@@ -44,7 +48,7 @@ function legacyDimension(k: Dimension, p: Record<string, unknown>): number {
     espirituEquipo: m,
     motivacion: m,
   };
-  return map[k] ?? 5;
+  return Math.min(5, Math.max(1, map[k] ?? 3));
 }
 
 export function normalizeProfile(p: Record<string, unknown> | null | undefined): ProfileScores {
@@ -52,10 +56,10 @@ export function normalizeProfile(p: Record<string, unknown> | null | undefined):
   const leg = isLegacyProfile(src);
   const out = {} as Record<Dimension, number>;
   for (const k of PROFILE_DIMS) {
-    const v = clamp10(src[k as keyof typeof src]);
+    const v = toStar5(src[k as keyof typeof src]);
     if (v != null) out[k] = v;
     else if (leg) out[k] = legacyDimension(k, src);
-    else out[k] = 5;
+    else out[k] = 3;
   }
   return out as ProfileScores;
 }
@@ -90,10 +94,10 @@ export function peerAverageForPlayer(ratingsReceived: { scores: ProfileScores | 
   };
 }
 
-/** Si en alguna dimensión la autopercepción es 8, 9 o 10, el peso del grupo pasa a 90 %. */
+/** Si en alguna dimensión la autopercepción es 5 (máximo), el peso del grupo pasa a 90 %. */
 export function usesHighSelfPerception(selfProfile: ProfileScores | Record<string, unknown>): boolean {
   const norm = normalizeProfile(selfProfile);
-  return PROFILE_DIMS.some((k) => norm[k] >= 8);
+  return PROFILE_DIMS.some((k) => norm[k] >= 5);
 }
 
 export function finalScore(

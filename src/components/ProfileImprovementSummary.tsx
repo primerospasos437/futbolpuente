@@ -80,7 +80,7 @@ export default function ProfileImprovementSummary({ data }: { data: PlayerDetail
         valoraciones). Es orientativo, no una nota definitiva.
       </p>
 
-      <h3 style={{ fontSize: "1.02rem", marginTop: "1rem" }}>Perfil completo (1–10)</h3>
+      <h3 style={{ fontSize: "1.02rem", marginTop: "1rem" }}>Perfil completo (1–5)</h3>
       {peerN === 0 ? (
         <p className="muted">Todavía no hay suficientes valoraciones del grupo para armar sugerencias.</p>
       ) : (

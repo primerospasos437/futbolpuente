@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getToken, setToken } from "./api";
+import { clearBridgeEntered } from "./lib/bridgeSession";
 import { isDemoMode } from "./lib/demoMode";
 import { validateSessionWithSupabase } from "./lib/futbolAuth";
 
@@ -49,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     setToken(null);
     setLoggedIn(false);
+    clearBridgeEntered();
   }, []);
 
   const value = useMemo(

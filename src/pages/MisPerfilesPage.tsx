@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { FootballStrip, PageCheer } from "../components/FunDecor";
 import { formatRating } from "../lib/formatRating";
 import ProfileScoreSliders from "../components/ProfileScoreSliders";
 import F5ProfileScorePickers from "../components/F5ProfileScorePickers";
@@ -104,12 +105,16 @@ export default function MisPerfilesPage() {
   if (!me || !profile || !f5) return <p className="muted">Cargando…</p>;
 
   return (
-    <div>
-      <h1>Mis perfiles</h1>
-      <p className="sub">
-        @{me.apodo}. El perfil completo usa escala 1–10; el perfil F5 usa escala 1–5 (malo a excelente). El historial de
-        lesiones es privado.
-      </p>
+    <div className="page-shell">
+      <PageCheer quote="Tu ficha, tus estrellas, tu estilo." icon="🌟" />
+      <FootballStrip items={["🌟", "⚽", "🧠", "💨", "❤️", "⭐"]} />
+      <header className="page-hero">
+        <h1>🌟 Mis perfiles</h1>
+        <p className="sub">
+          @{me.apodo}. Ambos perfiles usan estrellas 1–5 (rápido de completar). El F5 tiene solo 5 métricas. El historial de
+          lesiones es privado.
+        </p>
+      </header>
 
       {(!me.perfilCompletoCargado || !me.perfilF5Cargado) && (
         <p className="muted" style={{ marginBottom: "1rem" }}>
@@ -132,8 +137,8 @@ export default function MisPerfilesPage() {
         </button>
       </div>
 
-      <div className="card" style={{ marginBottom: "1rem" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+      <div className="card card--ok" style={{ marginBottom: "1rem" }}>
+        <div className="profile-hero-score">
           <div className="score-pill">Completo · final {formatRating(me.finalScore)}</div>
           {me.f5FinalScore != null ? (
             <div className="score-pill">F5 · final {formatRating(me.f5FinalScore)}</div>

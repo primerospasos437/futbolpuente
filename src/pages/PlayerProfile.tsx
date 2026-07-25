@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
+import { FootballStrip, PageCheer } from "../components/FunDecor";
 import { formatRating } from "../lib/formatRating";
 import F5ProfileScorePickers from "../components/F5ProfileScorePickers";
 import ProfileImprovementSummary from "../components/ProfileImprovementSummary";
 import ProfileScoreSliders from "../components/ProfileScoreSliders";
 import { DIMENSION_LABELS, DIMENSION_SECTIONS, defaultScores } from "../dimensions";
-import { F5_LABELS, F5_SECTIONS, defaultF5Scores } from "../dimensions-f5";
+import { F5_ICONS, F5_LABELS, F5_SECTIONS, defaultF5Scores } from "../dimensions-f5";
 import type { F5Dimension, PlayerDetail, ProfileScores } from "../types";
 
 function DimensionReadonlyList({
@@ -82,7 +83,10 @@ function F5PeerDimensionList({
           const v = peerByDimension[d];
           return (
             <li key={d}>
-              <strong style={{ color: "var(--text)" }}>{F5_LABELS[d]}:</strong>{" "}
+              <strong style={{ color: "var(--text)" }}>
+                <span aria-hidden>{F5_ICONS[d]} </span>
+                {F5_LABELS[d]}:
+              </strong>{" "}
               {formatRating(v)}
             </li>
           );
@@ -204,17 +208,21 @@ export default function PlayerProfilePage() {
   const f5PeerN = data.f5FinalBreakdown?.peerCount ?? 0;
 
   return (
-    <div>
+    <div className="page-shell">
+      <PageCheer quote="La ficha del crack: mirá, valorá, mejorá." icon="👤" />
+      <FootballStrip items={["👤", "⭐", "⚽", "📊", "🔥", "🏆"]} />
       <p style={{ marginBottom: "1rem" }}>
         <Link to="/">← Volver al listado</Link>
       </p>
-      <div className="card" style={{ marginBottom: "1rem" }}>
-        <h1 style={{ marginBottom: "0.25rem" }}>{data.apodo}</h1>
+      <div className="card card--glow" style={{ marginBottom: "1rem" }}>
+        <header className="page-hero" style={{ marginBottom: "0.35rem" }}>
+          <h1 style={{ marginBottom: "0.25rem" }}>{data.apodo}</h1>
+        </header>
         <p className="muted" style={{ marginTop: 0 }}>
           {data.nombreCompleto} · Principal: {data.posicionPreferida} · Alternativa:{" "}
           {ficha.posicionAlternativa ?? data.posicionPreferida} · Pie {data.pieDominante}
         </p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginTop: "1rem" }}>
+        <div className="profile-hero-score">
           <div className="score-pill">Perfil completo · final {formatRating(data.finalScore)}</div>
           {data.isSelf ? (
             <>
@@ -353,7 +361,7 @@ export default function PlayerProfilePage() {
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginTop: "1rem" }}>
             <button type="button" className="btn btn-primary" onClick={() => setValoracionTabNav("completo")}>
-              Valorar perfil completo (1–10)
+              Valorar perfil completo (1–5)
             </button>
             <button type="button" className="btn btn-primary" onClick={() => setValoracionTabNav("f5")}>
               Valorar perfil F5 (1–5)
@@ -403,7 +411,7 @@ export default function PlayerProfilePage() {
               className={`btn btn-ghost ${valoracionTab === "completo" ? "active" : ""}`}
               onClick={() => setValoracionTabNav("completo")}
             >
-              Perfil completo (1–10)
+              Perfil completo (1–5)
             </button>
             <button
               type="button"
@@ -417,7 +425,7 @@ export default function PlayerProfilePage() {
           {valoracionTab === "completo" ? (
             <div id="perfil-completo-valoracion">
               <p className="muted">
-                Valorá cada aspecto del 1 al 10 según lo que ves en entrenamientos y partidos.
+                Valorá cada aspecto del 1 al 5 (estrellas) según lo que ves en entrenamientos y partidos.
               </p>
               <form onSubmit={submitRating}>
                 <ProfileScoreSliders scores={scores} onChange={setScores} />
@@ -434,7 +442,7 @@ export default function PlayerProfilePage() {
           ) : (
             <div id="f5-valoracion">
               <p className="muted">
-                Escala 1 a 5 (malo a excelente) por cada característica F5. Se combina con las valoraciones por partido
+                Escala 1 a 5 (estrellas) en las cinco métricas F5. Se combina con las valoraciones por partido
                 para el promedio del grupo.
               </p>
               <form onSubmit={submitF5Perfil}>

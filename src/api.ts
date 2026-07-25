@@ -26,6 +26,7 @@ import type {
 } from "./types";
 import { clearDemoSession, getDemoPlayerId, isDemoMode } from "./lib/demoMode";
 import { demoApi, demoConvocatorias, demoNotificaciones, demoPartidos } from "./lib/demoApi";
+import { getActiveGrupoId } from "./lib/bridgeSession";
 
 // Incluye el campo apodo en misDatosPrivados y setMisDatosPrivados
 export let misDatosPrivados: MisDatosPrivados | null = null;
@@ -58,7 +59,7 @@ function rpcJsonArray<T>(data: unknown): T[] {
 }
 
 const JUGADORES_PUBLICO =
-  "id,apodo,nombre_completo,posicion_preferida,posicion_alternativa,pie_dominante,fecha_nacimiento,contacto,altura_cm,peso_kg,perfil_scores,perfil_f5_scores,perfil_completo_cargado,perfil_f5_cargado,es_admin,created_at,updated_at";
+  "id,apodo,nombre_completo,posicion_preferida,posicion_alternativa,pie_dominante,fecha_nacimiento,contacto,altura_cm,peso_kg,perfil_scores,perfil_f5_scores,perfil_completo_cargado,perfil_f5_cargado,es_admin,grupo_id";
 
 type JugadorPublicoRow = {
   id: string;
@@ -76,7 +77,8 @@ type JugadorPublicoRow = {
   perfil_completo_cargado?: boolean | null;
   perfil_f5_cargado?: boolean | null;
   es_admin?: boolean | null;
-  created_at: string;
+  grupo_id?: string | null;
+  created_at?: string;
   updated_at?: string;
 };
 
@@ -367,8 +369,25 @@ async function fetchMyRatedF5PerfilTargetIds(viewerId: string): Promise<Set<stri
 
 async function fetchJugadorPublico(id: string): Promise<PlayerInternal | null> {
   const sb = getSupabase();
-  const { data, error } = await sb.from("jugadores_publico").select(JUGADORES_PUBLICO).eq("id", id).maybeSingle();
-  if (error) throw new Error(error.message);
+  const grupoId = getActiveGrupoId();
+  let q = sb.from("jugadores_publico").select(JUGADORES_PUBLICO).eq("id", id);
+  if (grupoId) q = q.eq("grupo_id", grupoId);
+  const { data, error } = await q.maybeSingle();
+  if (error) {
+    if (String(error.message || "").toLowerCase().includes("grupo_id")) {
+      const fb = await sb
+        .from("jugadores_publico")
+        .select(
+          "id,apodo,nombre_completo,posicion_preferida,posicion_alternativa,pie_dominante,fecha_nacimiento,contacto,altura_cm,peso_kg,perfil_scores,perfil_f5_scores,perfil_completo_cargado,perfil_f5_cargado,es_admin",
+        )
+        .eq("id", id)
+        .maybeSingle();
+      if (fb.error) throw new Error(fb.error.message);
+      if (!fb.data) return null;
+      return mapPublicRow(fb.data as JugadorPublicoRow);
+    }
+    throw new Error(error.message);
+  }
   if (!data) return null;
   return mapPublicRow(data as JugadorPublicoRow);
 }
@@ -477,6 +496,30 @@ export const apiPartidos = {
     });
     if (error) throw new Error(error.message);
   },
+
+  /** Solo admin: carga o actualiza resultado (goles Claros/Oscuros, MVP opcional, comentario). */
+  cargarResultado: async (
+    partidoId: string,
+    opts: {
+      golesClaros: number;
+      golesOscuros: number;
+      mvpJugadorId?: string | null;
+      comentario?: string | null;
+    },
+  ): Promise<void> => {
+    if (isDemoMode()) return demoPartidos.cargarResultado(partidoId, opts);
+    const token = await requireToken();
+    const sb = getSupabase();
+    const { error } = await sb.rpc("futbol_cargar_resultado_partido_admin", {
+      p_token: token,
+      p_partido_id: partidoId,
+      p_goles_claros: opts.golesClaros,
+      p_goles_oscuros: opts.golesOscuros,
+      p_mvp_jugador_id: opts.mvpJugadorId ?? null,
+      p_comentario: opts.comentario ?? null,
+    });
+    if (error) throw new Error(error.message);
+  },
 };
 
 export const apiConvocatorias = {
@@ -571,8 +614,41 @@ export const api = {
     const myRatedF5 = await fetchMyRatedF5PerfilTargetIds(viewerId);
     const miValCount = await fetchMiValoracionesPerfilOtrosCount(viewerId);
     const sb = getSupabase();
-    const { data, error } = await sb.from("jugadores_publico").select(JUGADORES_PUBLICO).order("apodo", { ascending: true });
-    if (error) throw new Error(error.message);
+    const grupoId = getActiveGrupoId();
+    let q = sb.from("jugadores_publico").select(JUGADORES_PUBLICO).order("apodo", { ascending: true });
+    if (grupoId) q = q.eq("grupo_id", grupoId);
+    const { data, error } = await q;
+    if (error) {
+      // Fallback si aún no corrieron la migración 25 (sin columna grupo_id en la vista).
+      if (String(error.message || "").toLowerCase().includes("grupo_id")) {
+        const fallback = await sb
+          .from("jugadores_publico")
+          .select(
+            "id,apodo,nombre_completo,posicion_preferida,posicion_alternativa,pie_dominante,fecha_nacimiento,contacto,altura_cm,peso_kg,perfil_scores,perfil_f5_scores,perfil_completo_cargado,perfil_f5_cargado,es_admin,created_at,updated_at",
+          )
+          .order("apodo", { ascending: true });
+        if (fallback.error) throw new Error(fallback.error.message);
+        const rowsFb = (fallback.data ?? []) as JugadorPublicoRow[];
+        const jugadoresFb = await Promise.all(
+          rowsFb.map(async (r) => {
+            const p = mapPublicRow(r);
+            if (p.id === viewerId) p.historialLesiones = historialSelf;
+            const received = await ratingsTo(p.id);
+            const f5Combined = await buildF5PeerRatingsList(p.id);
+            return playerPublic(p, received, viewerId, myRated, f5Combined, myRatedF5, miValCount);
+          }),
+        );
+        const otrosFb = jugadoresFb.filter((p) => !p.isSelf);
+        return {
+          jugadores: jugadoresFb,
+          faltanCalificar: otrosFb.filter((p) => !p.ratedByMe),
+          yaCalificados: otrosFb.filter((p) => p.ratedByMe),
+          faltanCalificarF5: otrosFb.filter((p) => !p.ratedF5PerfilByMe),
+          yaCalificadosF5: otrosFb.filter((p) => p.ratedF5PerfilByMe),
+        };
+      }
+      throw new Error(error.message);
+    }
     const rows = (data ?? []) as JugadorPublicoRow[];
     const jugadores = await Promise.all(
       rows.map(async (r) => {

@@ -1,0 +1,611 @@
+/* PlaySportBridge — landing (colores vía variables en theme.css) */
+
+.psb-landing {
+  min-height: 100vh;
+  color: var(--psb-text);
+  background-color: var(--psb-bg);
+  background-image: var(--psb-landing-bg-image);
+  position: relative;
+  overflow-x: hidden;
+  transition:
+    background 0.35s ease,
+    color 0.25s ease;
+}
+
+.psb-landing::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--psb-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--psb-grid-line) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  mask-image: linear-gradient(180deg, black 0%, transparent 85%);
+}
+
+.psb-landing-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 2.5rem;
+}
+
+.psb-landing-header {
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+
+.psb-logo-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.psb-logo {
+  width: min(200px, 58vw);
+  max-height: 120px;
+  height: auto;
+  object-fit: contain;
+  filter: var(--psb-logo-filter);
+}
+
+.psb-brand {
+  font-family: "Orbitron", "JetBrains Mono", system-ui, sans-serif;
+  font-size: clamp(1.35rem, 5vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  margin: 0;
+  background: linear-gradient(90deg, #ffe566, var(--psb-green) 40%, var(--psb-blue) 75%, #b388ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: var(--psb-brand-glow);
+}
+
+.psb-tagline-block {
+  margin-top: 0.25rem;
+}
+
+.psb-tagline-lead {
+  margin: 0;
+  font-size: clamp(1.15rem, 4.2vw, 1.35rem);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--psb-text);
+  letter-spacing: 0.01em;
+}
+
+.psb-tagline-sub {
+  margin: 0.5rem 0 0;
+  font-size: clamp(1.05rem, 3.8vw, 1.2rem);
+  line-height: 1.45;
+  color: var(--psb-muted);
+}
+
+.psb-carousel-wrap {
+  margin-bottom: 1.35rem;
+}
+
+.psb-carousel-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--psb-blue);
+  margin: 0 0 0.35rem 0.25rem;
+}
+
+.psb-carousel-hint {
+  margin: 0 0 0.75rem 0.25rem;
+  font-size: 0.8rem;
+  color: var(--psb-muted);
+}
+
+.psb-carousel-3d {
+  perspective: 1000px;
+  margin: 0 -0.5rem;
+  padding: 0.25rem 0;
+}
+
+.psb-carousel-track {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  padding: 1.25rem calc(50% - 72px) 1.5rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.psb-carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+.psb-carousel-item {
+  flex: 0 0 128px;
+  scroll-snap-align: center;
+  padding: 1.1rem 0.75rem;
+  border-radius: 16px;
+  border: 1px solid var(--psb-border);
+  background: var(--psb-card-bg);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: center;
+  transform: scale(0.72);
+  opacity: 0.45;
+  transition:
+    transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.32s ease,
+    border-color 0.25s ease,
+    box-shadow 0.32s ease;
+  will-change: transform;
+}
+
+.psb-carousel-item.is-near {
+  transform: scale(0.88);
+  opacity: 0.72;
+}
+
+.psb-carousel-item.is-center {
+  transform: scale(1.14);
+  opacity: 1;
+  border-color: var(--psb-green);
+  box-shadow: var(--psb-glow-green), var(--psb-glow-blue);
+  z-index: 2;
+}
+
+.psb-carousel-item.is-far {
+  transform: scale(0.68);
+  opacity: 0.35;
+}
+
+.psb-carousel-item--soon.is-center {
+  border-color: var(--psb-blue);
+  box-shadow: var(--psb-glow-blue);
+}
+
+.psb-carousel-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.psb-carousel-arrow {
+  flex: 0 0 auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  border: 1px solid var(--psb-border);
+  background: var(--psb-arrow-bg);
+  color: var(--psb-blue);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.psb-carousel-arrow:hover {
+  border-color: var(--psb-green);
+  color: var(--psb-green);
+}
+
+.psb-btn-sport-enter {
+  flex: 1;
+  max-width: 280px;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--psb-sport-enter-border);
+  border-radius: 12px;
+  background: var(--psb-sport-enter-bg);
+  color: var(--psb-text);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: filter 0.15s ease, border-color 0.15s ease;
+}
+
+.psb-btn-sport-enter:hover {
+  filter: brightness(1.08);
+  border-color: var(--psb-green);
+}
+
+.psb-sport-icon {
+  font-size: 2rem;
+  line-height: 1;
+  display: block;
+  margin-bottom: 0.45rem;
+}
+
+.psb-sport-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.psb-sport-badge {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.65rem;
+  color: var(--psb-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.psb-auth-panel {
+  border: 1px solid var(--psb-border);
+  border-radius: 16px;
+  padding: 1.35rem 1.25rem;
+  background: var(--psb-auth-bg);
+  box-shadow: var(--psb-glow-blue), var(--psb-auth-inset);
+}
+
+.psb-auth-panel h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--psb-text);
+}
+
+.psb-auth-panel .psb-auth-sub {
+  margin: 0 0 1.1rem;
+  font-size: 0.88rem;
+  color: var(--psb-muted);
+}
+
+.psb-landing label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--psb-muted);
+  margin-bottom: 0.35rem;
+}
+
+.psb-landing input,
+.psb-landing select {
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid var(--psb-border);
+  background: var(--psb-input-bg);
+  color: var(--psb-text);
+  font: inherit;
+  margin-bottom: 0.85rem;
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease;
+}
+
+.psb-landing input:focus,
+.psb-landing select:focus {
+  outline: none;
+  border-color: var(--psb-green);
+  box-shadow: var(--psb-focus-shadow);
+}
+
+.psb-btn-enter {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: none;
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  color: var(--psb-btn-enter-text);
+  background: linear-gradient(135deg, var(--psb-green), var(--psb-green-dim));
+  box-shadow: var(--psb-glow-green);
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.psb-btn-enter:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.psb-btn-enter:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.psb-toggle-register {
+  display: block;
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--psb-blue);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.psb-toggle-register:hover {
+  color: var(--psb-green);
+}
+
+.psb-landing-error {
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  color: var(--error-text);
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  margin-bottom: 0.85rem;
+}
+
+.psb-register-extra {
+  margin-top: 0.25rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--psb-border);
+}
+
+.psb-register-hint {
+  font-size: 0.8rem;
+  color: var(--psb-muted);
+  margin: 0 0 0.75rem;
+  line-height: 1.45;
+}
+
+.psb-demo-block {
+  margin-top: 1.15rem;
+  padding-top: 1.1rem;
+  border-top: 1px dashed var(--psb-border);
+}
+
+.psb-btn-demo {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px dashed var(--psb-border);
+  background: transparent;
+  color: var(--psb-text);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.psb-btn-demo:hover:not(:disabled) {
+  border-color: var(--psb-blue);
+  color: var(--psb-blue);
+  background: rgba(0, 212, 255, 0.06);
+}
+
+.psb-btn-demo:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.psb-screen-hidden {
+  display: none !important;
+}
+
+/* —— Selección de perfil (registro) —— */
+.psb-profile-panel .psb-profile-title {
+  font-size: clamp(1.05rem, 4vw, 1.25rem);
+  margin: 0 0 0.4rem;
+  line-height: 1.3;
+}
+
+.psb-profile-sub {
+  margin-bottom: 1.15rem !important;
+}
+
+.psb-profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin-bottom: 0.25rem;
+}
+
+.psb-profile-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1rem 0.55rem 0.85rem;
+  border-radius: 14px;
+  border: 1px solid var(--psb-border);
+  background: var(--psb-card-bg);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  min-height: 132px;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.25s ease,
+    opacity 0.25s ease;
+}
+
+.psb-profile-card--active {
+  border-color: var(--psb-green);
+  box-shadow: var(--psb-glow-green);
+}
+
+.psb-profile-card--active:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.04);
+}
+
+.psb-profile-card--pending {
+  opacity: 0.52;
+  cursor: pointer;
+}
+
+.psb-profile-card--pending:hover {
+  opacity: 0.68;
+  border-color: var(--psb-blue);
+}
+
+.psb-profile-badge {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--psb-green), var(--psb-green-dim));
+  color: var(--psb-btn-enter-text);
+  box-shadow: var(--psb-glow-green);
+}
+
+.psb-profile-icon {
+  font-size: 1.85rem;
+  line-height: 1;
+  margin-bottom: 0.4rem;
+}
+
+.psb-profile-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--psb-text);
+}
+
+.psb-profile-phase {
+  margin-top: 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--psb-blue);
+}
+
+.psb-profile-card--pending .psb-profile-phase {
+  color: var(--psb-muted);
+}
+
+.psb-profile-soon {
+  margin-top: 0.35rem;
+  font-size: 0.62rem;
+  line-height: 1.3;
+  color: var(--psb-muted);
+}
+
+.psb-toast-standalone {
+  margin-bottom: 0.75rem;
+}
+
+.psb-toast {
+  margin-bottom: 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--psb-border);
+  background: var(--psb-sport-enter-bg);
+  color: var(--psb-text);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.psb-back-link {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--psb-blue);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.psb-back-link:hover {
+  color: var(--psb-green);
+}
+
+/* Wizard de grupos */
+.psb-group-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.psb-group-card {
+  width: 100%;
+  text-align: left;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--psb-border);
+  background: color-mix(in srgb, var(--psb-blue) 14%, var(--psb-panel, transparent));
+  color: var(--psb-text);
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.15s ease;
+}
+
+.psb-group-card:hover:not(:disabled) {
+  border-color: var(--psb-green);
+  transform: translateY(-1px);
+}
+
+.psb-group-card:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.psb-group-card-name {
+  display: block;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.psb-group-card-meta {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--psb-muted);
+  text-transform: capitalize;
+}
+
+.psb-group-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.psb-group-join-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+}
+
+.psb-group-join-tabs button {
+  border: 1px solid var(--psb-border);
+  background: transparent;
+  color: var(--psb-muted);
+  border-radius: 999px;
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.psb-group-join-tabs button.is-active {
+  color: var(--psb-text);
+  border-color: var(--psb-blue);
+  background: color-mix(in srgb, var(--psb-blue) 18%, transparent);
+}

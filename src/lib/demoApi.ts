@@ -205,7 +205,33 @@ export const demoPartidos = {
       p.equipo_oscuros = [];
       p.confirmado_admin = false;
       p.estado = "borrador";
+      p.goles_claros = null;
+      p.goles_oscuros = null;
+      p.mvp_jugador_id = null;
+      p.comentario_partido = null;
+      p.resultado_cargado_at = null;
     }
+    await delay(undefined);
+  },
+
+  cargarResultado: async (
+    partidoId: string,
+    opts: {
+      golesClaros: number;
+      golesOscuros: number;
+      mvpJugadorId?: string | null;
+      comentario?: string | null;
+    },
+  ): Promise<void> => {
+    const p = getDemoState().partidos.find((x) => x.id === partidoId);
+    if (!p) throw new Error("Partido no encontrado");
+    if (p.confirmado_admin !== true) throw new Error("El partido aún no está confirmado");
+    p.goles_claros = opts.golesClaros;
+    p.goles_oscuros = opts.golesOscuros;
+    p.mvp_jugador_id = opts.mvpJugadorId ?? null;
+    p.comentario_partido = opts.comentario?.trim() || null;
+    p.resultado_cargado_at = new Date().toISOString();
+    p.estado = "finalizado";
     await delay(undefined);
   },
 };

@@ -33,24 +33,24 @@ type SeedPlayer = {
 };
 
 const SEED_PLAYERS: SeedPlayer[] = [
-  { id: DEMO_GUEST_ID, apodo: DEMO_GUEST_APODO, nombreCompleto: "Usuario Demo", posicion: "medio", finalScore: 6.85, f5FinalScore: 3.92, peerAvg: 6.4, peerCount: 4, esAdmin: true, alturaCm: 175 },
-  { id: "demo-p002", apodo: "Chino", nombreCompleto: "Martín López", posicion: "delantero", alt: "medio", finalScore: 7.45, f5FinalScore: 4.25, peerAvg: 7.1, peerCount: 8 },
-  { id: "demo-p003", apodo: "Negro", nombreCompleto: "Diego Ruiz", posicion: "defensa", finalScore: 7.12, f5FinalScore: 4.05, peerAvg: 6.9, peerCount: 7 },
-  { id: "demo-p004", apodo: "Pato", nombreCompleto: "Lucas Ferreyra", posicion: "medio", finalScore: 6.98, f5FinalScore: 3.88, peerAvg: 6.7, peerCount: 6 },
-  { id: "demo-p005", apodo: "Turco", nombreCompleto: "Nicolás Gómez", posicion: "portero", finalScore: 6.55, f5FinalScore: 3.75, peerAvg: 6.2, peerCount: 5 },
-  { id: "demo-p006", apodo: "Colo", nombreCompleto: "Facundo Díaz", posicion: "defensa", alt: "medio", finalScore: 7.28, f5FinalScore: 4.12, peerAvg: 7.0, peerCount: 9 },
-  { id: "demo-p007", apodo: "Mono", nombreCompleto: "Sebastián Álvarez", posicion: "delantero", finalScore: 7.62, f5FinalScore: 4.35, peerAvg: 7.4, peerCount: 10 },
-  { id: "demo-p008", apodo: "Lucho", nombreCompleto: "Hernán Castro", posicion: "medio", finalScore: 6.72, f5FinalScore: 3.85, peerAvg: 6.5, peerCount: 4 },
-  { id: "demo-p009", apodo: "Tano", nombreCompleto: "Gustavo Morales", posicion: "defensa", finalScore: 6.88, f5FinalScore: 3.95, peerAvg: 6.6, peerCount: 6 },
-  { id: "demo-p010", apodo: "Cabeza", nombreCompleto: "Ramiro Sosa", posicion: "delantero", alt: "medio", finalScore: 7.05, f5FinalScore: 4.0, peerAvg: 6.8, peerCount: 7 },
-  { id: "demo-p011", apodo: "Rulo", nombreCompleto: "Emiliano Vega", posicion: "medio", finalScore: 6.65, f5FinalScore: 3.7, peerAvg: 6.3, peerCount: 3 },
-  { id: "demo-p012", apodo: "Fede", nombreCompleto: "Tomás Herrera", posicion: "defensa", finalScore: 7.18, f5FinalScore: 4.08, peerAvg: 6.95, peerCount: 8 },
+  { id: DEMO_GUEST_ID, apodo: DEMO_GUEST_APODO, nombreCompleto: "Usuario Demo", posicion: "medio", finalScore: 3.6, f5FinalScore: 3.9, peerAvg: 3.4, peerCount: 4, esAdmin: true, alturaCm: 175 },
+  { id: "demo-p002", apodo: "Chino", nombreCompleto: "Martín López", posicion: "delantero", alt: "medio", finalScore: 4.1, f5FinalScore: 4.25, peerAvg: 3.9, peerCount: 8 },
+  { id: "demo-p003", apodo: "Negro", nombreCompleto: "Diego Ruiz", posicion: "defensa", finalScore: 3.85, f5FinalScore: 4.05, peerAvg: 3.7, peerCount: 7 },
+  { id: "demo-p004", apodo: "Pato", nombreCompleto: "Lucas Ferreyra", posicion: "medio", finalScore: 3.7, f5FinalScore: 3.88, peerAvg: 3.55, peerCount: 6 },
+  { id: "demo-p005", apodo: "Turco", nombreCompleto: "Nicolás Gómez", posicion: "portero", finalScore: 3.45, f5FinalScore: 3.75, peerAvg: 3.3, peerCount: 5 },
+  { id: "demo-p006", apodo: "Colo", nombreCompleto: "Facundo Díaz", posicion: "defensa", alt: "medio", finalScore: 3.95, f5FinalScore: 4.12, peerAvg: 3.8, peerCount: 9 },
+  { id: "demo-p007", apodo: "Mono", nombreCompleto: "Sebastián Álvarez", posicion: "delantero", finalScore: 4.25, f5FinalScore: 4.35, peerAvg: 4.1, peerCount: 10 },
+  { id: "demo-p008", apodo: "Lucho", nombreCompleto: "Hernán Castro", posicion: "medio", finalScore: 3.5, f5FinalScore: 3.85, peerAvg: 3.35, peerCount: 4 },
+  { id: "demo-p009", apodo: "Tano", nombreCompleto: "Gustavo Morales", posicion: "defensa", finalScore: 3.65, f5FinalScore: 3.95, peerAvg: 3.5, peerCount: 6 },
+  { id: "demo-p010", apodo: "Cabeza", nombreCompleto: "Ramiro Sosa", posicion: "delantero", alt: "medio", finalScore: 3.8, f5FinalScore: 4.0, peerAvg: 3.65, peerCount: 7 },
+  { id: "demo-p011", apodo: "Rulo", nombreCompleto: "Emiliano Vega", posicion: "medio", finalScore: 3.4, f5FinalScore: 3.7, peerAvg: 3.25, peerCount: 3 },
+  { id: "demo-p012", apodo: "Fede", nombreCompleto: "Tomás Herrera", posicion: "defensa", finalScore: 3.9, f5FinalScore: 4.08, peerAvg: 3.75, peerCount: 8 },
 ];
 
 function mkProfile(base: number): ProfileScores {
   const s = defaultScoresZeros();
   DIMENSION_ORDER.forEach((k, i) => {
-    s[k] = Math.min(10, Math.max(1, Math.round(base + ((i % 3) - 1) * 0.4)));
+    s[k] = Math.min(5, Math.max(1, Math.round(base + ((i % 3) - 1) * 0.35)));
   });
   return s;
 }
@@ -59,7 +59,7 @@ function mkF5(base: number): F5ProfileScores {
   const s = defaultF5ScoresZeros();
   const keys = Object.keys(s) as (keyof F5ProfileScores)[];
   keys.forEach((k, i) => {
-    s[k] = Math.min(5, Math.max(1, Math.round((base + ((i % 2) - 0.5) * 0.3) * 10) / 10));
+    s[k] = Math.min(5, Math.max(1, Math.round(base + ((i % 2) - 0.5) * 0.4)));
   });
   return s;
 }
@@ -124,8 +124,30 @@ function nextMartesIso(): string {
   return d.toISOString().slice(0, 10);
 }
 
+function isoDaysBefore(iso: string, days: number): string {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+function pushLineupPresencias(
+  out: PresenciaRow[],
+  partidoId: string,
+  clarosIds: string[],
+  oscurosIds: string[],
+) {
+  for (const id of clarosIds) {
+    out.push({ partido_id: partidoId, jugador_id: id, equipo: "claros", estado: "convocado" });
+  }
+  for (const id of oscurosIds) {
+    out.push({ partido_id: partidoId, jugador_id: id, equipo: "oscuros", estado: "convocado" });
+  }
+}
+
 function createInitialState(): DemoState {
   const fecha = nextMartesIso();
+  const fecha2 = isoDaysBefore(fecha, 7);
+  const fecha3 = isoDaysBefore(fecha, 14);
   const convocatorias: ConvocatoriaRow[] = SEED_PLAYERS.slice(0, 8).map((p, i) => ({
     id: `demo-conv-${p.id}`,
     dia: "martes" as const,
@@ -135,40 +157,152 @@ function createInitialState(): DemoState {
   }));
 
   const claros = [
-    { id: DEMO_GUEST_ID, apodo: DEMO_GUEST_APODO, posicionPreferida: "medio", score: 6.85 },
-    { id: "demo-p002", apodo: "Chino", posicionPreferida: "delantero", score: 7.45 },
-    { id: "demo-p003", apodo: "Negro", posicionPreferida: "defensa", score: 7.12 },
-    { id: "demo-p004", apodo: "Pato", posicionPreferida: "medio", score: 6.98 },
-    { id: "demo-p005", apodo: "Turco", posicionPreferida: "portero", score: 6.55 },
+    { id: DEMO_GUEST_ID, apodo: DEMO_GUEST_APODO, posicionPreferida: "medio", score: 3.6 },
+    { id: "demo-p002", apodo: "Chino", posicionPreferida: "delantero", score: 4.1 },
+    { id: "demo-p003", apodo: "Negro", posicionPreferida: "defensa", score: 3.85 },
+    { id: "demo-p004", apodo: "Pato", posicionPreferida: "medio", score: 3.7 },
+    { id: "demo-p005", apodo: "Turco", posicionPreferida: "portero", score: 3.45 },
   ];
   const oscuros = [
-    { id: "demo-p006", apodo: "Colo", posicionPreferida: "defensa", score: 7.28 },
-    { id: "demo-p007", apodo: "Mono", posicionPreferida: "delantero", score: 7.62 },
-    { id: "demo-p008", apodo: "Lucho", posicionPreferida: "medio", score: 6.72 },
-    { id: "demo-p009", apodo: "Tano", posicionPreferida: "defensa", score: 6.88 },
-    { id: "demo-p010", apodo: "Cabeza", posicionPreferida: "delantero", score: 7.05 },
+    { id: "demo-p006", apodo: "Colo", posicionPreferida: "defensa", score: 3.95 },
+    { id: "demo-p007", apodo: "Mono", posicionPreferida: "delantero", score: 4.25 },
+    { id: "demo-p008", apodo: "Lucho", posicionPreferida: "medio", score: 3.5 },
+    { id: "demo-p009", apodo: "Tano", posicionPreferida: "defensa", score: 3.65 },
+    { id: "demo-p010", apodo: "Cabeza", posicionPreferida: "delantero", score: 3.8 },
   ];
+
+  const partido1: PartidoRow = {
+    id: "demo-partido-1",
+    fecha: fecha3,
+    equipo_claros: [
+      { id: DEMO_GUEST_ID, apodo: DEMO_GUEST_APODO },
+      { id: "demo-p002", apodo: "Chino" },
+      { id: "demo-p003", apodo: "Negro" },
+      { id: "demo-p006", apodo: "Colo" },
+      { id: "demo-p008", apodo: "Lucho" },
+    ],
+    equipo_oscuros: [
+      { id: "demo-p004", apodo: "Pato" },
+      { id: "demo-p005", apodo: "Turco" },
+      { id: "demo-p007", apodo: "Mono" },
+      { id: "demo-p009", apodo: "Tano" },
+      { id: "demo-p010", apodo: "Cabeza" },
+    ],
+    estado: "finalizado",
+    confirmado_admin: true,
+    hora_partido: "21:30",
+    goles_claros: 2,
+    goles_oscuros: 4,
+    mvp_jugador_id: "demo-p007",
+    comentario_partido: "Oscuros volaron. Mono imparable.",
+    resultado_cargado_at: new Date().toISOString(),
+  };
+
+  const partido2: PartidoRow = {
+    id: "demo-partido-2",
+    fecha: fecha2,
+    equipo_claros: [
+      { id: DEMO_GUEST_ID, apodo: DEMO_GUEST_APODO },
+      { id: "demo-p002", apodo: "Chino" },
+      { id: "demo-p004", apodo: "Pato" },
+      { id: "demo-p007", apodo: "Mono" },
+      { id: "demo-p009", apodo: "Tano" },
+    ],
+    equipo_oscuros: [
+      { id: "demo-p003", apodo: "Negro" },
+      { id: "demo-p005", apodo: "Turco" },
+      { id: "demo-p006", apodo: "Colo" },
+      { id: "demo-p008", apodo: "Lucho" },
+      { id: "demo-p010", apodo: "Cabeza" },
+    ],
+    estado: "finalizado",
+    confirmado_admin: true,
+    hora_partido: "21:30",
+    goles_claros: 1,
+    goles_oscuros: 1,
+    mvp_jugador_id: DEMO_GUEST_ID,
+    comentario_partido: "Empate peleado. Invitado se sacó un tapón.",
+    resultado_cargado_at: new Date().toISOString(),
+  };
 
   const partidoConfirmado: PartidoRow = {
     id: "demo-partido-confirmado",
     fecha,
     equipo_claros: claros,
     equipo_oscuros: oscuros,
-    estado: "confirmado",
+    estado: "finalizado",
     confirmado_admin: true,
     hora_partido: "21:30",
     suplentes: [
       { id: "demo-p011", apodo: "Rulo" },
       { id: "demo-p012", apodo: "Fede" },
     ],
+    goles_claros: 3,
+    goles_oscuros: 1,
+    mvp_jugador_id: "demo-p002",
+    comentario_partido: "Demo: Claros ganaron 3-1. Chino MVP.",
+    resultado_cargado_at: new Date().toISOString(),
+  };
+
+  /** Partido confirmado sin resultado: el admin demo puede cargarlo en Stats. */
+  const partidoPendienteResultado: PartidoRow = {
+    id: "demo-partido-sin-resultado",
+    fecha: fecha,
+    equipo_claros: [
+      { id: DEMO_GUEST_ID, apodo: DEMO_GUEST_APODO },
+      { id: "demo-p006", apodo: "Colo" },
+      { id: "demo-p007", apodo: "Mono" },
+      { id: "demo-p008", apodo: "Lucho" },
+      { id: "demo-p009", apodo: "Tano" },
+    ],
+    equipo_oscuros: [
+      { id: "demo-p002", apodo: "Chino" },
+      { id: "demo-p003", apodo: "Negro" },
+      { id: "demo-p004", apodo: "Pato" },
+      { id: "demo-p005", apodo: "Turco" },
+      { id: "demo-p010", apodo: "Cabeza" },
+    ],
+    estado: "confirmado",
+    confirmado_admin: true,
+    hora_partido: "21:30",
+    goles_claros: null,
+    goles_oscuros: null,
   };
 
   const presencias: PresenciaRow[] = [];
+  pushLineupPresencias(
+    presencias,
+    partido1.id,
+    (partido1.equipo_claros as { id: string }[]).map((x) => x.id),
+    (partido1.equipo_oscuros as { id: string }[]).map((x) => x.id),
+  );
+  pushLineupPresencias(
+    presencias,
+    partido2.id,
+    (partido2.equipo_claros as { id: string }[]).map((x) => x.id),
+    (partido2.equipo_oscuros as { id: string }[]).map((x) => x.id),
+  );
   for (const slot of [...claros, ...oscuros]) {
     presencias.push({
       partido_id: partidoConfirmado.id,
       jugador_id: slot.id,
       equipo: claros.some((x) => x.id === slot.id) ? "claros" : "oscuros",
+      estado: "convocado",
+    });
+  }
+  for (const slot of partidoPendienteResultado.equipo_claros as { id: string }[]) {
+    presencias.push({
+      partido_id: partidoPendienteResultado.id,
+      jugador_id: slot.id,
+      equipo: "claros",
+      estado: "convocado",
+    });
+  }
+  for (const slot of partidoPendienteResultado.equipo_oscuros as { id: string }[]) {
+    presencias.push({
+      partido_id: partidoPendienteResultado.id,
+      jugador_id: slot.id,
+      equipo: "oscuros",
       estado: "convocado",
     });
   }
@@ -186,6 +320,9 @@ function createInitialState(): DemoState {
     convocatorias,
     partidos: [
       partidoConfirmado,
+      partido2,
+      partido1,
+      partidoPendienteResultado,
       {
         id: "demo-partido-borrador",
         fecha,

@@ -110,7 +110,10 @@ export async function loginAsGuestDemo(): Promise<{ token: string; playerId: str
   return startDemoSession();
 }
 
-export async function loginWithSupabase(apodo: string, pin: string): Promise<{ token: string; playerId: string }> {
+export async function loginWithSupabase(
+  apodo: string,
+  pin: string,
+): Promise<{ token: string; playerId: string; grupoId?: string }> {
   const pinHash = await sha256Hex(String(pin ?? "").trim());
   const sb = getSupabase();
   const { data, error } = await sb.rpc("futbol_auth_login", {
@@ -118,9 +121,9 @@ export async function loginWithSupabase(apodo: string, pin: string): Promise<{ t
     p_pin_hash: pinHash,
   });
   if (error) throw new Error(rpcErrorMessage(error));
-  const row = data as { token?: string; playerId?: string };
+  const row = data as { token?: string; playerId?: string; grupoId?: string };
   if (!row?.token || !row?.playerId) throw new Error("Respuesta inválida del login");
-  return { token: row.token, playerId: row.playerId };
+  return { token: row.token, playerId: row.playerId, grupoId: row.grupoId };
 }
 
 /** Valida el Bearer token guardado (tabla sesiones) sin pasar por el servidor Node. */

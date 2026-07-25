@@ -88,23 +88,25 @@ export function normalizePesoKgRpc(input: string | number | null | undefined): n
   return Math.round(w * 10) / 10;
 }
 
-/** Garantiza JSONB con números enteros 1–10 en las 18 claves (evita strings en PostgreSQL). */
+/** Garantiza JSONB con números enteros 1–5 en las 18 claves (evita strings en PostgreSQL). */
 export function normalizeProfileScoresRpc(profile: ProfileScores | Record<string, unknown> | null | undefined): ProfileScores {
   const src = profile && typeof profile === "object" ? profile : {};
   const out = {} as Record<Dimension, number>;
   for (const key of DIMENSION_ORDER) {
     const n = Number((src as Record<string, unknown>)[key]);
     if (!Number.isFinite(n)) {
-      out[key] = 5;
+      out[key] = 3;
       continue;
     }
-    const v = Math.round(n);
-    out[key] = Math.min(10, Math.max(1, v));
+    let v = Math.round(n);
+    // Legacy 1–10 → 1–5
+    if (v > 5) v = Math.round(v / 2);
+    out[key] = Math.min(5, Math.max(1, v));
   }
   return out as ProfileScores;
 }
 
-/** Garantiza JSONB con números enteros 1–5 en las 12 claves F5. */
+/** Garantiza JSONB con números enteros 1–5 en las 5 claves F5. */
 export function normalizeProfileF5ScoresRpc(
   profile: F5ProfileScores | Record<string, unknown> | null | undefined,
 ): F5ProfileScores {

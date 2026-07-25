@@ -5,7 +5,7 @@ import type { F5Dimension, F5ProfileScores } from "./dimensions-f5";
 
 export type { F5Dimension, F5ProfileScores } from "./dimensions-f5";
 
-/** Dimensiones 1–10 (autopercepción y valoraciones entre compañeros) */
+/** Dimensiones 1–5 (autopercepción y valoraciones entre compañeros) */
 export type Dimension =
   | "controlPrimerToque"
   | "pase"
@@ -73,7 +73,7 @@ export interface PlayerSummary {
   perfilF5Cargado: boolean;
   /**
    * Solo en el propio resumen (`isSelf`): cantidad de compañeros distintos a los que ya valoraste
-   * el perfil completo (1–10). Para otros jugadores no se informa.
+   * el perfil completo (1–5). Para otros jugadores no se informa.
    */
   miValoracionesPerfilOtros?: number;
   isSelf: boolean;
@@ -142,6 +142,12 @@ export type PartidoRow = {
   suplentes?: unknown;
   hora_partido?: string;
   texto_equipamiento?: string;
+  /** Resultado (solo admin). null = aún no cargado. */
+  goles_claros?: number | null;
+  goles_oscuros?: number | null;
+  mvp_jugador_id?: string | null;
+  comentario_partido?: string | null;
+  resultado_cargado_at?: string | null;
 };
 
 export type PresenciaRow = {

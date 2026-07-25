@@ -8,7 +8,7 @@ export type BalanceInput = {
   apodo: string;
   posicionPreferida: Posicion;
   posicionAlternativa: Posicion;
-  /** Notas por dimensión (F11 1–10 o F5 1–5). */
+  /** Notas por dimensión (F11 o F5, escala 1–5). */
   dimensionScores: number[];
   /** Promedio de dimensiones (referencia en UI). */
   score: number;

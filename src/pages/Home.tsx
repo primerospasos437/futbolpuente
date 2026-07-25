@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
+import { FootballStrip, PageCheer } from "../components/FunDecor";
 import { formatRating } from "../lib/formatRating";
 import type { PlayerSummary, PlayersListPayload } from "../types";
 
@@ -126,20 +127,24 @@ export default function HomePage() {
   const sinValoracionesF5Grupo = otrosJugadores.filter((p) => (p.f5FinalBreakdown?.peerCount ?? 0) === 0);
 
   return (
-    <div>
-      <h1>Jugadores</h1>
-      <p className="sub">
-        Tocá un compañero para abrir su ficha. La autopercepción (cómo se califica cada uno) es privada: en la ficha solo
-        se muestra la nota final agregada para el resto. Recordá completar también el perfil F5 en «Mis perfiles».
-      </p>
+    <div className="page-shell">
+      <PageCheer quote="Calificá con onda: el grupo se mide entre todos." icon="⚽" />
+      <FootballStrip />
+      <header className="page-hero">
+        <h1>⚽ Jugadores</h1>
+        <p className="sub">
+          Tocá un compañero para abrir su ficha. La autopercepción (cómo se califica cada uno) es privada: en la ficha solo
+          se muestra la nota final agregada para el resto. Recordá completar también el perfil F5 en «Mis perfiles».
+        </p>
+      </header>
 
-      <div className="tabs" style={{ marginBottom: "1rem" }}>
+      <div className="tabs">
         <button
           type="button"
           className={`btn btn-ghost ${listaTab === "completo" ? "active" : ""}`}
           onClick={() => setListaTab("completo")}
         >
-          Perfil completo (1–10)
+          Perfil completo (1–5)
         </button>
         <button
           type="button"
@@ -151,7 +156,7 @@ export default function HomePage() {
       </div>
 
       {f5Pendientes.length > 0 ? (
-        <div className="card" style={{ marginBottom: "1.25rem", borderColor: "var(--warn)" }}>
+        <div className="card card--warn" style={{ marginBottom: "1.25rem" }}>
           <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Valoración F5 después del partido</h2>
           <p className="muted" style={{ marginTop: 0 }}>
             Tenés pendiente calificar a compañeros de partidos confirmados en los que participaste.
@@ -173,7 +178,7 @@ export default function HomePage() {
       ) : null}
 
       {(sinValoracionesGrupo.length > 0 || sinValoracionesF5Grupo.length > 0) && otrosJugadores.length > 0 ? (
-        <div className="card" style={{ marginBottom: "1.25rem" }}>
+        <div className="card card--purple" style={{ marginBottom: "1.25rem" }}>
           <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Recordatorios para el grupo</h2>
           <p className="muted" style={{ marginTop: 0, fontSize: "0.92rem" }}>
             Avisales a tus compañeros si aún no tienen suficientes valoraciones del grupo (perfil completo o F5).
@@ -193,31 +198,13 @@ export default function HomePage() {
       ) : null}
 
       {otrosJugadores.length > 0 && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: "1rem",
-            marginBottom: "1.25rem",
-          }}
-        >
+        <div className="home-status-grid">
           <div
-            className="card"
-            style={{
-              marginBottom: 0,
-              borderColor: (listaTab === "completo" ? faltanCalificar : faltanCalificarF5).length ? "var(--warn)" : "var(--border)",
-            }}
+            className={`card${(listaTab === "completo" ? faltanCalificar : faltanCalificarF5).length ? " card--warn" : ""}`}
+            style={{ marginBottom: 0 }}
           >
-            <h3
-              style={{
-                margin: "0 0 0.35rem",
-                fontSize: "1.05rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-              }}
-            >
-              <span aria-hidden>⏳</span> Te falta calificar
+            <h3 style={{ margin: "0 0 0.35rem", fontSize: "1.05rem" }}>
+              ⏳ Te falta calificar{" "}
               <span className="muted" style={{ fontSize: "0.85rem", fontWeight: 500 }}>
                 ({listaTab === "completo" ? faltanCalificar.length : faltanCalificarF5.length})
               </span>
@@ -232,7 +219,7 @@ export default function HomePage() {
                 ¡Listo! Calificaste a todos en esta categoría.
               </p>
             ) : (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+              <div className="chip-row">
                 {(listaTab === "completo" ? faltanCalificar : faltanCalificarF5).map((p) => (
                   <Link
                     key={p.id}
@@ -241,18 +228,7 @@ export default function HomePage() {
                         ? `/jugador/${p.id}#f5-valoracion`
                         : `/jugador/${p.id}#perfil-completo-valoracion`
                     }
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      padding: "0.35rem 0.65rem",
-                      borderRadius: "999px",
-                      background: "rgba(244, 185, 66, 0.15)",
-                      border: "1px solid rgba(244, 185, 66, 0.45)",
-                      color: "var(--text)",
-                      textDecoration: "none",
-                      fontSize: "0.9rem",
-                      fontWeight: 600,
-                    }}
+                    className="chip chip--warn"
                   >
                     {p.apodo}
                   </Link>
@@ -262,22 +238,11 @@ export default function HomePage() {
           </div>
 
           <div
-            className="card"
-            style={{
-              marginBottom: 0,
-              borderColor: (listaTab === "completo" ? yaCalificados : yaCalificadosF5).length ? "var(--accent-dim)" : "var(--border)",
-            }}
+            className={`card${(listaTab === "completo" ? yaCalificados : yaCalificadosF5).length ? " card--ok" : ""}`}
+            style={{ marginBottom: 0 }}
           >
-            <h3
-              style={{
-                margin: "0 0 0.35rem",
-                fontSize: "1.05rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-              }}
-            >
-              <span aria-hidden>✓</span> Ya calificaste
+            <h3 style={{ margin: "0 0 0.35rem", fontSize: "1.05rem" }}>
+              ✓ Ya calificaste{" "}
               <span className="muted" style={{ fontSize: "0.85rem", fontWeight: 500 }}>
                 ({listaTab === "completo" ? yaCalificados.length : yaCalificadosF5.length})
               </span>
@@ -290,7 +255,7 @@ export default function HomePage() {
                 Todavía no enviaste valoraciones a otros jugadores en esta categoría.
               </p>
             ) : (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+              <div className="chip-row">
                 {(listaTab === "completo" ? yaCalificados : yaCalificadosF5).map((p) => (
                   <Link
                     key={p.id}
@@ -299,18 +264,7 @@ export default function HomePage() {
                         ? `/jugador/${p.id}#f5-valoracion`
                         : `/jugador/${p.id}#perfil-completo-valoracion`
                     }
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      padding: "0.35rem 0.65rem",
-                      borderRadius: "999px",
-                      background: "rgba(62, 207, 142, 0.12)",
-                      border: "1px solid rgba(62, 207, 142, 0.4)",
-                      color: "var(--text)",
-                      textDecoration: "none",
-                      fontSize: "0.9rem",
-                      fontWeight: 600,
-                    }}
+                    className="chip chip--ok"
                   >
                     {p.apodo}
                   </Link>
