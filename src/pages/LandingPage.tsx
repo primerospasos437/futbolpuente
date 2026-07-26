@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
 import { setToken } from "../api";
 import LandingGroupWizard from "../components/LandingGroupWizard";
-import LandingProfileSelect from "../components/LandingProfileSelect";
 import SportCarousel from "../components/SportCarousel";
 import { useAuth } from "../AuthContext";
 import { loginAsGuestDemo, loginWithSupabase, registerWithSupabase } from "../lib/futbolAuth";
 import {
-  getActiveGrupoId,
   getSelectedSport,
   setActiveGrupoId,
   setSelectedSport,
@@ -17,7 +15,7 @@ import type { Pie, Posicion } from "../types";
 import "../landing.css";
 
 /** Pantallas del panel inferior de la landing. */
-export type LandingAuthView = "login" | "profile-select" | "register-grupo" | "grupos";
+export type LandingAuthView = "login" | "register" | "grupos";
 
 type Props = {
   onEnterBridge: (sportId: string) => void;
@@ -39,14 +37,15 @@ export default function LandingPage({ onEnterBridge }: Props) {
   const [logoError, setLogoError] = useState(false);
 
   const showCarousel = authView === "login" || authView === "grupos";
+  const isRegister = authView === "register";
 
   useEffect(() => {
     if (!loggedIn) {
       if (authView === "grupos") setAuthView("login");
       return;
     }
-    // Ya autenticado: pasar al wizard de grupos (salvo registro/perfil en curso).
-    if (authView === "login" || authView === "profile-select") {
+    // Ya autenticado: wizard de grupos (no interrumpir el form de registro).
+    if (authView === "login") {
       setAuthView("grupos");
     }
   }, [loggedIn, authView]);
@@ -57,14 +56,8 @@ export default function LandingPage({ onEnterBridge }: Props) {
     setInfoMessage(null);
   }
 
-  function goProfileSelect() {
-    setAuthView("profile-select");
-    setError(null);
-    setInfoMessage(null);
-  }
-
-  function goRegisterGrupo() {
-    setAuthView("register-grupo");
+  function goRegister() {
+    setAuthView("register");
     setError(null);
     setInfoMessage(null);
   }
@@ -88,7 +81,6 @@ export default function LandingPage({ onEnterBridge }: Props) {
       setError("Primero ingresá o creá tu cuenta; después elegís el grupo.");
       return;
     }
-    // Logueado: solo guarda deporte; el wizard de grupos queda abajo.
     setAuthView("grupos");
   }
 
@@ -122,10 +114,6 @@ export default function LandingPage({ onEnterBridge }: Props) {
       setToken(r.token);
       await refresh();
       if (!getSelectedSport()) setSelectedSport("futbol");
-      // Si el login ya trajo grupoId de sesión (compat), lo sugerimos pero igual pasamos por wizard.
-      if (r.grupoId && !getActiveGrupoId()) {
-        /* wizard decidirá entrar / listar */
-      }
       setAuthView("grupos");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al ingresar");
@@ -159,7 +147,7 @@ export default function LandingPage({ onEnterBridge }: Props) {
       });
       setToken(r.token);
       await refresh();
-      setSelectedSport("futbol");
+      setSelectedSport(getSelectedSport() ?? "futbol");
       setAuthView("grupos");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al registrarse");
@@ -203,46 +191,39 @@ export default function LandingPage({ onEnterBridge }: Props) {
           />
         ) : null}
 
-        {authView === "profile-select" ? (
+        {authView === "grupos" ? (
           <>
             {infoMessage ? <div className="psb-toast psb-toast-standalone">{infoMessage}</div> : null}
-            <LandingProfileSelect
-              onSelectGrupo={goRegisterGrupo}
-              onPending={(msg) => setInfoMessage(msg)}
-              onBackLogin={goLogin}
-            />
-          </>
-        ) : authView === "grupos" ? (
-          <>
-            {infoMessage ? <div className="psb-toast psb-toast-standalone">{infoMessage}</div> : null}
-            {error ? <div className="psb-landing-error" style={{ marginBottom: "0.75rem" }}>{error}</div> : null}
+            {error ? (
+              <div className="psb-landing-error" style={{ marginBottom: "0.75rem" }}>
+                {error}
+              </div>
+            ) : null}
             <LandingGroupWizard onGroupReady={finishWithGroup} onBackLogin={onBackFromGrupos} />
           </>
         ) : (
           <section className="psb-auth-panel" aria-labelledby="psb-auth-title">
-            {authView === "register-grupo" ? (
-              <button type="button" className="psb-back-link" onClick={goProfileSelect}>
-                ← Elegir otro perfil
+            {isRegister ? (
+              <button type="button" className="psb-back-link" onClick={goLogin}>
+                ← Volver al ingreso
               </button>
             ) : null}
 
-            <h2 id="psb-auth-title">
-              {authView === "login" ? "Ya estoy registrado" : "Creá tu cuenta · Jugador"}
-            </h2>
+            <h2 id="psb-auth-title">{authView === "login" ? "Ya estoy registrado" : "Creá tu cuenta"}</h2>
             <p className="psb-auth-sub">
               {authView === "login"
-                ? "Ingresá con tu apodo y PIN. Después elegís o creás tu grupo de fútbol."
-                : "Creá tu cuenta de jugador. En el siguiente paso creás o te unís a un grupo."}
+                ? "Ingresá con tu apodo y PIN. Después elegís o creás tu grupo."
+                : "Registrá tu usuario. Después vas a crear o unirte a un grupo."}
             </p>
 
             {infoMessage ? <div className="psb-toast">{infoMessage}</div> : null}
             {error ? <div className="psb-landing-error">{error}</div> : null}
 
             <form onSubmit={authView === "login" ? onLoginSubmit : onRegisterSubmit}>
-              {authView === "register-grupo" ? (
+              {isRegister ? (
                 <div className="psb-register-extra">
                   <div className="psb-register-hint">
-                    Los demás datos (posiciones alternativas, medidas, etc.) los completás luego en «Mis perfiles».
+                    Posición, medidas y perfiles los completás después en «Mis perfiles».
                   </div>
                   <label htmlFor="psb-nombre">Nombre completo</label>
                   <input
@@ -271,9 +252,7 @@ export default function LandingPage({ onEnterBridge }: Props) {
                 </div>
               ) : null}
 
-              <label htmlFor="psb-usuario">
-                {authView === "login" ? "Usuario / Email (apodo)" : "Apodo"}
-              </label>
+              <label htmlFor="psb-usuario">{authView === "login" ? "Usuario / Email (apodo)" : "Apodo"}</label>
               <input
                 id="psb-usuario"
                 value={usuario}
@@ -292,15 +271,11 @@ export default function LandingPage({ onEnterBridge }: Props) {
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete={authView === "login" ? "current-password" : "new-password"}
                 required
-                minLength={authView === "register-grupo" ? 4 : undefined}
+                minLength={isRegister ? 4 : undefined}
               />
 
               <button type="submit" className="psb-btn-enter" disabled={loading}>
-                {loading
-                  ? "Procesando…"
-                  : authView === "login"
-                    ? "Ingresar"
-                    : "Crear cuenta"}
+                {loading ? "Procesando…" : authView === "login" ? "Ingresar" : "Crear cuenta"}
               </button>
             </form>
 
@@ -324,16 +299,11 @@ export default function LandingPage({ onEnterBridge }: Props) {
               type="button"
               className="psb-toggle-register"
               onClick={() => {
-                if (authView === "login") {
-                  goProfileSelect();
-                } else {
-                  goLogin();
-                }
+                if (authView === "login") goRegister();
+                else goLogin();
               }}
             >
-              {authView === "login"
-                ? "¿Sos nuevo? Creá tu cuenta acá"
-                : "¿Ya tenés cuenta? Ingresá acá"}
+              {authView === "login" ? "¿Sos nuevo? Creá tu cuenta acá" : "¿Ya tenés cuenta? Ingresá acá"}
             </button>
           </section>
         )}
