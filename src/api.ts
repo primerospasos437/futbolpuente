@@ -256,12 +256,26 @@ export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
 
+let cachedSessionPlayer: { token: string; id: string; at: number } | null = null;
+
+type PlayersListCache = { key: string; at: number; data: PlayersListPayload };
+let playersListCache: PlayersListCache | null = null;
+let playersInflight: { key: string; promise: Promise<PlayersListPayload> } | null = null;
+const PLAYERS_CACHE_TTL_MS = 45_000;
+
+export function invalidatePlayersCache(): void {
+  playersListCache = null;
+}
+
 export function setToken(t: string | null) {
   if (t) localStorage.setItem(TOKEN_KEY, t);
   else {
     localStorage.removeItem(TOKEN_KEY);
     clearDemoSession();
   }
+  cachedSessionPlayer = null;
+  playersListCache = null;
+  playersInflight = null;
 }
 
 async function requireToken(): Promise<string> {
@@ -271,7 +285,11 @@ async function requireToken(): Promise<string> {
 }
 
 /** Notificaciones F5 post-partido (RPC en supabase/11_*.sql). No bloquea si falla. */
+let lastF5DispatchAt = 0;
 function dispatchF5ValoracionPendientesFireAndForget(token: string): void {
+  const now = Date.now();
+  if (now - lastF5DispatchAt < 60_000) return;
+  lastF5DispatchAt = now;
   const sb = getSupabase();
   void (async () => {
     const { error } = await sb.rpc("futbol_dispatch_f5_valoracion_pendientes", { p_token: token });
@@ -284,11 +302,16 @@ function dispatchF5ValoracionPendientesFireAndForget(token: string): void {
 async function sessionPlayerId(): Promise<string> {
   if (isDemoMode()) return getDemoPlayerId();
   const token = await requireToken();
+  if (cachedSessionPlayer && cachedSessionPlayer.token === token && Date.now() - cachedSessionPlayer.at < 120_000) {
+    return cachedSessionPlayer.id;
+  }
   const sb = getSupabase();
   const { data, error } = await sb.rpc("futbol_auth_session_player_id", { p_token: token });
   if (error) throw new Error(error.message);
   if (data == null) throw new Error("No autorizado");
-  return String(data);
+  const id = String(data);
+  cachedSessionPlayer = { token, id, at: Date.now() };
+  return id;
 }
 
 async function fetchMyHistorial(token: string): Promise<string> {
@@ -303,6 +326,22 @@ async function ratingsTo(paraId: string): Promise<ValoracionRow[]> {
   const { data, error } = await sb.from("valoraciones").select("*").eq("para_jugador_id", paraId);
   if (error) throw new Error(error.message);
   return (data ?? []) as ValoracionRow[];
+}
+
+/** Batch: valoraciones recibidas por varios jugadores en una sola query. */
+async function ratingsToMany(paraIds: string[]): Promise<Map<string, ValoracionRow[]>> {
+  const map = new Map<string, ValoracionRow[]>();
+  for (const id of paraIds) map.set(id, []);
+  if (!paraIds.length) return map;
+  const sb = getSupabase();
+  const { data, error } = await sb.from("valoraciones").select("*").in("para_jugador_id", paraIds);
+  if (error) throw new Error(error.message);
+  for (const row of (data ?? []) as ValoracionRow[]) {
+    const list = map.get(String(row.para_jugador_id)) ?? [];
+    list.push(row);
+    map.set(String(row.para_jugador_id), list);
+  }
+  return map;
 }
 
 async function f5RatingsTo(paraId: string): Promise<ValoracionF5Row[]> {
@@ -331,6 +370,47 @@ async function buildF5PeerRatingsList(paraId: string): Promise<{ scores: Record<
   const perfil = await f5PerfilRatingsTo(paraId);
   const partido = await f5RatingsTo(paraId);
   return [...perfil, ...partido.map((row) => ({ scores: row.puntajes ?? {} }))];
+}
+
+/** Batch: F5 perfil + partido recibidos, en 2 queries. */
+async function buildF5PeerRatingsListMany(
+  paraIds: string[],
+): Promise<Map<string, { scores: Record<string, unknown> }[]>> {
+  const map = new Map<string, { scores: Record<string, unknown> }[]>();
+  for (const id of paraIds) map.set(id, []);
+  if (!paraIds.length) return map;
+  const sb = getSupabase();
+
+  const [perfilRes, partidoRes] = await Promise.all([
+    sb.from("valoraciones_f5_perfil").select("para_jugador_id,puntajes").in("para_jugador_id", paraIds),
+    sb.from("valoraciones_f5").select("para_jugador_id,puntajes").in("para_jugador_id", paraIds),
+  ]);
+
+  if (perfilRes.error) {
+    if (!(perfilRes.error.message.includes("valoraciones_f5_perfil") || perfilRes.error.code === "42P01")) {
+      throw new Error(perfilRes.error.message);
+    }
+  } else {
+    for (const row of (perfilRes.data ?? []) as { para_jugador_id: string; puntajes: unknown }[]) {
+      const list = map.get(String(row.para_jugador_id)) ?? [];
+      list.push({ scores: (row.puntajes as Record<string, unknown>) ?? {} });
+      map.set(String(row.para_jugador_id), list);
+    }
+  }
+
+  if (partidoRes.error) {
+    if (!(partidoRes.error.message.includes("valoraciones_f5") || partidoRes.error.code === "42P01")) {
+      throw new Error(partidoRes.error.message);
+    }
+  } else {
+    for (const row of (partidoRes.data ?? []) as { para_jugador_id: string; puntajes: unknown }[]) {
+      const list = map.get(String(row.para_jugador_id)) ?? [];
+      list.push({ scores: (row.puntajes as Record<string, unknown>) ?? {} });
+      map.set(String(row.para_jugador_id), list);
+    }
+  }
+
+  return map;
 }
 
 async function findF5PerfilRating(deId: string, paraId: string): Promise<ValoracionF5PerfilRow | null> {
@@ -618,64 +698,80 @@ export const api = {
   players: async (): Promise<PlayersListPayload> => {
     if (isDemoMode()) return demoApi.players();
     const token = await requireToken();
-    dispatchF5ValoracionPendientesFireAndForget(token);
-    const viewerId = await sessionPlayerId();
-    const historialSelf = await fetchMyHistorial(token);
-    const myRated = await fetchMyRatedTargetIds(viewerId);
-    const myRatedF5 = await fetchMyRatedF5PerfilTargetIds(viewerId);
-    const miValCount = await fetchMiValoracionesPerfilOtrosCount(viewerId);
-    const sb = getSupabase();
-    const grupoId = getActiveGrupoId();
-    let q = sb.from("jugadores_publico").select(JUGADORES_PUBLICO).order("apodo", { ascending: true });
-    if (grupoId) q = q.eq("grupo_id", grupoId);
-    const { data, error } = await q;
-    if (error) {
-      // Fallback si aún no corrieron la migración 25 (sin columna grupo_id en la vista).
-      if (String(error.message || "").toLowerCase().includes("grupo_id")) {
-        const fallback = await sb
-          .from("jugadores_publico")
-          .select(
-            "id,apodo,nombre_completo,posicion_preferida,posicion_alternativa,pie_dominante,fecha_nacimiento,contacto,altura_cm,peso_kg,perfil_scores,perfil_f5_scores,perfil_completo_cargado,perfil_f5_cargado,es_admin,created_at,updated_at",
-          )
-          .order("apodo", { ascending: true });
-        if (fallback.error) throw new Error(fallback.error.message);
-        const rowsFb = (fallback.data ?? []) as JugadorPublicoRow[];
-        const jugadoresFb = await Promise.all(
-          rowsFb.map(async (r) => {
-            const p = mapPublicRow(r);
-            if (p.id === viewerId) p.historialLesiones = historialSelf;
-            const received = await ratingsTo(p.id);
-            const f5Combined = await buildF5PeerRatingsList(p.id);
-            return playerPublic(p, received, viewerId, myRated, f5Combined, myRatedF5, miValCount);
-          }),
-        );
-        const otrosFb = jugadoresFb.filter((p) => !p.isSelf);
-        return {
-          jugadores: jugadoresFb,
-          faltanCalificar: otrosFb.filter((p) => !p.ratedByMe),
-          yaCalificados: otrosFb.filter((p) => p.ratedByMe),
-          faltanCalificarF5: otrosFb.filter((p) => !p.ratedF5PerfilByMe),
-          yaCalificadosF5: otrosFb.filter((p) => p.ratedF5PerfilByMe),
-        };
-      }
-      throw new Error(error.message);
+    const grupoId = getActiveGrupoId() ?? "";
+    const cacheKey = `${token}|${grupoId}`;
+    const now = Date.now();
+    if (playersListCache && playersListCache.key === cacheKey && now - playersListCache.at < PLAYERS_CACHE_TTL_MS) {
+      return playersListCache.data;
     }
-    const rows = (data ?? []) as JugadorPublicoRow[];
-    const jugadores = await Promise.all(
-      rows.map(async (r) => {
+    if (playersInflight && playersInflight.key === cacheKey) {
+      return playersInflight.promise;
+    }
+
+    const promise = (async (): Promise<PlayersListPayload> => {
+      dispatchF5ValoracionPendientesFireAndForget(token);
+      const viewerId = await sessionPlayerId();
+      const sb = getSupabase();
+
+      const [historialSelf, myRated, myRatedF5, miValCount, listRes] = await Promise.all([
+        fetchMyHistorial(token),
+        fetchMyRatedTargetIds(viewerId),
+        fetchMyRatedF5PerfilTargetIds(viewerId),
+        fetchMiValoracionesPerfilOtrosCount(viewerId),
+        (async () => {
+          let q = sb.from("jugadores_publico").select(JUGADORES_PUBLICO).order("apodo", { ascending: true });
+          if (grupoId) q = q.eq("grupo_id", grupoId);
+          return q;
+        })(),
+      ]);
+
+      let rows: JugadorPublicoRow[];
+      if (listRes.error) {
+        // Fallback si aún no corrieron la migración 25 (sin columna grupo_id en la vista).
+        if (String(listRes.error.message || "").toLowerCase().includes("grupo_id")) {
+          const fallback = await sb
+            .from("jugadores_publico")
+            .select(
+              "id,apodo,nombre_completo,posicion_preferida,posicion_alternativa,pie_dominante,fecha_nacimiento,contacto,altura_cm,peso_kg,perfil_scores,perfil_f5_scores,perfil_completo_cargado,perfil_f5_cargado,es_admin,created_at,updated_at",
+            )
+            .order("apodo", { ascending: true });
+          if (fallback.error) throw new Error(fallback.error.message);
+          rows = (fallback.data ?? []) as JugadorPublicoRow[];
+        } else {
+          throw new Error(listRes.error.message);
+        }
+      } else {
+        rows = (listRes.data ?? []) as JugadorPublicoRow[];
+      }
+
+      const ids = rows.map((r) => String(r.id));
+      const [ratingsMap, f5Map] = await Promise.all([ratingsToMany(ids), buildF5PeerRatingsListMany(ids)]);
+
+      const jugadores = rows.map((r) => {
         const p = mapPublicRow(r);
         if (p.id === viewerId) p.historialLesiones = historialSelf;
-        const received = await ratingsTo(p.id);
-        const f5Combined = await buildF5PeerRatingsList(p.id);
+        const received = ratingsMap.get(p.id) ?? [];
+        const f5Combined = f5Map.get(p.id) ?? [];
         return playerPublic(p, received, viewerId, myRated, f5Combined, myRatedF5, miValCount);
-      }),
-    );
-    const otros = jugadores.filter((p) => !p.isSelf);
-    const faltanCalificar = otros.filter((p) => !p.ratedByMe);
-    const yaCalificados = otros.filter((p) => p.ratedByMe);
-    const faltanCalificarF5 = otros.filter((p) => !p.ratedF5PerfilByMe);
-    const yaCalificadosF5 = otros.filter((p) => p.ratedF5PerfilByMe);
-    return { jugadores, faltanCalificar, yaCalificados, faltanCalificarF5, yaCalificadosF5 };
+      });
+      const otros = jugadores.filter((p) => !p.isSelf);
+      const payload: PlayersListPayload = {
+        jugadores,
+        faltanCalificar: otros.filter((p) => !p.ratedByMe),
+        yaCalificados: otros.filter((p) => p.ratedByMe),
+        faltanCalificarF5: otros.filter((p) => !p.ratedF5PerfilByMe),
+        yaCalificadosF5: otros.filter((p) => p.ratedF5PerfilByMe),
+      };
+      playersListCache = { key: cacheKey, at: Date.now(), data: payload };
+      return payload;
+    })();
+
+    playersInflight = { key: cacheKey, promise };
+    try {
+      return await promise;
+    } finally {
+      if (playersInflight?.promise === promise) playersInflight = null;
+    }
   },
 
   player: async (id: string): Promise<PlayerDetail> => {
@@ -720,6 +816,7 @@ export const api = {
     const sb = getSupabase();
     const { error } = await sb.rpc("futbol_update_mi_perfil", { p_token: token, p_body: body });
     if (error) throw new Error(error.message);
+    invalidatePlayersCache();
     return api.me();
   },
 
@@ -737,6 +834,7 @@ export const api = {
       p_puntajes: scores,
     });
     if (error) throw new Error(error.message);
+    invalidatePlayersCache();
     const target = await fetchJugadorPublico(id);
     if (!target) throw new Error("Jugador no encontrado");
     if (target.id === viewerId) target.historialLesiones = await fetchMyHistorial(token);
@@ -757,6 +855,7 @@ export const api = {
       p_puntajes: scores,
     });
     if (error) throw new Error(error.message);
+    invalidatePlayersCache();
   },
 
   ratePlayerF5Partido: async (partidoId: string, paraId: string, scores: F5ProfileScores): Promise<void> => {
@@ -770,6 +869,7 @@ export const api = {
       p_puntajes: scores,
     });
     if (error) throw new Error(error.message);
+    invalidatePlayersCache();
   },
 
   pendientesValoracionF5Partidos: async (): Promise<
@@ -779,37 +879,58 @@ export const api = {
     await requireToken();
     const viewerId = await sessionPlayerId();
     const sb = getSupabase();
-    const partidos = await apiPartidos.list();
-    const presencias = await apiPartidos.listPresencias();
+    const [partidos, presencias] = await Promise.all([apiPartidos.list(), apiPartidos.listPresencias()]);
     const confirmados = partidos.filter((p) => p.confirmado_admin !== false);
     const out: { partido: PartidoRow; companeros: { id: string; apodo: string }[] }[] = [];
 
+    const relevantPartidoIds: string[] = [];
+    const otrosPorPartido = new Map<string, string[]>();
     for (const partido of confirmados) {
-      const mine = presencias.filter((pr) => pr.partido_id === partido.id && pr.jugador_id === viewerId);
-      if (!mine.length) continue;
+      const mine = presencias.some((pr) => pr.partido_id === partido.id && pr.jugador_id === viewerId);
+      if (!mine) continue;
       const otrosIds = [
         ...new Set(
           presencias.filter((pr) => pr.partido_id === partido.id && pr.jugador_id !== viewerId).map((pr) => pr.jugador_id),
         ),
       ];
       if (!otrosIds.length) continue;
-      const pendientes: { id: string; apodo: string }[] = [];
-      for (const oid of otrosIds) {
-        const { data: row } = await sb
-          .from("valoraciones_f5")
-          .select("de_jugador_id")
-          .eq("partido_id", partido.id)
-          .eq("de_jugador_id", viewerId)
-          .eq("para_jugador_id", oid)
-          .maybeSingle();
-        if (!row) pendientes.push({ id: oid, apodo: oid.slice(0, 8) });
-      }
-      if (!pendientes.length) continue;
-      const { data: apodos } = await sb.from("jugadores_publico").select("id,apodo").in("id", pendientes.map((x) => x.id));
-      const map = new Map((apodos ?? []).map((r: { id: string; apodo: string }) => [r.id, r.apodo]));
+      relevantPartidoIds.push(partido.id);
+      otrosPorPartido.set(partido.id, otrosIds);
+    }
+    if (!relevantPartidoIds.length) return out;
+
+    const { data: yaValore, error: yaErr } = await sb
+      .from("valoraciones_f5")
+      .select("partido_id,para_jugador_id")
+      .eq("de_jugador_id", viewerId)
+      .in("partido_id", relevantPartidoIds);
+    if (yaErr && !(yaErr.message.includes("valoraciones_f5") || yaErr.code === "42P01")) {
+      throw new Error(yaErr.message);
+    }
+    const ratedKey = new Set(
+      ((yaValore ?? []) as { partido_id: string; para_jugador_id: string }[]).map(
+        (r) => `${r.partido_id}|${r.para_jugador_id}`,
+      ),
+    );
+
+    const pendingIds = new Set<string>();
+    const pendingByPartido: { partido: PartidoRow; ids: string[] }[] = [];
+    for (const partido of confirmados) {
+      const otros = otrosPorPartido.get(partido.id);
+      if (!otros) continue;
+      const ids = otros.filter((oid) => !ratedKey.has(`${partido.id}|${oid}`));
+      if (!ids.length) continue;
+      for (const id of ids) pendingIds.add(id);
+      pendingByPartido.push({ partido, ids });
+    }
+    if (!pendingByPartido.length) return out;
+
+    const { data: apodos } = await sb.from("jugadores_publico").select("id,apodo").in("id", [...pendingIds]);
+    const map = new Map((apodos ?? []).map((r: { id: string; apodo: string }) => [r.id, r.apodo]));
+    for (const { partido, ids } of pendingByPartido) {
       out.push({
         partido,
-        companeros: pendientes.map((c) => ({ id: c.id, apodo: map.get(c.id) ?? c.apodo })),
+        companeros: ids.map((id) => ({ id, apodo: map.get(id) ?? id.slice(0, 8) })),
       });
     }
     return out;
@@ -916,6 +1037,7 @@ export const api = {
 
     const { data, error } = await sb.rpc("futbol_mis_datos_privados_set", payload);
     if (error) throw new Error(error.message);
+    invalidatePlayersCache();
     const o = (data ?? {}) as Record<string, unknown>;
     return {
       email: String(o.email ?? ""),

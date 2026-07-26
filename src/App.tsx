@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Navigate, NavLink, Route, Routes, useSearchParams } from "react-router-dom";
+import { Navigate, NavLink, Outlet, Route, Routes, useSearchParams } from "react-router-dom";
 import { api } from "./api";
 import { AuthProvider, useAuth } from "./AuthContext";
 import { BridgeProvider, useBridgeOptional } from "./BridgeContext";
@@ -28,7 +28,7 @@ import ValorarF5PartidoPage from "./pages/ValorarF5PartidoPage";
 import NotificationsBell from "./components/NotificationsBell";
 import ThemeToggle from "./components/ThemeToggle";
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell() {
   const { loggedIn, logout, ready } = useAuth();
   const bridge = useBridgeOptional();
   const [esAdminNav, setEsAdminNav] = useState<boolean | null>(null);
@@ -142,7 +142,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         </nav>
       </div>
 
-      {children}
+      <Outlet />
     </div>
   );
 }
@@ -160,78 +160,17 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/entrar" element={<EntrarRoute />} />
-      <Route
-        path="/"
-        element={
-          <Shell>
-            <HomePage />
-          </Shell>
-        }
-      />
-      <Route
-        path="/proximos-partidos/:partidoId"
-        element={
-          <Shell>
-            <ProximosPartidosPage />
-          </Shell>
-        }
-      />
-      <Route
-        path="/proximos-partidos"
-        element={
-          <Shell>
-            <ProximosPartidosPage />
-          </Shell>
-        }
-      />
-      <Route
-        path="/stats"
-        element={
-          <Shell>
-            <StatsPage />
-          </Shell>
-        }
-      />
-      <Route
-        path="/jugador/:id"
-        element={
-          <Shell>
-            <PlayerProfilePage />
-          </Shell>
-        }
-      />
-      <Route
-        path="/perfil"
-        element={
-          <Shell>
-            <MisPerfilesPage />
-          </Shell>
-        }
-      />
-      <Route
-        path="/mis-datos"
-        element={
-          <Shell>
-            <MisDatosPage />
-          </Shell>
-        }
-      />
-      <Route
-        path="/equipos"
-        element={
-          <Shell>
-            <TeamsPage />
-          </Shell>
-        }
-      />
-      <Route
-        path="/partido/:partidoId/valorar-f5"
-        element={
-          <Shell>
-            <ValorarF5PartidoPage />
-          </Shell>
-        }
-      />
+      <Route element={<Shell />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/proximos-partidos/:partidoId" element={<ProximosPartidosPage />} />
+        <Route path="/proximos-partidos" element={<ProximosPartidosPage />} />
+        <Route path="/stats" element={<StatsPage />} />
+        <Route path="/jugador/:id" element={<PlayerProfilePage />} />
+        <Route path="/perfil" element={<MisPerfilesPage />} />
+        <Route path="/mis-datos" element={<MisDatosPage />} />
+        <Route path="/equipos" element={<TeamsPage />} />
+        <Route path="/partido/:partidoId/valorar-f5" element={<ValorarF5PartidoPage />} />
+      </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
