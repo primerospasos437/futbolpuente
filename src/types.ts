@@ -1,5 +1,7 @@
 export type Posicion = "portero" | "defensa" | "medio" | "delantero";
 export type Pie = "derecho" | "izquierdo" | "ambos";
+/** Modalidad de juego preferida (ficha del jugador). */
+export type ModalidadPreferida = "f5" | "f11" | "ambas";
 
 import type { F5Dimension, F5ProfileScores } from "./dimensions-f5";
 
@@ -46,6 +48,8 @@ export interface PlayerSummary {
   posicionPreferida: Posicion;
   posicionAlternativa: Posicion;
   pieDominante: Pie;
+  /** Modalidad preferida: Fútbol 5, Fútbol 11 o ambas. */
+  modalidadPreferida: ModalidadPreferida;
   profile: ProfileScores;
   /** Perfil F5 (autopercepción 1–5); en listados puede ir sin promedio de grupo. */
   f5Profile: F5ProfileScores;

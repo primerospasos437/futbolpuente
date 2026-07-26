@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { setToken } from "../api";
+import { api, setToken } from "../api";
 import LandingGroupWizard from "../components/LandingGroupWizard";
+import LandingSessionBar from "../components/LandingSessionBar";
 import SportCarousel from "../components/SportCarousel";
 import { useAuth } from "../AuthContext";
 import { loginAsGuestDemo, loginWithSupabase, registerWithSupabase } from "../lib/futbolAuth";
@@ -12,10 +13,11 @@ import {
 import type { GrupoMembership } from "../lib/gruposApi";
 import { PSB_LOGO_SRC, SPORTS_CATALOG } from "../lib/sportsCatalog";
 import type { Pie, Posicion } from "../types";
+import MisPerfilesPage from "./MisPerfilesPage";
 import "../landing.css";
 
 /** Pantallas del panel inferior de la landing. */
-export type LandingAuthView = "login" | "register" | "grupos";
+export type LandingAuthView = "login" | "register" | "grupos" | "perfil";
 
 type Props = {
   onEnterBridge: (sportId: string) => void;
@@ -29,25 +31,48 @@ export default function LandingPage({ onEnterBridge }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sessionApodo, setSessionApodo] = useState<string | null>(null);
+  const [sessionApodoLoading, setSessionApodoLoading] = useState(false);
 
   const [nombreCompleto, setNombreCompleto] = useState("");
   const [email, setEmail] = useState("");
   const [posicion, setPosicion] = useState<Posicion>("medio");
+  const [modalidad, setModalidad] = useState<"f5" | "f11" | "ambas">("ambas");
 
   const [logoError, setLogoError] = useState(false);
 
   const showCarousel = authView === "login" || authView === "grupos";
   const isRegister = authView === "register";
+  const showSessionBar = loggedIn && (authView === "grupos" || authView === "perfil");
 
   useEffect(() => {
     if (!loggedIn) {
-      if (authView === "grupos") setAuthView("login");
+      setSessionApodo(null);
+      if (authView === "grupos" || authView === "perfil") setAuthView("login");
       return;
     }
-    // Ya autenticado: wizard de grupos (no interrumpir el form de registro).
     if (authView === "login") {
       setAuthView("grupos");
     }
+  }, [loggedIn, authView]);
+
+  useEffect(() => {
+    if (!loggedIn) return;
+    let cancelled = false;
+    setSessionApodoLoading(true);
+    void (async () => {
+      try {
+        const me = await api.me();
+        if (!cancelled) setSessionApodo(me.apodo || me.nombreCompleto || null);
+      } catch {
+        if (!cancelled) setSessionApodo(null);
+      } finally {
+        if (!cancelled) setSessionApodoLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [loggedIn, authView]);
 
   function goLogin() {
@@ -58,6 +83,18 @@ export default function LandingPage({ onEnterBridge }: Props) {
 
   function goRegister() {
     setAuthView("register");
+    setError(null);
+    setInfoMessage(null);
+  }
+
+  function goGrupos() {
+    setAuthView("grupos");
+    setError(null);
+    setInfoMessage(null);
+  }
+
+  function goPerfil() {
+    setAuthView("perfil");
     setError(null);
     setInfoMessage(null);
   }
@@ -82,6 +119,12 @@ export default function LandingPage({ onEnterBridge }: Props) {
       return;
     }
     setAuthView("grupos");
+  }
+
+  function onLogout() {
+    logout();
+    setSessionApodo(null);
+    goLogin();
   }
 
   async function onGuestDemo() {
@@ -140,6 +183,7 @@ export default function LandingPage({ onEnterBridge }: Props) {
         posicionPreferida: posicion,
         posicionAlternativa: posicion,
         pieDominante: "derecho" as Pie,
+        modalidadPreferida: modalidad,
         fechaNacimiento: "",
         contacto: "",
         alturaCm: "",
@@ -154,11 +198,6 @@ export default function LandingPage({ onEnterBridge }: Props) {
     } finally {
       setLoading(false);
     }
-  }
-
-  function onBackFromGrupos() {
-    logout();
-    goLogin();
   }
 
   return (
@@ -183,6 +222,15 @@ export default function LandingPage({ onEnterBridge }: Props) {
           </div>
         </header>
 
+        {showSessionBar ? (
+          <LandingSessionBar
+            apodo={sessionApodo}
+            loading={sessionApodoLoading}
+            onProfile={goPerfil}
+            onLogout={onLogout}
+          />
+        ) : null}
+
         {showCarousel ? (
           <SportCarousel
             sports={SPORTS_CATALOG}
@@ -191,7 +239,14 @@ export default function LandingPage({ onEnterBridge }: Props) {
           />
         ) : null}
 
-        {authView === "grupos" ? (
+        {authView === "perfil" ? (
+          <section className="psb-landing-perfil" aria-label="Mi perfil">
+            <button type="button" className="psb-back-link" onClick={goGrupos}>
+              ← Volver a mis grupos
+            </button>
+            <MisPerfilesPage />
+          </section>
+        ) : authView === "grupos" ? (
           <>
             {infoMessage ? <div className="psb-toast psb-toast-standalone">{infoMessage}</div> : null}
             {error ? (
@@ -199,7 +254,7 @@ export default function LandingPage({ onEnterBridge }: Props) {
                 {error}
               </div>
             ) : null}
-            <LandingGroupWizard onGroupReady={finishWithGroup} onBackLogin={onBackFromGrupos} />
+            <LandingGroupWizard onGroupReady={finishWithGroup} />
           </>
         ) : (
           <section className="psb-auth-panel" aria-labelledby="psb-auth-title">
@@ -213,7 +268,7 @@ export default function LandingPage({ onEnterBridge }: Props) {
             <p className="psb-auth-sub">
               {authView === "login"
                 ? "Ingresá con tu apodo y PIN. Después elegís o creás tu grupo."
-                : "Registrá tu usuario. Después vas a crear o unirte a un grupo."}
+                : "Registrá tu usuario y modalidad. Después creás o te unís a un grupo (sin grupo automático)."}
             </p>
 
             {infoMessage ? <div className="psb-toast">{infoMessage}</div> : null}
@@ -248,6 +303,16 @@ export default function LandingPage({ onEnterBridge }: Props) {
                     <option value="defensa">Defensa</option>
                     <option value="medio">Mediocampo</option>
                     <option value="delantero">Delantero</option>
+                  </select>
+                  <label htmlFor="psb-mod">Modalidad preferida</label>
+                  <select
+                    id="psb-mod"
+                    value={modalidad}
+                    onChange={(e) => setModalidad(e.target.value as "f5" | "f11" | "ambas")}
+                  >
+                    <option value="ambas">Fútbol 5 y Fútbol 11</option>
+                    <option value="f5">Fútbol 5</option>
+                    <option value="f11">Fútbol 11</option>
                   </select>
                 </div>
               ) : null}

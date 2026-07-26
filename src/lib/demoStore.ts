@@ -75,6 +75,7 @@ function seedToSummary(p: SeedPlayer, viewerId: string, ratedCompleto: Set<strin
     posicionPreferida: p.posicion,
     posicionAlternativa: p.alt ?? p.posicion,
     pieDominante: p.pie ?? "derecho",
+    modalidadPreferida: "ambas",
     profile: mkProfile(selfAvg),
     f5Profile: mkF5(f5Self),
     ficha: {

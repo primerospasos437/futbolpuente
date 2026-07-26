@@ -13,6 +13,7 @@ import type {
   ConvocatoriaRow,
   F5ProfileScores,
   MisDatosPrivados,
+  ModalidadPreferida,
   NotificacionRow,
   PartidoRow,
   Pie,
@@ -59,7 +60,7 @@ function rpcJsonArray<T>(data: unknown): T[] {
 }
 
 const JUGADORES_PUBLICO =
-  "id,apodo,nombre_completo,posicion_preferida,posicion_alternativa,pie_dominante,fecha_nacimiento,contacto,altura_cm,peso_kg,perfil_scores,perfil_f5_scores,perfil_completo_cargado,perfil_f5_cargado,es_admin,grupo_id";
+  "id,apodo,nombre_completo,posicion_preferida,posicion_alternativa,pie_dominante,fecha_nacimiento,contacto,altura_cm,peso_kg,perfil_scores,perfil_f5_scores,perfil_completo_cargado,perfil_f5_cargado,es_admin,grupo_id,modalidad_preferida";
 
 type JugadorPublicoRow = {
   id: string;
@@ -78,6 +79,7 @@ type JugadorPublicoRow = {
   perfil_f5_cargado?: boolean | null;
   es_admin?: boolean | null;
   grupo_id?: string | null;
+  modalidad_preferida?: string | null;
   created_at?: string;
   updated_at?: string;
 };
@@ -118,6 +120,7 @@ type PlayerInternal = {
   profile: Record<string, unknown>;
   f5Profile: Record<string, unknown>;
   esAdmin: boolean;
+  modalidadPreferida: ModalidadPreferida;
   createdAt: string;
   perfilCompletoCargado: boolean;
   perfilF5Cargado: boolean;
@@ -140,6 +143,12 @@ function fechaFromDb(value: string | null | undefined): string {
   return s.slice(0, 10);
 }
 
+function asModalidad(v: string | null | undefined): ModalidadPreferida {
+  const s = String(v ?? "").trim().toLowerCase();
+  if (s === "f5" || s === "f11" || s === "ambas") return s;
+  return "ambas";
+}
+
 function mapPublicRow(r: JugadorPublicoRow): PlayerInternal {
   const posPrincipal = asPosicion(String(r.posicion_preferida ?? "medio"), "medio");
   const posAlt = asPosicion(String(r.posicion_alternativa ?? r.posicion_preferida ?? "medio"), posPrincipal);
@@ -158,6 +167,7 @@ function mapPublicRow(r: JugadorPublicoRow): PlayerInternal {
     profile: typeof r.perfil_scores === "object" && r.perfil_scores ? r.perfil_scores : {},
     f5Profile: typeof r.perfil_f5_scores === "object" && r.perfil_f5_scores ? r.perfil_f5_scores : {},
     esAdmin: Boolean(r.es_admin),
+    modalidadPreferida: asModalidad(r.modalidad_preferida),
     createdAt: String(r.created_at ?? r.updated_at ?? new Date().toISOString()),
     perfilCompletoCargado: r.perfil_completo_cargado !== false,
     perfilF5Cargado: r.perfil_f5_cargado !== false,
@@ -209,6 +219,7 @@ function playerPublic(
     posicionPreferida: p.posicionPreferida,
     posicionAlternativa: p.posicionAlternativa ?? p.posicionPreferida,
     pieDominante: p.pieDominante,
+    modalidadPreferida: p.modalidadPreferida ?? "ambas",
     profile,
     f5Profile: f5,
     ficha: {

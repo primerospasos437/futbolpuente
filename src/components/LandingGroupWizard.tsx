@@ -12,10 +12,9 @@ type Mode = "hub" | "crear" | "unirse";
 
 type Props = {
   onGroupReady: (grupoId: string, meta: GrupoMembership) => void;
-  onBackLogin?: () => void;
 };
 
-export default function LandingGroupWizard({ onGroupReady, onBackLogin }: Props) {
+export default function LandingGroupWizard({ onGroupReady }: Props) {
   const [mode, setMode] = useState<Mode>("hub");
   const [grupos, setGrupos] = useState<GrupoMembership[]>([]);
   const [loading, setLoading] = useState(true);
@@ -237,7 +236,10 @@ export default function LandingGroupWizard({ onGroupReady, onBackLogin }: Props)
       <p className="psb-auth-sub">
         {hasGrupos
           ? "Entrá a un grupo o creá / unite a otro."
-          : "Creá un grupo nuevo (vas a ser admin) o unite con PIN / código."}
+          : "Todavía no estás en ningún grupo. Creá uno nuevo (vas a ser admin) o unite con PIN / código."}
+      </p>
+      <p className="psb-register-hint" style={{ marginBottom: "0.85rem" }}>
+        Después de entrar a un grupo, completá tu ficha Fútbol 11 / Fútbol 5 en «Mis perfiles».
       </p>
       {error ? <div className="psb-landing-error">{error}</div> : null}
 
@@ -270,12 +272,6 @@ export default function LandingGroupWizard({ onGroupReady, onBackLogin }: Props)
           Unirse con PIN / código
         </button>
       </div>
-
-      {onBackLogin ? (
-        <button type="button" className="psb-toggle-register" onClick={onBackLogin}>
-          Cerrar sesión / otra cuenta
-        </button>
-      ) : null}
     </section>
   );
 }

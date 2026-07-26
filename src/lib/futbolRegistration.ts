@@ -1,6 +1,6 @@
 import { DIMENSION_ORDER } from "../dimensions";
 import { F5_DIMENSION_ORDER } from "../dimensions-f5";
-import type { Dimension, F5ProfileScores, Pie, Posicion, ProfileScores } from "../types";
+import type { Dimension, F5ProfileScores, ModalidadPreferida, Pie, Posicion, ProfileScores } from "../types";
 
 /**
  * Valores exactos del CHECK en `jugadores` (schema.sql) y del RPC `futbol_auth_register`.
@@ -11,8 +11,12 @@ export type PosicionRpc = (typeof POSICION_RPC)[number];
 export const PIE_RPC = ["derecho", "izquierdo", "ambos"] as const;
 export type PieRpc = (typeof PIE_RPC)[number];
 
+export const MODALIDAD_RPC = ["f5", "f11", "ambas"] as const;
+export type ModalidadRpc = (typeof MODALIDAD_RPC)[number];
+
 const POS_SET = new Set<string>(POSICION_RPC);
 const PIE_SET = new Set<string>(PIE_RPC);
+const MOD_SET = new Set<string>(MODALIDAD_RPC);
 
 export function sanitizePosicionRpc(value: unknown, fallback: PosicionRpc = "medio"): PosicionRpc {
   const s = String(value ?? "").trim().toLowerCase();
@@ -22,6 +26,11 @@ export function sanitizePosicionRpc(value: unknown, fallback: PosicionRpc = "med
 export function sanitizePieRpc(value: unknown, fallback: PieRpc = "derecho"): PieRpc {
   const s = String(value ?? "").trim().toLowerCase();
   return PIE_SET.has(s) ? (s as PieRpc) : fallback;
+}
+
+export function sanitizeModalidadRpc(value: unknown, fallback: ModalidadRpc = "ambas"): ModalidadRpc {
+  const s = String(value ?? "").trim().toLowerCase();
+  return MOD_SET.has(s) ? (s as ModalidadRpc) : fallback;
 }
 
 /** Email sintético para `usuarios.email` (UNIQUE); local-part seguro a partir del apodo ya recortado. */
@@ -146,6 +155,7 @@ export type RegisterFormRaw = {
   alturaCm?: string | number | null;
   pesoKg?: string | number | null;
   profile?: ProfileScores | Record<string, unknown>;
+  modalidadPreferida?: ModalidadPreferida | string;
 };
 
 export type FutbolAuthRegisterRpcArgs = {
@@ -164,6 +174,7 @@ export type FutbolAuthRegisterRpcArgs = {
   p_perfil_scores: ProfileScores;
   /** Id de `auth.users` tras `signUp`; la cuenta interna `usuarios`/`jugadores` usa el mismo UUID. */
   p_cuenta_id?: string | null;
+  p_modalidad_preferida: ModalidadRpc;
 };
 
 /**
@@ -191,6 +202,7 @@ export function buildFutbolAuthRegisterRpcArgs(raw: RegisterFormRaw, pinHashHex:
   const perfil_scores = {} as ProfileScores;
 
   const pEmail = normalizeEmailForRegister(String(raw.email ?? "").trim());
+  const modalidad = sanitizeModalidadRpc(raw.modalidadPreferida, "ambas");
 
   return {
     p_nombre_completo: nombreCompleto,
@@ -205,5 +217,6 @@ export function buildFutbolAuthRegisterRpcArgs(raw: RegisterFormRaw, pinHashHex:
     p_altura_cm: altura_cm,
     p_peso_kg: peso_kg,
     p_perfil_scores: perfil_scores,
+    p_modalidad_preferida: modalidad,
   };
 }

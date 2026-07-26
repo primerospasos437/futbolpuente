@@ -609,3 +609,88 @@
   border-color: var(--psb-blue);
   background: color-mix(in srgb, var(--psb-blue) 18%, transparent);
 }
+
+/* Barra de sesión (wizard / perfil en landing) */
+.psb-session-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 1.15rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--psb-border);
+  background: color-mix(in srgb, var(--psb-green) 12%, var(--psb-panel, transparent));
+}
+
+.psb-session-bar-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.psb-session-bar-hello {
+  font-size: 1.05rem;
+  color: var(--psb-text);
+  line-height: 1.3;
+}
+
+.psb-session-bar-hello strong {
+  font-weight: 700;
+}
+
+.psb-session-bar-badge {
+  font-size: 0.75rem;
+  color: var(--psb-muted);
+  letter-spacing: 0.02em;
+}
+
+.psb-session-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.psb-session-btn {
+  border-radius: 10px;
+  border: 1px solid var(--psb-border);
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.psb-session-btn-profile {
+  background: color-mix(in srgb, var(--psb-blue) 22%, transparent);
+  border-color: color-mix(in srgb, var(--psb-blue) 55%, var(--psb-border));
+  color: var(--psb-text);
+}
+
+.psb-session-btn-profile:hover {
+  border-color: var(--psb-blue);
+}
+
+.psb-session-btn-logout {
+  background: color-mix(in srgb, #e85d4c 16%, transparent);
+  border-color: color-mix(in srgb, #e85d4c 50%, var(--psb-border));
+  color: var(--psb-text);
+}
+
+.psb-session-btn-logout:hover {
+  border-color: #e85d4c;
+}
+
+.psb-landing-perfil {
+  margin-top: 0.25rem;
+}
+
+.psb-landing-perfil .page-shell {
+  max-width: none;
+  padding: 0;
+}

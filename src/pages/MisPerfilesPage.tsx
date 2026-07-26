@@ -5,7 +5,7 @@ import { formatRating } from "../lib/formatRating";
 import ProfileScoreSliders from "../components/ProfileScoreSliders";
 import F5ProfileScorePickers from "../components/F5ProfileScorePickers";
 import { normalizeProfileF5ScoresRpc } from "../lib/futbolRegistration";
-import type { F5ProfileScores, Pie, PlayerSummary, Posicion, ProfileScores } from "../types";
+import type { F5ProfileScores, ModalidadPreferida, Pie, PlayerSummary, Posicion, ProfileScores } from "../types";
 
 type TabId = "completo" | "f5";
 
@@ -17,6 +17,7 @@ export default function MisPerfilesPage() {
   const [posicion, setPosicion] = useState<Posicion>("medio");
   const [posicionAlternativa, setPosicionAlternativa] = useState<Posicion>("medio");
   const [pie, setPie] = useState<Pie>("derecho");
+  const [modalidad, setModalidad] = useState<ModalidadPreferida>("ambas");
   const [fechaNacimiento, setFechaNacimiento] = useState("");
   const [contacto, setContacto] = useState("");
   const [alturaStr, setAlturaStr] = useState("");
@@ -37,6 +38,7 @@ export default function MisPerfilesPage() {
         setPosicion(p.posicionPreferida);
         setPosicionAlternativa(p.posicionAlternativa ?? p.posicionPreferida);
         setPie(p.pieDominante);
+        setModalidad(p.modalidadPreferida ?? "ambas");
         setFechaNacimiento(p.ficha.fechaNacimiento ?? "");
         setContacto(p.ficha.contacto ?? "");
         setAlturaStr(p.ficha.alturaCm != null ? String(p.ficha.alturaCm) : "");
@@ -64,6 +66,7 @@ export default function MisPerfilesPage() {
         posicionPreferida: posicion,
         posicionAlternativa,
         pieDominante: pie,
+        modalidadPreferida: modalidad,
         fechaNacimiento,
         contacto,
         historialLesiones,
@@ -111,16 +114,20 @@ export default function MisPerfilesPage() {
       <header className="page-hero">
         <h1>🌟 Mis perfiles</h1>
         <p className="sub">
-          @{me.apodo}. Ambos perfiles usan estrellas 1–5 (rápido de completar). El F5 tiene solo 5 métricas. El historial de
-          lesiones es privado.
+          @{me.apodo}. Elegí tu modalidad (F5 / F11) y completá las solapas con estrellas 1–5. El historial de lesiones es
+          privado.
         </p>
       </header>
 
       {(!me.perfilCompletoCargado || !me.perfilF5Cargado) && (
         <p className="muted" style={{ marginBottom: "1rem" }}>
-          Hasta que guardes cada solapa por primera vez, las notas se muestran en <strong>0</strong> y no se usan en
-          promedios como autopercepción. Para anotarte en «Próximos partidos» también necesitás haber valorado el perfil
-          completo de al menos 4 compañeros.
+          {me.modalidadPreferida === "f5"
+            ? "Priorizá la solapa F5 según tu modalidad. "
+            : me.modalidadPreferida === "f11"
+              ? "Priorizá el perfil completo (orientado a Fútbol 11). "
+              : "Completá ambas solapas (Fútbol 11 y Fútbol 5). "}
+          Hasta que guardes cada solapa por primera vez, las notas se muestran en <strong>0</strong>. Para anotarte en
+          «Próximos partidos» también necesitás haber valorado el perfil completo de al menos 4 compañeros.
         </p>
       )}
 
@@ -130,10 +137,10 @@ export default function MisPerfilesPage() {
           className={`btn btn-ghost ${tab === "completo" ? "active" : ""}`}
           onClick={() => setTab("completo")}
         >
-          Perfil completo
+          Perfil completo (F11)
         </button>
         <button type="button" className={`btn btn-ghost ${tab === "f5" ? "active" : ""}`} onClick={() => setTab("f5")}>
-          F5
+          Fútbol 5
         </button>
       </div>
 
@@ -195,6 +202,17 @@ export default function MisPerfilesPage() {
                 <option value="ambos">Ambos</option>
               </select>
             </div>
+            <div className="row">
+              <label>Modalidad preferida</label>
+              <select value={modalidad} onChange={(e) => setModalidad(e.target.value as ModalidadPreferida)}>
+                <option value="ambas">Fútbol 5 y Fútbol 11</option>
+                <option value="f5">Fútbol 5</option>
+                <option value="f11">Fútbol 11</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid2">
             <div className="row">
               <label>Fecha de nacimiento</label>
               <input type="date" value={fechaNacimiento} onChange={(e) => setFechaNacimiento(e.target.value)} />
