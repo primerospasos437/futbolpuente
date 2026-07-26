@@ -90,12 +90,16 @@ export default function HomePage() {
     let cancelled = false;
     (async () => {
       try {
-        const [payload, pend] = await Promise.all([
-          api.players(),
-          api.pendientesValoracionF5Partidos().catch(() => []),
-        ]);
-        if (!cancelled) {
-          setData(payload);
+        const payload = await api.players();
+        if (!cancelled) setData(payload);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Error");
+      }
+      // Pendientes F5: no bloquean el listado (partidos/presencias pueden tardar).
+      void api
+        .pendientesValoracionF5Partidos()
+        .then((pend) => {
+          if (cancelled) return;
           setF5Pendientes(
             pend.map((x) => ({
               partidoId: x.partido.id,
@@ -103,10 +107,10 @@ export default function HomePage() {
               companeros: x.companeros,
             })),
           );
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Error");
-      }
+        })
+        .catch(() => {
+          /* opcional */
+        });
     })();
     return () => {
       cancelled = true;

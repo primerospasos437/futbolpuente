@@ -8,7 +8,6 @@ import {
   parseEquipoNombres,
   partidoTieneEquiposPublicados,
 } from "../lib/partidoEquipos";
-import type { PlayerSummary } from "../types";
 
 const TZ = "America/Argentina/Buenos_Aires";
 
@@ -70,7 +69,12 @@ export default function ProximosPartidosPage() {
   const detalleRef = useRef<HTMLDivElement>(null);
 
   const [conv, setConv] = useState<ConvocatoriaRow[]>([]);
-  const [me, setMe] = useState<PlayerSummary | null>(null);
+  const [me, setMe] = useState<{
+    id: string;
+    perfilCompletoCargado: boolean;
+    perfilF5Cargado: boolean;
+    miValoracionesPerfilOtros: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -92,33 +96,23 @@ export default function ProximosPartidosPage() {
     let cancelled = false;
     (async () => {
       try {
-        const [list, meRes, pl, prt, pres] = await Promise.all([
+        const [list, meRes, companerosRes, prt, pres, evitaRes] = await Promise.all([
           apiConvocatorias.list(),
-          api.me(),
-          api.players(),
+          api.meForGate(),
+          api.companerosOptions(),
           apiPartidos.list(),
           apiPartidos.listPresencias(),
+          api.evitaCompanerosGet().catch(() => [] as { id: string; apodo: string }[]),
         ]);
         if (cancelled) return;
         setConv(Array.isArray(list) ? list : []);
         setMe(meRes);
         setPartidos(Array.isArray(prt) ? prt : []);
         setPresencias(Array.isArray(pres) ? pres : []);
-        const otros = pl.jugadores.filter((p) => p.id !== meRes.id).map((p) => ({ id: p.id, apodo: p.apodo }));
-        setCompaneros(otros);
-        try {
-          const ev = await api.evitaCompanerosGet();
-          if (!cancelled) {
-            const ids = ev.map((x) => x.id);
-            setEvita1(ids[0] ?? "");
-            setEvita2(ids[1] ?? "");
-          }
-        } catch {
-          if (!cancelled) {
-            setEvita1("");
-            setEvita2("");
-          }
-        }
+        setCompaneros(companerosRes);
+        const ids = evitaRes.map((x) => x.id);
+        setEvita1(ids[0] ?? "");
+        setEvita2(ids[1] ?? "");
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       } finally {

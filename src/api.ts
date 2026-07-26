@@ -267,6 +267,24 @@ export function invalidatePlayersCache(): void {
   playersListCache = null;
 }
 
+type RpcListCache<T> = { key: string; at: number; data: T };
+let partidosListCache: RpcListCache<PartidoRow[]> | null = null;
+let partidosInflight: { key: string; promise: Promise<PartidoRow[]> } | null = null;
+let presenciasListCache: RpcListCache<PresenciaRow[]> | null = null;
+let presenciasInflight: { key: string; promise: Promise<PresenciaRow[]> } | null = null;
+const PARTIDOS_CACHE_TTL_MS = 45_000;
+
+export function invalidatePartidosCache(): void {
+  partidosListCache = null;
+  partidosInflight = null;
+  presenciasListCache = null;
+  presenciasInflight = null;
+}
+
+function sessionCacheKey(token: string): string {
+  return `${token}|${getActiveGrupoId() ?? ""}`;
+}
+
 export function setToken(t: string | null) {
   if (t) localStorage.setItem(TOKEN_KEY, t);
   else {
@@ -276,6 +294,7 @@ export function setToken(t: string | null) {
   cachedSessionPlayer = null;
   playersListCache = null;
   playersInflight = null;
+  invalidatePartidosCache();
 }
 
 async function requireToken(): Promise<string> {
@@ -334,7 +353,10 @@ async function ratingsToMany(paraIds: string[]): Promise<Map<string, ValoracionR
   for (const id of paraIds) map.set(id, []);
   if (!paraIds.length) return map;
   const sb = getSupabase();
-  const { data, error } = await sb.from("valoraciones").select("*").in("para_jugador_id", paraIds);
+  const { data, error } = await sb
+    .from("valoraciones")
+    .select("para_jugador_id,puntajes")
+    .in("para_jugador_id", paraIds);
   if (error) throw new Error(error.message);
   for (const row of (data ?? []) as ValoracionRow[]) {
     const list = map.get(String(row.para_jugador_id)) ?? [];
@@ -493,19 +515,53 @@ export const apiPartidos = {
   list: async (): Promise<PartidoRow[]> => {
     if (isDemoMode()) return demoPartidos.list();
     const token = await requireToken();
-    const sb = getSupabase();
-    const { data, error } = await sb.rpc("futbol_list_partidos", { p_token: token });
-    if (error) throw new Error(error.message);
-    return rpcJsonArray<PartidoRow>(data);
+    const cacheKey = sessionCacheKey(token);
+    const now = Date.now();
+    if (partidosListCache && partidosListCache.key === cacheKey && now - partidosListCache.at < PARTIDOS_CACHE_TTL_MS) {
+      return partidosListCache.data;
+    }
+    if (partidosInflight && partidosInflight.key === cacheKey) return partidosInflight.promise;
+
+    const promise = (async () => {
+      const sb = getSupabase();
+      const { data, error } = await sb.rpc("futbol_list_partidos", { p_token: token });
+      if (error) throw new Error(error.message);
+      const rows = rpcJsonArray<PartidoRow>(data);
+      partidosListCache = { key: cacheKey, at: Date.now(), data: rows };
+      return rows;
+    })();
+    partidosInflight = { key: cacheKey, promise };
+    try {
+      return await promise;
+    } finally {
+      if (partidosInflight?.promise === promise) partidosInflight = null;
+    }
   },
 
   listPresencias: async (): Promise<PresenciaRow[]> => {
     if (isDemoMode()) return demoPartidos.listPresencias();
     const token = await requireToken();
-    const sb = getSupabase();
-    const { data, error } = await sb.rpc("futbol_list_presencias", { p_token: token });
-    if (error) throw new Error(error.message);
-    return rpcJsonArray<PresenciaRow>(data);
+    const cacheKey = sessionCacheKey(token);
+    const now = Date.now();
+    if (presenciasListCache && presenciasListCache.key === cacheKey && now - presenciasListCache.at < PARTIDOS_CACHE_TTL_MS) {
+      return presenciasListCache.data;
+    }
+    if (presenciasInflight && presenciasInflight.key === cacheKey) return presenciasInflight.promise;
+
+    const promise = (async () => {
+      const sb = getSupabase();
+      const { data, error } = await sb.rpc("futbol_list_presencias", { p_token: token });
+      if (error) throw new Error(error.message);
+      const rows = rpcJsonArray<PresenciaRow>(data);
+      presenciasListCache = { key: cacheKey, at: Date.now(), data: rows };
+      return rows;
+    })();
+    presenciasInflight = { key: cacheKey, promise };
+    try {
+      return await promise;
+    } finally {
+      if (presenciasInflight?.promise === promise) presenciasInflight = null;
+    }
   },
 
   marcarPresencia: async (partidoId: string, jugadorId: string, estado: string): Promise<void> => {
@@ -519,6 +575,7 @@ export const apiPartidos = {
       p_estado: estado,
     });
     if (error) throw new Error(error.message);
+    invalidatePartidosCache();
   },
 
   crearBorrador: async (
@@ -548,6 +605,7 @@ export const apiPartidos = {
       p_texto_equipamiento: opts?.textoEquipamiento?.trim() || null,
     });
     if (error) throw new Error(error.message);
+    invalidatePartidosCache();
     const row = data as { id?: string };
     if (!row?.id) throw new Error("Respuesta inválida");
     return { id: row.id };
@@ -564,6 +622,7 @@ export const apiPartidos = {
       p_jugador_id: jugadorId ?? null,
     });
     if (error) throw new Error(error.message);
+    invalidatePartidosCache();
   },
 
   confirmar: async (partidoId: string): Promise<void> => {
@@ -575,6 +634,7 @@ export const apiPartidos = {
       p_partido_id: partidoId,
     });
     if (error) throw new Error(error.message);
+    invalidatePartidosCache();
   },
 
   rearmar: async (partidoId: string): Promise<void> => {
@@ -586,6 +646,7 @@ export const apiPartidos = {
       p_partido_id: partidoId,
     });
     if (error) throw new Error(error.message);
+    invalidatePartidosCache();
   },
 
   /** Solo admin: carga o actualiza resultado (goles Claros/Oscuros, MVP opcional, comentario). */
@@ -610,6 +671,7 @@ export const apiPartidos = {
       p_comentario: opts.comentario ?? null,
     });
     if (error) throw new Error(error.message);
+    invalidatePartidosCache();
   },
 };
 
@@ -686,13 +748,119 @@ export const api = {
     if (error) throw new Error(error.message);
     if (!data) throw new Error("Jugador no encontrado");
     const row = mapPublicRow(data as JugadorPublicoRow);
-    row.historialLesiones = await fetchMyHistorial(token);
-    const received = await ratingsTo(viewerId);
-    const f5Combined = await buildF5PeerRatingsList(viewerId);
-    const myRated = await fetchMyRatedTargetIds(viewerId);
-    const myRatedF5 = await fetchMyRatedF5PerfilTargetIds(viewerId);
-    const miValCount = await fetchMiValoracionesPerfilOtrosCount(viewerId);
-    return playerPublic(row, received, viewerId, myRated, f5Combined, myRatedF5, miValCount);
+    const [historial, received, f5Combined, myRated, myRatedF5] = await Promise.all([
+      fetchMyHistorial(token),
+      ratingsTo(viewerId),
+      buildF5PeerRatingsList(viewerId),
+      fetchMyRatedTargetIds(viewerId),
+      fetchMyRatedF5PerfilTargetIds(viewerId),
+    ]);
+    row.historialLesiones = historial;
+    return playerPublic(row, received, viewerId, myRated, f5Combined, myRatedF5, myRated.size);
+  },
+
+  /** Solo apodo/admin para el chrome — evita el waterfall de valoraciones. */
+  meChrome: async (): Promise<{ apodo: string; esAdmin: boolean }> => {
+    if (isDemoMode()) {
+      const me = await demoApi.me();
+      return { apodo: me.apodo || me.nombreCompleto, esAdmin: Boolean(me.esAdmin) };
+    }
+    const viewerId = await sessionPlayerId();
+    const sb = getSupabase();
+    const { data, error } = await sb
+      .from("jugadores_publico")
+      .select("apodo,nombre_completo,es_admin")
+      .eq("id", viewerId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error("Jugador no encontrado");
+    const row = data as { apodo?: string; nombre_completo?: string; es_admin?: boolean };
+    return {
+      apodo: String(row.apodo || row.nombre_completo || "").trim() || "Jugador",
+      esAdmin: Boolean(row.es_admin),
+    };
+  },
+
+  /** Campos mínimos para anotar convocatoria (sin scores ni historial). */
+  meForGate: async (): Promise<{
+    id: string;
+    perfilCompletoCargado: boolean;
+    perfilF5Cargado: boolean;
+    miValoracionesPerfilOtros: number;
+  }> => {
+    if (isDemoMode()) {
+      const me = await demoApi.me();
+      return {
+        id: me.id,
+        perfilCompletoCargado: me.perfilCompletoCargado,
+        perfilF5Cargado: me.perfilF5Cargado,
+        miValoracionesPerfilOtros: me.miValoracionesPerfilOtros ?? 0,
+      };
+    }
+    const token = await requireToken();
+    const cacheKey = sessionCacheKey(token);
+    if (playersListCache && playersListCache.key === cacheKey && Date.now() - playersListCache.at < PLAYERS_CACHE_TTL_MS) {
+      const self = playersListCache.data.jugadores.find((p) => p.isSelf);
+      if (self) {
+        return {
+          id: self.id,
+          perfilCompletoCargado: self.perfilCompletoCargado,
+          perfilF5Cargado: self.perfilF5Cargado,
+          miValoracionesPerfilOtros: self.miValoracionesPerfilOtros ?? 0,
+        };
+      }
+    }
+    const viewerId = await sessionPlayerId();
+    const sb = getSupabase();
+    const [rowRes, myRated] = await Promise.all([
+      sb
+        .from("jugadores_publico")
+        .select("perfil_completo_cargado,perfil_f5_cargado")
+        .eq("id", viewerId)
+        .maybeSingle(),
+      fetchMyRatedTargetIds(viewerId),
+    ]);
+    if (rowRes.error) throw new Error(rowRes.error.message);
+    if (!rowRes.data) throw new Error("Jugador no encontrado");
+    const row = rowRes.data as { perfil_completo_cargado?: boolean; perfil_f5_cargado?: boolean };
+    return {
+      id: viewerId,
+      perfilCompletoCargado: row.perfil_completo_cargado !== false,
+      perfilF5Cargado: row.perfil_f5_cargado !== false,
+      miValoracionesPerfilOtros: myRated.size,
+    };
+  },
+
+  /** Solo id+apodo para selects (evita compañeros, etc.). */
+  companerosOptions: async (): Promise<{ id: string; apodo: string }[]> => {
+    if (isDemoMode()) {
+      const pl = await demoApi.players();
+      return pl.jugadores.filter((p) => !p.isSelf).map((p) => ({ id: p.id, apodo: p.apodo }));
+    }
+    const token = await requireToken();
+    const cacheKey = sessionCacheKey(token);
+    if (playersListCache && playersListCache.key === cacheKey && Date.now() - playersListCache.at < PLAYERS_CACHE_TTL_MS) {
+      return playersListCache.data.jugadores.filter((p) => !p.isSelf).map((p) => ({ id: p.id, apodo: p.apodo }));
+    }
+    const viewerId = await sessionPlayerId();
+    const sb = getSupabase();
+    const grupoId = getActiveGrupoId();
+    let q = sb.from("jugadores_publico").select("id,apodo").order("apodo", { ascending: true });
+    if (grupoId) q = q.eq("grupo_id", grupoId);
+    const { data, error } = await q;
+    if (error) {
+      if (String(error.message || "").toLowerCase().includes("grupo_id")) {
+        const fb = await sb.from("jugadores_publico").select("id,apodo").order("apodo", { ascending: true });
+        if (fb.error) throw new Error(fb.error.message);
+        return ((fb.data ?? []) as { id: string; apodo: string }[])
+          .filter((r) => String(r.id) !== viewerId)
+          .map((r) => ({ id: String(r.id), apodo: String(r.apodo) }));
+      }
+      throw new Error(error.message);
+    }
+    return ((data ?? []) as { id: string; apodo: string }[])
+      .filter((r) => String(r.id) !== viewerId)
+      .map((r) => ({ id: String(r.id), apodo: String(r.apodo) }));
   },
 
   players: async (): Promise<PlayersListPayload> => {
@@ -713,11 +881,9 @@ export const api = {
       const viewerId = await sessionPlayerId();
       const sb = getSupabase();
 
-      const [historialSelf, myRated, myRatedF5, miValCount, listRes] = await Promise.all([
-        fetchMyHistorial(token),
+      const [myRated, myRatedF5, listRes] = await Promise.all([
         fetchMyRatedTargetIds(viewerId),
         fetchMyRatedF5PerfilTargetIds(viewerId),
-        fetchMiValoracionesPerfilOtrosCount(viewerId),
         (async () => {
           let q = sb.from("jugadores_publico").select(JUGADORES_PUBLICO).order("apodo", { ascending: true });
           if (grupoId) q = q.eq("grupo_id", grupoId);
@@ -746,10 +912,10 @@ export const api = {
 
       const ids = rows.map((r) => String(r.id));
       const [ratingsMap, f5Map] = await Promise.all([ratingsToMany(ids), buildF5PeerRatingsListMany(ids)]);
+      const miValCount = myRated.size;
 
       const jugadores = rows.map((r) => {
         const p = mapPublicRow(r);
-        if (p.id === viewerId) p.historialLesiones = historialSelf;
         const received = ratingsMap.get(p.id) ?? [];
         const f5Combined = f5Map.get(p.id) ?? [];
         return playerPublic(p, received, viewerId, myRated, f5Combined, myRatedF5, miValCount);

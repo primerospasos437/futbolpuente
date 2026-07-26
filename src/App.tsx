@@ -43,10 +43,10 @@ function Shell() {
     let cancelled = false;
     (async () => {
       try {
-        const me = await api.me();
+        const me = await api.meChrome();
         if (!cancelled) {
           setEsAdminNav(Boolean(me.esAdmin));
-          setApodo(me.apodo || me.nombreCompleto || null);
+          setApodo(me.apodo || null);
         }
       } catch {
         if (!cancelled) {
