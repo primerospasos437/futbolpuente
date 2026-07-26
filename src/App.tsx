@@ -6,6 +6,7 @@ import { BridgeProvider, useBridgeOptional } from "./BridgeContext";
 import {
   canEnterAppShell,
   getActiveGrupoId,
+  getActiveGrupoNombre,
   getSelectedSport,
   markBridgeEntered,
   reopenBridgeLanding,
@@ -31,19 +32,27 @@ function Shell({ children }: { children: React.ReactNode }) {
   const { loggedIn, logout, ready } = useAuth();
   const bridge = useBridgeOptional();
   const [esAdminNav, setEsAdminNav] = useState<boolean | null>(null);
+  const [apodo, setApodo] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ready || !loggedIn) {
       setEsAdminNav(null);
+      setApodo(null);
       return;
     }
     let cancelled = false;
     (async () => {
       try {
         const me = await api.me();
-        if (!cancelled) setEsAdminNav(Boolean(me.esAdmin));
+        if (!cancelled) {
+          setEsAdminNav(Boolean(me.esAdmin));
+          setApodo(me.apodo || me.nombreCompleto || null);
+        }
       } catch {
-        if (!cancelled) setEsAdminNav(false);
+        if (!cancelled) {
+          setEsAdminNav(false);
+          setApodo(null);
+        }
       }
     })();
     return () => {
@@ -61,6 +70,10 @@ function Shell({ children }: { children: React.ReactNode }) {
   if (!loggedIn) return <Navigate to="/" replace />;
   if (!canEnterAppShell()) return <Navigate to="/" replace />;
 
+  const sportLabel = bridge?.selectedSportName ?? "Fútbol";
+  const grupoLabel = bridge?.activeGrupoNombre ?? "Grupo";
+  const userLabel = apodo?.trim() || "Jugador";
+
   return (
     <div className="shell">
       {isDemoMode() ? (
@@ -71,26 +84,47 @@ function Shell({ children }: { children: React.ReactNode }) {
           </span>
         </div>
       ) : null}
-      <header className="topbar">
-        <div className="brand">
-          Fútbol <span>Grupo</span>
-          {bridge?.selectedSportName ? (
-            <span className="muted" style={{ display: "block", fontSize: "0.72rem", fontWeight: 500, marginTop: 2 }}>
-              {bridge.selectedSportName}
-            </span>
-          ) : null}
-        </div>
-        <nav className="tabs" style={{ flex: 1, display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.25rem" }}>
-          {bridge ? (
-            <>
-              <button type="button" className="btn btn-ghost btn-change-sport" onClick={bridge.returnToLanding}>
-                Cambiar deporte
+
+      <div className="app-chrome">
+        <header className="app-global-header">
+          <div className="app-global-identity">
+            <p className="app-global-user">
+              <span className="app-global-apodo">{userLabel}</span>
+              <span className="app-global-sep">·</span>
+              <span className="app-global-sport">{sportLabel}</span>
+            </p>
+            <p className="app-global-grupo">{grupoLabel}</p>
+          </div>
+
+          <div className="app-global-actions">
+            {bridge ? (
+              <div className="app-context-actions" role="group" aria-label="Contexto">
+                <button type="button" className="btn btn-ghost app-ctx-btn" onClick={bridge.returnToLanding}>
+                  Cambiar deporte
+                </button>
+                <button type="button" className="btn btn-ghost app-ctx-btn" onClick={bridge.returnToGroupPicker}>
+                  Cambiar grupo
+                </button>
+              </div>
+            ) : null}
+
+            <nav className="app-account-nav" aria-label="Cuenta">
+              <NavLink to="/perfil" className={({ isActive }) => (isActive ? "active" : "")}>
+                Mis perfiles
+              </NavLink>
+              <NavLink to="/mis-datos" className={({ isActive }) => (isActive ? "active" : "")}>
+                Mis datos
+              </NavLink>
+              <button type="button" className="btn btn-ghost app-logout-btn" onClick={logout}>
+                Salir
               </button>
-              <button type="button" className="btn btn-ghost btn-change-sport" onClick={bridge.returnToGroupPicker}>
-                Cambiar grupo
-              </button>
-            </>
-          ) : null}
+            </nav>
+
+            <NotificationsBell />
+          </div>
+        </header>
+
+        <nav className="app-group-nav" aria-label="Secciones del grupo">
           <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
             Jugadores
           </NavLink>
@@ -100,23 +134,14 @@ function Shell({ children }: { children: React.ReactNode }) {
           <NavLink to="/stats" className={({ isActive }) => (isActive ? "active" : "")}>
             Stats
           </NavLink>
-          <NavLink to="/perfil" className={({ isActive }) => (isActive ? "active" : "")}>
-            Mis perfiles
-          </NavLink>
-          <NavLink to="/mis-datos" className={({ isActive }) => (isActive ? "active" : "")}>
-            Mis datos
-          </NavLink>
           {esAdminNav === true ? (
             <NavLink to="/equipos" className={({ isActive }) => (isActive ? "active" : "")}>
               Equipos
             </NavLink>
           ) : null}
-          <button type="button" className="btn btn-ghost" onClick={logout}>
-            Salir
-          </button>
         </nav>
-        <NotificationsBell />
-      </header>
+      </div>
+
       {children}
     </div>
   );
@@ -220,6 +245,7 @@ function BridgeLayout() {
   const [landingVisible, setLandingVisible] = useState(true);
   const [sportId, setSportId] = useState<string | null>(() => getSelectedSport());
   const [grupoId, setGrupoId] = useState<string | null>(() => getActiveGrupoId());
+  const [grupoNombre, setGrupoNombre] = useState<string | null>(() => getActiveGrupoNombre());
 
   const syncVisibility = useCallback(() => {
     if (!loggedIn) {
@@ -230,6 +256,7 @@ function BridgeLayout() {
     setLandingVisible(!ok);
     setSportId(getSelectedSport());
     setGrupoId(getActiveGrupoId());
+    setGrupoNombre(getActiveGrupoNombre());
   }, [loggedIn]);
 
   useEffect(() => {
@@ -241,12 +268,14 @@ function BridgeLayout() {
     reopenBridgeLanding();
     setSportId(getSelectedSport());
     setGrupoId(getActiveGrupoId());
+    setGrupoNombre(getActiveGrupoNombre());
     setLandingVisible(true);
   }, []);
 
   const returnToGroupPicker = useCallback(() => {
     reopenGroupPicker();
     setGrupoId(null);
+    setGrupoNombre(null);
     setSportId(getSelectedSport());
     setLandingVisible(true);
   }, []);
@@ -255,8 +284,8 @@ function BridgeLayout() {
     setSelectedSport(id);
     setSportId(id);
     setGrupoId(getActiveGrupoId());
+    setGrupoNombre(getActiveGrupoNombre());
     markBridgeEntered();
-    // Solo ocultar landing si ya hay grupo activo
     if (getActiveGrupoId()) {
       setLandingVisible(false);
     } else {
@@ -271,8 +300,9 @@ function BridgeLayout() {
       selectedSportId: sportId,
       selectedSportName: sportNameById(sportId),
       activeGrupoId: grupoId,
+      activeGrupoNombre: grupoNombre,
     }),
-    [returnToLanding, returnToGroupPicker, sportId, grupoId],
+    [returnToLanding, returnToGroupPicker, sportId, grupoId, grupoNombre],
   );
 
   if (!ready) {

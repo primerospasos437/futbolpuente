@@ -7,6 +7,7 @@ export type BridgeContextValue = {
   selectedSportId: string | null;
   selectedSportName: string | null;
   activeGrupoId: string | null;
+  activeGrupoNombre: string | null;
 };
 
 const BridgeCtx = createContext<BridgeContextValue | null>(null);

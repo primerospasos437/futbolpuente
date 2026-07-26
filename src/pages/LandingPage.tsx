@@ -8,6 +8,7 @@ import { loginAsGuestDemo, loginWithSupabase, registerWithSupabase } from "../li
 import {
   getSelectedSport,
   setActiveGrupoId,
+  setActiveGrupoNombre,
   setSelectedSport,
 } from "../lib/bridgeSession";
 import type { GrupoMembership } from "../lib/gruposApi";
@@ -101,6 +102,7 @@ export default function LandingPage({ onEnterBridge }: Props) {
 
   function finishWithGroup(_grupoId: string, _meta: GrupoMembership) {
     setActiveGrupoId(_grupoId);
+    if (_meta?.nombre) setActiveGrupoNombre(_meta.nombre);
     const sport = getSelectedSport() ?? "futbol";
     setSelectedSport(sport);
     onEnterBridge(sport);
@@ -137,6 +139,7 @@ export default function LandingPage({ onEnterBridge }: Props) {
       await refresh();
       setSelectedSport("futbol");
       setActiveGrupoId("demo-grupo");
+      setActiveGrupoNombre("Demo · Fútbol Puente");
       onEnterBridge("futbol");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al entrar en demo");

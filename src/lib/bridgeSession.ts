@@ -1,6 +1,7 @@
 const BRIDGE_ENTERED_KEY = "psb_bridge_entered";
 const BRIDGE_SPORT_KEY = "psb_selected_sport";
 const BRIDGE_GRUPO_KEY = "psb_active_grupo";
+const BRIDGE_GRUPO_NAME_KEY = "psb_active_grupo_nombre";
 
 export function hasBridgeEntered(): boolean {
   try {
@@ -23,6 +24,7 @@ export function clearBridgeEntered(): void {
     sessionStorage.removeItem(BRIDGE_ENTERED_KEY);
     sessionStorage.removeItem(BRIDGE_SPORT_KEY);
     sessionStorage.removeItem(BRIDGE_GRUPO_KEY);
+    sessionStorage.removeItem(BRIDGE_GRUPO_NAME_KEY);
   } catch {
     /* ignore */
   }
@@ -42,6 +44,7 @@ export function reopenGroupPicker(): void {
   try {
     sessionStorage.removeItem(BRIDGE_ENTERED_KEY);
     sessionStorage.removeItem(BRIDGE_GRUPO_KEY);
+    sessionStorage.removeItem(BRIDGE_GRUPO_NAME_KEY);
   } catch {
     /* ignore */
   }
@@ -80,9 +83,27 @@ export function getActiveGrupoId(): string | null {
   }
 }
 
+export function setActiveGrupoNombre(nombre: string): void {
+  try {
+    sessionStorage.setItem(BRIDGE_GRUPO_NAME_KEY, String(nombre ?? "").trim());
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getActiveGrupoNombre(): string | null {
+  try {
+    const v = sessionStorage.getItem(BRIDGE_GRUPO_NAME_KEY);
+    return v && v.trim() ? v.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 export function clearActiveGrupoId(): void {
   try {
     sessionStorage.removeItem(BRIDGE_GRUPO_KEY);
+    sessionStorage.removeItem(BRIDGE_GRUPO_NAME_KEY);
   } catch {
     /* ignore */
   }
