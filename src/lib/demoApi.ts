@@ -239,7 +239,7 @@ export const demoPartidos = {
 export const demoConvocatorias = {
   list: async (): Promise<ConvocatoriaRow[]> => delay([...getDemoState().convocatorias]),
 
-  anotarse: async (dia: "martes" | "jueves", fechaPartido: string): Promise<void> => {
+  anotarse: async (dia: string, fechaPartido: string): Promise<void> => {
     const st = getDemoState();
     if (
       !st.convocatorias.some(
@@ -257,7 +257,7 @@ export const demoConvocatorias = {
     await delay(undefined);
   },
 
-  desanotarse: async (dia: "martes" | "jueves", fechaPartido: string): Promise<void> => {
+  desanotarse: async (dia: string, fechaPartido: string): Promise<void> => {
     const st = getDemoState();
     st.convocatorias = st.convocatorias.filter(
       (c) => !(c.jugador_id === viewerId() && c.dia === dia && c.fecha_partido === fechaPartido),

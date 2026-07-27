@@ -685,7 +685,7 @@ export const apiConvocatorias = {
     return rpcJsonArray<ConvocatoriaRow>(data);
   },
 
-  anotarse: async (dia: "martes" | "jueves", fechaPartido: string): Promise<void> => {
+  anotarse: async (dia: string, fechaPartido: string): Promise<void> => {
     if (isDemoMode()) return demoConvocatorias.anotarse(dia, fechaPartido);
     const token = await requireToken();
     const sb = getSupabase();
@@ -697,7 +697,7 @@ export const apiConvocatorias = {
     if (error) throw new Error(error.message);
   },
 
-  desanotarse: async (dia: "martes" | "jueves", fechaPartido: string): Promise<void> => {
+  desanotarse: async (dia: string, fechaPartido: string): Promise<void> => {
     if (isDemoMode()) return demoConvocatorias.desanotarse(dia, fechaPartido);
     const token = await requireToken();
     const sb = getSupabase();

@@ -205,7 +205,13 @@ export default function LandingPage({ onEnterBridge }: Props) {
 
   return (
     <div className="psb-landing" id="landing-root">
-      <div className="psb-landing-inner">
+      <div
+        className={
+          authView === "perfil" || authView === "grupos"
+            ? "psb-landing-inner psb-landing-inner--wide"
+            : "psb-landing-inner"
+        }
+      >
         <header className="psb-landing-header">
           <div className="psb-logo-wrap">
             {!logoError ? (

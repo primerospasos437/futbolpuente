@@ -24,6 +24,7 @@ import MisDatosPage from "./pages/MisDatosPage";
 import ProximosPartidosPage from "./pages/ProximosPartidosPage";
 import TeamsPage from "./pages/Teams";
 import StatsPage from "./pages/StatsPage";
+import GrupoConfigPage from "./pages/GrupoConfigPage";
 import ValorarF5PartidoPage from "./pages/ValorarF5PartidoPage";
 import NotificationsBell from "./components/NotificationsBell";
 import ThemeToggle from "./components/ThemeToggle";
@@ -139,6 +140,11 @@ function Shell() {
               Equipos
             </NavLink>
           ) : null}
+          {esAdminNav === true ? (
+            <NavLink to="/configuracion" className={({ isActive }) => (isActive ? "active" : "")}>
+              ⚙️ Configuración
+            </NavLink>
+          ) : null}
         </nav>
       </div>
 
@@ -169,6 +175,7 @@ function AppRoutes() {
         <Route path="/perfil" element={<MisPerfilesPage />} />
         <Route path="/mis-datos" element={<MisDatosPage />} />
         <Route path="/equipos" element={<TeamsPage />} />
+        <Route path="/configuracion" element={<GrupoConfigPage />} />
         <Route path="/partido/:partidoId/valorar-f5" element={<ValorarF5PartidoPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

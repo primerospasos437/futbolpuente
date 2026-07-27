@@ -4,6 +4,13 @@ import { api, apiConvocatorias, apiPartidos, type ConvocatoriaRow, type PartidoR
 import { FootballStrip, PageCheer } from "../components/FunDecor";
 import PartidoEquiposView from "../components/PartidoEquiposView";
 import {
+  grupoConfigGet,
+  labelDia,
+  nextMatchIsoForDia,
+  type DiaSemana,
+  type GrupoConfig,
+} from "../lib/grupoConfig";
+import {
   miEquipoEnPartido,
   parseEquipoNombres,
   partidoTieneEquiposPublicados,
@@ -11,42 +18,11 @@ import {
 
 const TZ = "America/Argentina/Buenos_Aires";
 
-function todayIsoInTz(timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
-
-function weekdayLongInTz(timeZone: string, addDays: number): string {
-  const d = new Date(Date.now() + addDays * 86400000);
-  return new Intl.DateTimeFormat("en-US", { timeZone, weekday: "long" }).format(d);
-}
-
-function isoInTzForOffsetDays(timeZone: string, addDays: number): string {
-  const d = new Date(Date.now() + addDays * 86400000);
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(d);
-}
-
-/** Próximo martes o jueves (fecha calendario en Argentina), empezando desde hoy. */
-export function nextMatchIso(dia: "martes" | "jueves"): string {
-  const want = dia === "martes" ? "Tuesday" : "Thursday";
-  for (let i = 0; i < 21; i++) {
-    if (weekdayLongInTz(TZ, i) === want) return isoInTzForOffsetDays(TZ, i);
-  }
-  return todayIsoInTz(TZ);
-}
+type SlotConvocatoria = { dia: string; fecha: string; label: string; tone: "purple" | "blue" | "ok" };
 
 function myConvocatoria(
   list: ConvocatoriaRow[],
-  dia: "martes" | "jueves",
+  dia: string,
   fecha: string,
   jugadorId: string,
 ): ConvocatoriaRow | undefined {
@@ -62,6 +38,37 @@ function formatFechaPartido(fecha: string): string {
     month: "long",
     year: "numeric",
   });
+}
+
+function buildSlots(cfg: GrupoConfig | null): SlotConvocatoria[] {
+  const dias = cfg?.diasPartido?.length ? cfg.diasPartido : (["martes", "jueves"] as DiaSemana[]);
+  const tones: Array<"purple" | "blue" | "ok"> = ["purple", "blue", "ok"];
+  const slots: SlotConvocatoria[] = dias.map((dia, i) => ({
+    dia,
+    fecha: nextMatchIsoForDia(dia, TZ),
+    label: labelDia(dia),
+    tone: tones[i % tones.length],
+  }));
+
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
+  for (const f of cfg?.fechasExtra ?? []) {
+    if (f < today) continue;
+    if (slots.some((s) => s.fecha === f)) continue;
+    slots.push({ dia: "extra", fecha: f, label: "Fecha especial", tone: "ok" });
+  }
+
+  return slots.sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0));
+}
+
+/** @deprecated Prefer nextMatchIsoForDia — se mantiene por compat Teams. */
+export function nextMatchIso(dia: "martes" | "jueves"): string {
+  return nextMatchIsoForDia(dia, TZ);
 }
 
 export default function ProximosPartidosPage() {
@@ -88,21 +95,22 @@ export default function ProximosPartidosPage() {
   const [partidos, setPartidos] = useState<PartidoRow[]>([]);
   const [presencias, setPresencias] = useState<PresenciaRow[]>([]);
   const [bajaPartidoBusy, setBajaPartidoBusy] = useState<string | null>(null);
+  const [grupoCfg, setGrupoCfg] = useState<GrupoConfig | null>(null);
 
-  const fechaMartes = useMemo(() => nextMatchIso("martes"), []);
-  const fechaJueves = useMemo(() => nextMatchIso("jueves"), []);
+  const slots = useMemo(() => buildSlots(grupoCfg), [grupoCfg]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [list, meRes, companerosRes, prt, pres, evitaRes] = await Promise.all([
+        const [list, meRes, companerosRes, prt, pres, evitaRes, cfg] = await Promise.all([
           apiConvocatorias.list(),
           api.meForGate(),
           api.companerosOptions(),
           apiPartidos.list(),
           apiPartidos.listPresencias(),
           api.evitaCompanerosGet().catch(() => [] as { id: string; apodo: string }[]),
+          grupoConfigGet().catch(() => null),
         ]);
         if (cancelled) return;
         setConv(Array.isArray(list) ? list : []);
@@ -110,6 +118,7 @@ export default function ProximosPartidosPage() {
         setPartidos(Array.isArray(prt) ? prt : []);
         setPresencias(Array.isArray(pres) ? pres : []);
         setCompaneros(companerosRes);
+        setGrupoCfg(cfg);
         const ids = evitaRes.map((x) => x.id);
         setEvita1(ids[0] ?? "");
         setEvita2(ids[1] ?? "");
@@ -126,18 +135,22 @@ export default function ProximosPartidosPage() {
 
   const meId = me?.id ?? null;
 
+  const minVal = grupoCfg?.minValoracionesPerfil ?? 4;
+  const exigeF11 = grupoCfg?.exigePerfilCompleto ?? true;
+  const exigeF5 = grupoCfg?.exigePerfilF5 ?? true;
+
   const puedeAnotarseConvocatoria =
     me != null &&
-    me.perfilCompletoCargado &&
-    me.perfilF5Cargado &&
-    (me.miValoracionesPerfilOtros ?? 0) >= 4;
+    (!exigeF11 || me.perfilCompletoCargado) &&
+    (!exigeF5 || me.perfilF5Cargado) &&
+    (me.miValoracionesPerfilOtros ?? 0) >= minVal;
 
   async function refresh() {
     const list = await apiConvocatorias.list();
     setConv(Array.isArray(list) ? list : []);
   }
 
-  async function anotar(dia: "martes" | "jueves", fecha: string) {
+  async function anotar(dia: string, fecha: string) {
     setBusy(`${dia}-${fecha}`);
     setError(null);
     try {
@@ -150,7 +163,7 @@ export default function ProximosPartidosPage() {
     }
   }
 
-  async function baja(dia: "martes" | "jueves", fecha: string) {
+  async function baja(dia: string, fecha: string) {
     setBusy(`${dia}-${fecha}`);
     setError(null);
     try {
@@ -213,7 +226,7 @@ export default function ProximosPartidosPage() {
       const raw = [evita1, evita2].filter((x) => x && x.length > 0);
       const uniq = [...new Set(raw)];
       await api.evitaCompanerosSet(uniq);
-      setEvitaOk("Preferencias guardadas. Se usan al armar equipos (martes y jueves).");
+      setEvitaOk("Preferencias guardadas. Se usan al armar equipos.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     } finally {
@@ -224,8 +237,12 @@ export default function ProximosPartidosPage() {
   if (loading) return <p className="muted">Cargando…</p>;
   if (!meId) return <div className="error">No se pudo cargar tu sesión.</div>;
 
-  const cM = myConvocatoria(conv, "martes", fechaMartes, meId);
-  const cJ = myConvocatoria(conv, "jueves", fechaJueves, meId);
+  const diasLabel = (grupoCfg?.diasPartido ?? ["martes", "jueves"]).map(labelDia).join(" / ");
+  const faltanRequisitos =
+    me != null &&
+    ((exigeF11 && !me.perfilCompletoCargado) ||
+      (exigeF5 && !me.perfilF5Cargado) ||
+      (me.miValoracionesPerfilOtros ?? 0) < minVal);
 
   return (
     <div className="page-shell">
@@ -234,11 +251,21 @@ export default function ProximosPartidosPage() {
       <header className="page-hero">
         <h1>🏟️ Próximos partidos</h1>
         <p className="sub">
-          Anotate para el próximo martes o el próximo jueves. El servidor valida el horario (Argentina): desde ese día a
-          las 22:00 hasta el día de partido a las 20:00. Cuando el administrador confirme equipos, vas a recibir una
-          notificación con fecha, rivales y color de camiseta.
+          Anotate para {diasLabel || "los días del grupo"}.
+          {grupoCfg
+            ? ` Lista: abre ${grupoCfg.anotacionAbreDiasAntes} día(s) antes a las ${grupoCfg.anotacionAbreHora} y cierra el día del partido a las ${grupoCfg.anotacionCierraHora} (hora Argentina).`
+            : " El servidor valida el horario de inscripción."}
+          {grupoCfg?.horaPartidoDefault ? ` Partido habitual: ${grupoCfg.horaPartidoDefault} hs.` : ""}
+          {grupoCfg?.complejoHabitual ? ` Complejo: ${grupoCfg.complejoHabitual}.` : ""}
         </p>
       </header>
+
+      {grupoCfg?.notasLista?.trim() ? (
+        <div className="card card--ok" style={{ marginTop: "0.75rem" }}>
+          <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Consignas del grupo</h2>
+          <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{grupoCfg.notasLista.trim()}</p>
+        </div>
+      ) : null}
 
       {error && <div className="error">{error}</div>}
 
@@ -311,27 +338,27 @@ export default function ProximosPartidosPage() {
         </div>
       ) : null}
 
-      {me && !puedeAnotarseConvocatoria ? (
+      {me && faltanRequisitos ? (
         <div className="card card--warn" style={{ marginTop: "1rem" }}>
           <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Requisitos para anotarte</h2>
           <p className="muted" style={{ marginTop: 0 }}>
-            El servidor solo permite la inscripción cuando completaste tus perfiles y colaboraste valorando a otros.
+            Según la configuración del grupo, necesitás cumplir lo siguiente:
           </p>
           <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.2rem" }}>
-            {!me.perfilCompletoCargado ? (
+            {exigeF11 && !me.perfilCompletoCargado ? (
               <li>
-                Guardá tu <strong>perfil completo</strong> (estrellas 1–5) en «Mis perfiles» → Perfil completo.
+                Guardá tu <strong>perfil completo</strong> en «Mis perfiles».
               </li>
             ) : null}
-            {!me.perfilF5Cargado ? (
+            {exigeF5 && !me.perfilF5Cargado ? (
               <li>
-                Guardá tu perfil <strong>F5</strong> (5 métricas con estrellas) en «Mis perfiles» → F5.
+                Guardá tu perfil <strong>F5</strong> en «Mis perfiles».
               </li>
             ) : null}
-            {(me.miValoracionesPerfilOtros ?? 0) < 4 ? (
+            {(me.miValoracionesPerfilOtros ?? 0) < minVal ? (
               <li>
-                Valorá el perfil completo de al menos <strong>4</strong> compañeros distintos en «Jugadores» (llevás{" "}
-                <strong>{me.miValoracionesPerfilOtros ?? 0}</strong> de 4).
+                Valorá el perfil completo de al menos <strong>{minVal}</strong> compañeros distintos en «Jugadores»
+                (llevás <strong>{me.miValoracionesPerfilOtros ?? 0}</strong> de {minVal}).
               </li>
             ) : null}
           </ul>
@@ -375,75 +402,54 @@ export default function ProximosPartidosPage() {
           marginTop: "1rem",
         }}
       >
-        <div className="card card--purple">
-          <h2 style={{ marginTop: 0 }}>Martes</h2>
-          <p className="muted">Partido: {fechaMartes}</p>
-          {cM ? (
-            <div>
-              <p style={{ fontWeight: 600 }}>Estado: {cM.rol_convocatoria ?? "anotado"}</p>
-              <p className="muted" style={{ fontSize: "0.9rem" }}>
-                Inscripto el {cM.created_at ? new Date(cM.created_at).toLocaleString() : "—"}. Esperando armado de
-                equipos por el administrador.
+        {slots.map((slot) => {
+          const mine = myConvocatoria(conv, slot.dia, slot.fecha, meId);
+          const cardClass =
+            slot.tone === "blue" ? "card card--blue" : slot.tone === "ok" ? "card card--ok" : "card card--purple";
+          const busyKey = `${slot.dia}-${slot.fecha}`;
+          return (
+            <div key={busyKey} className={cardClass}>
+              <h2 style={{ marginTop: 0 }}>{slot.label}</h2>
+              <p className="muted">
+                Partido: {slot.fecha}
+                {grupoCfg?.horaPartidoDefault ? ` · ${grupoCfg.horaPartidoDefault} hs` : ""}
               </p>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                disabled={busy === `martes-${fechaMartes}`}
-                onClick={() => baja("martes", fechaMartes)}
-              >
-                Darme de baja
-              </button>
+              {mine ? (
+                <div>
+                  <p style={{ fontWeight: 600 }}>Estado: {mine.rol_convocatoria ?? "anotado"}</p>
+                  <p className="muted" style={{ fontSize: "0.9rem" }}>
+                    Inscripto el {mine.created_at ? new Date(mine.created_at).toLocaleString() : "—"}. Esperando armado
+                    de equipos por el administrador.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={busy === busyKey}
+                    onClick={() => baja(slot.dia, slot.fecha)}
+                  >
+                    Darme de baja
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={busy === busyKey || !puedeAnotarseConvocatoria}
+                  onClick={() => anotar(slot.dia, slot.fecha)}
+                >
+                  Anotarme
+                </button>
+              )}
             </div>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={busy === `martes-${fechaMartes}` || !puedeAnotarseConvocatoria}
-              onClick={() => anotar("martes", fechaMartes)}
-            >
-              Anotarme
-            </button>
-          )}
-        </div>
-
-        <div className="card card--blue">
-          <h2 style={{ marginTop: 0 }}>Jueves</h2>
-          <p className="muted">Partido: {fechaJueves}</p>
-          {cJ ? (
-            <div>
-              <p style={{ fontWeight: 600 }}>Estado: {cJ.rol_convocatoria ?? "anotado"}</p>
-              <p className="muted" style={{ fontSize: "0.9rem" }}>
-                Inscripto el {cJ.created_at ? new Date(cJ.created_at).toLocaleString() : "—"}. Esperando armado de
-                equipos por el administrador.
-              </p>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                disabled={busy === `jueves-${fechaJueves}`}
-                onClick={() => baja("jueves", fechaJueves)}
-              >
-                Darme de baja
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={busy === `jueves-${fechaJueves}` || !puedeAnotarseConvocatoria}
-              onClick={() => anotar("jueves", fechaJueves)}
-            >
-              Anotarme
-            </button>
-          )}
-        </div>
+          );
+        })}
       </div>
 
       <div className="card card--purple" style={{ marginTop: "1.5rem" }}>
         <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Preferencia personal (privada)</h2>
         <p className="muted" style={{ marginTop: 0 }}>
           Podés elegir hasta <strong>dos</strong> compañeros con los que preferís <strong>no compartir equipo</strong>. Solo
-          vos ves esta elección. Se tiene en cuenta al generar equipos parejos (martes y jueves) para separarlos en
-          equipos distintos cuando sea posible.
+          vos ves esta elección. Se tiene en cuenta al generar equipos parejos para separarlos cuando sea posible.
         </p>
         {evitaOk && (
           <p className="muted" style={{ color: "var(--ok, #2e7d32)", marginTop: 0 }}>

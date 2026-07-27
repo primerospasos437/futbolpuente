@@ -53,17 +53,24 @@ a:hover {
 
 /* —— Shell / chrome —— */
 .shell {
-  max-width: 960px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 1.25rem 1rem 3rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.shell:has(.stats-page) {
-  max-width: 1100px;
+@media (min-width: 1280px) {
+  .shell {
+    max-width: 1280px;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
 }
 
+.shell:has(.stats-page),
 .shell:has(.mis-perfiles-page) {
-  max-width: 1120px;
+  max-width: 1280px;
 }
 
 .topbar {
@@ -424,17 +431,19 @@ h1 {
 }
 
 .mis-perfiles-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
   margin-bottom: 1.15rem;
 }
 
 .mis-perfiles-tabs .btn {
-  flex: 1 1 auto;
-  min-width: min(100%, 9.5rem);
+  width: 100%;
+  min-width: 0;
   justify-content: center;
   text-align: center;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
 }
 
 .mis-perfiles-tab-short {
@@ -442,9 +451,14 @@ h1 {
 }
 
 @media (max-width: 640px) {
+  .mis-perfiles-tabs {
+    grid-template-columns: 1fr;
+  }
+
   .mis-perfiles-tab-full {
     display: none;
   }
+
   .mis-perfiles-tab-short {
     display: inline;
   }
@@ -473,6 +487,90 @@ h1 {
 
 .mis-perfiles-actions .btn-primary {
   min-width: 12rem;
+}
+
+.f5-pickers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+@media (min-width: 800px) {
+  .mis-perfiles-page .profile-section .dim-grid--stars {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 1100px) {
+  .mis-perfiles-page .profile-section .dim-grid--stars {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+/* —— Configuración del grupo —— */
+.shell:has(.grupo-config-page) {
+  max-width: 1280px;
+}
+
+.grupo-config-dias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1rem;
+}
+
+.grupo-config-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+  color: var(--text);
+  margin: 0.25rem 0;
+  cursor: pointer;
+}
+
+.grupo-config-check input {
+  width: auto;
+  margin: 0;
+}
+
+.grupo-config-extras {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.grupo-config-extras li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid rgba(90, 130, 180, 0.28);
+}
+
+.grupo-config-miembros {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.grupo-config-miembros li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid rgba(90, 130, 180, 0.28);
+  background: rgba(0, 0, 0, 0.16);
 }
 
 .home-status-grid {

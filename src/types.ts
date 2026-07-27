@@ -163,7 +163,7 @@ export type PresenciaRow = {
 
 export type ConvocatoriaRow = {
   id: string;
-  dia: "martes" | "jueves";
+  dia: string;
   fecha_partido: string;
   jugador_id: string;
   orden_inscripcion?: number;
