@@ -120,6 +120,15 @@ export default function GrupoConfigPage() {
         </p>
       </header>
 
+      {!cfg.configurado ? (
+        <div className="card card--warn" style={{ marginBottom: "1rem" }}>
+          <p style={{ margin: 0 }}>
+            Este grupo todavía <strong>no está activo para listas</strong>. Guardá al menos una sección (por ejemplo
+            «Días y horarios») para que en «Próximos partidos» aparezcan las fechas y reglas.
+          </p>
+        </div>
+      ) : null}
+
       <div className="tabs mis-perfiles-tabs" role="tablist" aria-label="Secciones de configuración">
         {TABS.map((t) => (
           <button

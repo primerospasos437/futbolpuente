@@ -1,4 +1,4 @@
-import { getToken } from "../api";
+import { getToken, invalidateSessionPlayerCache } from "../api";
 import { sha256Hex } from "./futbolAuth";
 import { getSupabase } from "./supabase";
 import { isDemoMode } from "./demoMode";
@@ -86,6 +86,7 @@ export async function grupoCrear(opts: {
     p_apodo: opts.apodo?.trim() || null,
   });
   if (error) throw new Error(rpcErrorMessage(error));
+  invalidateSessionPlayerCache();
   return parseGrupoResult(data);
 }
 
@@ -110,6 +111,7 @@ export async function grupoUnirse(opts: {
     p_apodo: opts.apodo?.trim() || null,
   });
   if (error) throw new Error(rpcErrorMessage(error));
+  invalidateSessionPlayerCache();
   return parseGrupoResult(data);
 }
 
@@ -122,5 +124,6 @@ export async function grupoEntrar(grupoId: string): Promise<GrupoMembership> {
     p_grupo_id: grupoId,
   });
   if (error) throw new Error(rpcErrorMessage(error));
+  invalidateSessionPlayerCache();
   return parseGrupoResult(data);
 }

@@ -267,6 +267,11 @@ export function invalidatePlayersCache(): void {
   playersListCache = null;
 }
 
+/** Invalidar id de jugador de sesión (p. ej. al crear/entrar a un grupo). */
+export function invalidateSessionPlayerCache(): void {
+  cachedSessionPlayer = null;
+}
+
 type RpcListCache<T> = { key: string; at: number; data: T };
 let partidosListCache: RpcListCache<PartidoRow[]> | null = null;
 let partidosInflight: { key: string; promise: Promise<PartidoRow[]> } | null = null;
@@ -759,25 +764,35 @@ export const api = {
     return playerPublic(row, received, viewerId, myRated, f5Combined, myRatedF5, myRated.size);
   },
 
-  /** Solo apodo/admin para el chrome — evita el waterfall de valoraciones. */
+  /** Solo apodo/admin para el chrome — usa membresía del grupo activo si hay RPC. */
   meChrome: async (): Promise<{ apodo: string; esAdmin: boolean }> => {
     if (isDemoMode()) {
       const me = await demoApi.me();
       return { apodo: me.apodo || me.nombreCompleto, esAdmin: Boolean(me.esAdmin) };
     }
-    const viewerId = await sessionPlayerId();
+    const token = await requireToken();
     const sb = getSupabase();
-    const { data, error } = await sb
+    const { data, error } = await sb.rpc("futbol_me_chrome", { p_token: token });
+    if (!error && data != null) {
+      const o = (typeof data === "string" ? JSON.parse(data) : data) as Record<string, unknown>;
+      return {
+        apodo: String(o.apodo ?? "Jugador").trim() || "Jugador",
+        esAdmin: Boolean(o.esAdmin),
+      };
+    }
+    // Fallback si aún no corrieron la migración 31
+    const viewerId = await sessionPlayerId();
+    const { data: row, error: e2 } = await sb
       .from("jugadores_publico")
       .select("apodo,nombre_completo,es_admin")
       .eq("id", viewerId)
       .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!data) throw new Error("Jugador no encontrado");
-    const row = data as { apodo?: string; nombre_completo?: string; es_admin?: boolean };
+    if (e2) throw new Error(e2.message);
+    if (!row) throw new Error("Jugador no encontrado");
+    const r = row as { apodo?: string; nombre_completo?: string; es_admin?: boolean };
     return {
-      apodo: String(row.apodo || row.nombre_completo || "").trim() || "Jugador",
-      esAdmin: Boolean(row.es_admin),
+      apodo: String(r.apodo || r.nombre_completo || "").trim() || "Jugador",
+      esAdmin: Boolean(r.es_admin),
     };
   },
 

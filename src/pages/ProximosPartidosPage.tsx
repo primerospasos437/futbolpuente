@@ -41,7 +41,9 @@ function formatFechaPartido(fecha: string): string {
 }
 
 function buildSlots(cfg: GrupoConfig | null): SlotConvocatoria[] {
-  const dias = cfg?.diasPartido?.length ? cfg.diasPartido : (["martes", "jueves"] as DiaSemana[]);
+  if (!cfg?.configurado) return [];
+
+  const dias = cfg.diasPartido?.length ? cfg.diasPartido : (["martes", "jueves"] as DiaSemana[]);
   const tones: Array<"purple" | "blue" | "ok"> = ["purple", "blue", "ok"];
   const slots: SlotConvocatoria[] = dias.map((dia, i) => ({
     dia,
@@ -57,7 +59,7 @@ function buildSlots(cfg: GrupoConfig | null): SlotConvocatoria[] {
     day: "2-digit",
   }).format(new Date());
 
-  for (const f of cfg?.fechasExtra ?? []) {
+  for (const f of cfg.fechasExtra ?? []) {
     if (f < today) continue;
     if (slots.some((s) => s.fecha === f)) continue;
     slots.push({ dia: "extra", fecha: f, label: "Fecha especial", tone: "ok" });
@@ -134,12 +136,14 @@ export default function ProximosPartidosPage() {
   }, []);
 
   const meId = me?.id ?? null;
+  const grupoListo = Boolean(grupoCfg?.configurado);
 
   const minVal = grupoCfg?.minValoracionesPerfil ?? 4;
   const exigeF11 = grupoCfg?.exigePerfilCompleto ?? true;
   const exigeF5 = grupoCfg?.exigePerfilF5 ?? true;
 
   const puedeAnotarseConvocatoria =
+    grupoListo &&
     me != null &&
     (!exigeF11 || me.perfilCompletoCargado) &&
     (!exigeF5 || me.perfilF5Cargado) &&
@@ -237,8 +241,9 @@ export default function ProximosPartidosPage() {
   if (loading) return <p className="muted">Cargando…</p>;
   if (!meId) return <div className="error">No se pudo cargar tu sesión.</div>;
 
-  const diasLabel = (grupoCfg?.diasPartido ?? ["martes", "jueves"]).map(labelDia).join(" / ");
+  const diasLabel = (grupoCfg?.diasPartido ?? []).map(labelDia).join(" / ");
   const faltanRequisitos =
+    grupoListo &&
     me != null &&
     ((exigeF11 && !me.perfilCompletoCargado) ||
       (exigeF5 && !me.perfilF5Cargado) ||
@@ -251,16 +256,32 @@ export default function ProximosPartidosPage() {
       <header className="page-hero">
         <h1>🏟️ Próximos partidos</h1>
         <p className="sub">
-          Anotate para {diasLabel || "los días del grupo"}.
-          {grupoCfg
-            ? ` Lista: abre ${grupoCfg.anotacionAbreDiasAntes} día(s) antes a las ${grupoCfg.anotacionAbreHora} y cierra el día del partido a las ${grupoCfg.anotacionCierraHora} (hora Argentina).`
-            : " El servidor valida el horario de inscripción."}
-          {grupoCfg?.horaPartidoDefault ? ` Partido habitual: ${grupoCfg.horaPartidoDefault} hs.` : ""}
-          {grupoCfg?.complejoHabitual ? ` Complejo: ${grupoCfg.complejoHabitual}.` : ""}
+          {grupoListo ? (
+            <>
+              Anotate para {diasLabel || "los días del grupo"}.
+              {grupoCfg
+                ? ` Lista: abre ${grupoCfg.anotacionAbreDiasAntes} día(s) antes a las ${grupoCfg.anotacionAbreHora} y cierra el día del partido a las ${grupoCfg.anotacionCierraHora} (hora Argentina).`
+                : null}
+              {grupoCfg?.horaPartidoDefault ? ` Partido habitual: ${grupoCfg.horaPartidoDefault} hs.` : ""}
+              {grupoCfg?.complejoHabitual ? ` Complejo: ${grupoCfg.complejoHabitual}.` : ""}
+            </>
+          ) : (
+            <>Todavía no hay listas de anotación: el administrador tiene que configurar el grupo primero.</>
+          )}
         </p>
       </header>
 
-      {grupoCfg?.notasLista?.trim() ? (
+      {!grupoListo ? (
+        <div className="card card--warn" style={{ marginTop: "1rem" }}>
+          <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Grupo sin configurar</h2>
+          <p className="muted" style={{ marginTop: 0, marginBottom: 0 }}>
+            Cuando un admin guarde la configuración (días, horarios y reglas) en «⚙️ Configuración», acá van a aparecer
+            las fechas para anotarte. Hasta entonces no hay días ni requisitos de inscripción activos.
+          </p>
+        </div>
+      ) : null}
+
+      {grupoCfg?.notasLista?.trim() && grupoListo ? (
         <div className="card card--ok" style={{ marginTop: "0.75rem" }}>
           <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Consignas del grupo</h2>
           <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{grupoCfg.notasLista.trim()}</p>
@@ -394,6 +415,7 @@ export default function ProximosPartidosPage() {
         </div>
       ) : null}
 
+      {grupoListo && slots.length > 0 ? (
       <div
         style={{
           display: "grid",
@@ -444,6 +466,7 @@ export default function ProximosPartidosPage() {
           );
         })}
       </div>
+      ) : null}
 
       <div className="card card--purple" style={{ marginTop: "1.5rem" }}>
         <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Preferencia personal (privada)</h2>

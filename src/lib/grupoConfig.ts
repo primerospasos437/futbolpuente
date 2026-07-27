@@ -11,6 +11,8 @@ export type GrupoConfig = {
   nombre: string;
   inviteCode: string | null;
   deporte: string;
+  /** False hasta el primer guardado en Configuración del grupo. */
+  configurado: boolean;
   diasPartido: DiaSemana[];
   fechasExtra: string[];
   horaPartidoDefault: string;
@@ -53,6 +55,7 @@ const DEFAULT_CONFIG: GrupoConfig = {
   nombre: "Grupo",
   inviteCode: null,
   deporte: "futbol",
+  configurado: false,
   diasPartido: ["martes", "jueves"],
   fechasExtra: [],
   horaPartidoDefault: "21:30",
@@ -101,6 +104,7 @@ export function mapGrupoConfig(raw: Record<string, unknown>): GrupoConfig {
     nombre: String(raw.nombre ?? ""),
     inviteCode: raw.inviteCode != null ? String(raw.inviteCode) : null,
     deporte: String(raw.deporte ?? "futbol"),
+    configurado: Boolean(raw.configurado),
     diasPartido: dias.length ? dias : [...DEFAULT_CONFIG.diasPartido],
     fechasExtra: asStringArray(raw.fechasExtra ?? raw.fechas_extra),
     horaPartidoDefault: String(raw.horaPartidoDefault ?? "21:30"),

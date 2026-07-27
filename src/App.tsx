@@ -34,6 +34,7 @@ function Shell() {
   const bridge = useBridgeOptional();
   const [esAdminNav, setEsAdminNav] = useState<boolean | null>(null);
   const [apodo, setApodo] = useState<string | null>(null);
+  const activeGrupoId = bridge?.activeGrupoId ?? null;
 
   useEffect(() => {
     if (!ready || !loggedIn) {
@@ -59,7 +60,7 @@ function Shell() {
     return () => {
       cancelled = true;
     };
-  }, [ready, loggedIn]);
+  }, [ready, loggedIn, activeGrupoId]);
 
   if (!ready) {
     return (
