@@ -62,6 +62,10 @@ a:hover {
   max-width: 1100px;
 }
 
+.shell:has(.mis-perfiles-page) {
+  max-width: 1120px;
+}
+
 .topbar {
   display: flex;
   align-items: center;
@@ -398,6 +402,77 @@ h1 {
   .grid2 {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+.grid3 {
+  display: grid;
+  gap: 1rem;
+}
+@media (min-width: 720px) {
+  .grid3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* —— Mis perfiles: layout ancho + tabs —— */
+.mis-perfiles-hint {
+  margin-bottom: 1rem;
+}
+
+.mis-perfiles-scores {
+  margin-bottom: 1rem;
+}
+
+.mis-perfiles-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.15rem;
+}
+
+.mis-perfiles-tabs .btn {
+  flex: 1 1 auto;
+  min-width: min(100%, 9.5rem);
+  justify-content: center;
+  text-align: center;
+}
+
+.mis-perfiles-tab-short {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .mis-perfiles-tab-full {
+    display: none;
+  }
+  .mis-perfiles-tab-short {
+    display: inline;
+  }
+}
+
+.mis-perfiles-ok {
+  margin: 0 0 0.85rem;
+  color: var(--accent, #3dff9a);
+}
+
+.mis-perfiles-panel-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.mis-perfiles-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.35rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(90, 130, 180, 0.22);
+}
+
+.mis-perfiles-actions .btn-primary {
+  min-width: 12rem;
 }
 
 .home-status-grid {
