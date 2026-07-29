@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { api, apiConvocatorias, apiPartidos, type ConvocatoriaRow, type PartidoRow, type PresenciaRow } from "../api";
-import { FootballStrip, PageCheer } from "../components/FunDecor";
+import { Calendar, Shield } from "lucide-react";
 import MatchSpotlightCard, { type SpotlightPlayerExtra } from "../components/MatchSpotlightCard";
 import {
   grupoConfigGet,
@@ -283,10 +283,8 @@ export default function ProximosPartidosPage() {
 
   return (
     <div className="page-shell">
-      <PageCheer quote="Anotate, jugá, y que hablen las stats." icon="🏟️" />
-      <FootballStrip items={["🏟️", "⚽", "🗓️", "👟", "🏆", "🥅"]} />
       <header className="page-hero">
-        <h1>🏟️ Próximos partidos</h1>
+        <h1><Calendar size={22} className="neon-icon" /> Próximos partidos</h1>
         <p className="sub">
           {grupoListo ? (
             <>
@@ -324,7 +322,7 @@ export default function ProximosPartidosPage() {
 
       {partidosConEquipos.length > 0 ? (
         <section style={{ marginTop: "1rem" }}>
-          <h2 className="proximos-section-title">⚽ Partidos con equipos confirmados</h2>
+          <h2 className="proximos-section-title"><Shield size={16} className="neon-icon" /> Partidos con equipos confirmados</h2>
           <p className="muted" style={{ marginTop: 0, marginBottom: "0.85rem" }}>
             Compañeros, rivales, posición y últimos 3 resultados de cada uno.
           </p>

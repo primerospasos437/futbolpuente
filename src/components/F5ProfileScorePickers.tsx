@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   F5_DIMENSION_ORDER,
   F5_HELP,
@@ -15,12 +16,17 @@ export default function F5ProfileScorePickers({
 }: {
   scores: F5ProfileScores;
   onChange: (next: F5ProfileScores) => void;
-  /** Si true, arranca sin estrellas marcadas (valoración a un compañero). */
   allowEmpty?: boolean;
 }) {
   function setDim(k: keyof F5ProfileScores, v: number) {
     onChange({ ...scores, [k]: v });
   }
+
+  const avg = useMemo(() => {
+    const vals = F5_DIMENSION_ORDER.map((k) => scores[k]).filter((v) => v > 0);
+    if (vals.length === 0) return 0;
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  }, [scores]);
 
   return (
     <div className="f5-pickers">
@@ -28,6 +34,12 @@ export default function F5ProfileScorePickers({
         Tocá las estrellas doradas (1–5). Carga ultrarrápida: solo cinco métricas.
         {allowEmpty ? " Ninguna viene marcada: elegí vos cada nota." : null}
       </p>
+
+      <div className="f5-avg-pill" aria-live="polite">
+        <span className="f5-avg-pill__label">Promedio F5</span>
+        <span className="f5-avg-pill__value">{avg > 0 ? avg.toFixed(1) : "—"}</span>
+      </div>
+
       {F5_DIMENSION_ORDER.map((dim, i) => (
         <div key={dim} className={`star-metric-row star-metric-row--tone${(i % 4) + 1}`}>
           <div className="star-metric-head">

@@ -21,7 +21,7 @@ import {
   partidoTieneResultado,
   type PairStat,
 } from "../lib/partidoStats";
-import { FootballStrip, FunSparkles, SoccerBall } from "../components/FunDecor";
+import { Trophy, Activity, Target } from "lucide-react";
 import MatchSpotlightCard from "../components/MatchSpotlightCard";
 import { TEAM_LABEL_CLAROS, TEAM_LABEL_OSCUROS } from "../lib/teamsBalance";
 import type { PlayerSummary } from "../types";
@@ -284,7 +284,6 @@ export default function StatsPage() {
 
   return (
     <div className="stats-page">
-      <FootballStrip items={["📊", "⚽", "🏆", "🔥", "🌙", "☀️"]} />
       <div className="stats-float">
         <div className="stats-float__chrome" aria-hidden>
           <span className="stats-float__dot stats-float__dot--r" />
@@ -295,18 +294,13 @@ export default function StatsPage() {
 
         <header className="stats-hero">
           <div>
-            <div className="stats-hero__decor">
-              <SoccerBall className="fun-ball--md" />
-              <FunSparkles />
-              <SoccerBall className="fun-ball--md fun-ball--flip" />
-            </div>
             <h1 className="stats-hero__title">Fútbol Stats · Temporada {seasonYear}</h1>
-            <p className="stats-hero__sub">⚡ La verdad no miente · Claros vs Oscuros</p>
+            <p className="stats-hero__sub">La verdad no miente · Claros vs Oscuros</p>
             <p className="stats-hero__quote">«No se trata solo de ganar: se trata de hacerlo con estilo.»</p>
           </div>
           <div className="stats-hero__badges">
             <div className="stats-hero__badge stats-hero__badge--purple">
-              🏆 {summary.totalPartidos} partido{summary.totalPartidos === 1 ? "" : "s"}
+              <Trophy size={14} className="neon-icon" /> {summary.totalPartidos} partido{summary.totalPartidos === 1 ? "" : "s"}
             </div>
             <div className="stats-hero__serie" aria-label="Serie de temporada">
               <span className="c">☀️ {TEAM_LABEL_CLAROS}</span> {summary.clarosWins}
@@ -325,7 +319,7 @@ export default function StatsPage() {
 
         <section className="stats-kpis" aria-label="Resumen general">
           <div className="stats-kpi stats-kpi--neutral">
-            <span className="stats-kpi__icon">🏟️</span>
+            <span className="stats-kpi__icon"><Activity size={18} className="neon-icon" /></span>
             <p className="stats-kpi__label">Total partidos</p>
             <p className="stats-kpi__value">{summary.totalPartidos}</p>
           </div>
@@ -378,7 +372,7 @@ export default function StatsPage() {
 
         <section className="stats-panel">
           <h2 className="stats-panel__title">
-            <span>🏆</span> Trofeos Scaloneta
+            <Trophy size={16} className="neon-icon" /> Trofeos Scaloneta
           </h2>
           <p className="stats-panel__hint">
             Votos acumulados de la encuesta post-partido: Messi, Cuti, Julián y Dibu.
@@ -426,7 +420,7 @@ export default function StatsPage() {
         <div className="stats-layout-2">
           <section className="stats-panel">
             <h2 className="stats-panel__title">
-              <span>🏆</span> Ranking de jugadores
+              <Target size={16} className="neon-icon" /> Ranking de jugadores
             </h2>
             {!ranking.length ? (
               <p className="muted" style={{ margin: 0 }}>
@@ -474,7 +468,8 @@ export default function StatsPage() {
             </h2>
             <div className="stats-fun-grid">
               {funCards.map((c) => {
-                const names = [c.value, ...(c.names ?? [])].filter((n) => n && n !== "—");
+                const hasMain = Boolean(c.value && c.value !== "—");
+                const extras = (c.names ?? []).filter((n) => n && n !== "—");
                 return (
                   <div
                     key={c.id}
@@ -482,17 +477,22 @@ export default function StatsPage() {
                   >
                     <span className="stats-fun-tile__icon">{FUN_ICONS[c.id] ?? "⭐"}</span>
                     <p className="stats-fun-tile__label">{c.title}</p>
-                    {names.length ? (
+                    {hasMain ? (
+                      <span className="stats-fun-tile__main-avatar" aria-hidden>
+                        {initials(c.value.split(" (")[0])}
+                      </span>
+                    ) : null}
+                    <p className="stats-fun-tile__value">{c.value}</p>
+                    {c.detail ? <p className="stats-fun-tile__detail">{c.detail}</p> : null}
+                    {extras.length ? (
                       <div className="stats-fun-tile__avatars">
-                        {names.slice(0, 3).map((n) => (
+                        {extras.slice(0, 3).map((n) => (
                           <span key={n} className="stats-fun-tile__avatar" title={n}>
                             {initials(n.split(" (")[0])}
                           </span>
                         ))}
                       </div>
                     ) : null}
-                    <p className="stats-fun-tile__value">{c.value}</p>
-                    {c.detail ? <p className="stats-fun-tile__detail">{c.detail}</p> : null}
                     {c.names?.length ? (
                       <ul className="stats-fun-tile__names">
                         {c.names.map((n) => (

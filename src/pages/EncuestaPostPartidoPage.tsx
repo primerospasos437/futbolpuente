@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiEncuesta } from "../api";
-import { FootballStrip, PageCheer } from "../components/FunDecor";
+import { Trophy } from "lucide-react";
 import {
   ENCUESTA_CATEGORIAS,
   ENCUESTA_META,
@@ -100,10 +100,8 @@ export default function EncuestaPostPartidoPage() {
 
   return (
     <div className="page-shell">
-      <PageCheer quote="Scaloneta awards: votá con onda." icon="🏆" />
-      <FootballStrip items={["🏆", "🐐", "🛡️", "🫁", "🧤", "⚽"]} />
       <header className="page-hero">
-        <h1>🏆 Encuesta post-partido</h1>
+        <h1><Trophy size={22} className="neon-icon" /> Encuesta post-partido</h1>
         <p className="sub">
           {formatFecha(data.fecha)}
           {data.hora ? ` · ${data.hora} hs` : ""} · {data.golesClaros}–{data.golesOscuros}

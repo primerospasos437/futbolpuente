@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { FootballStrip, PageCheer } from "../components/FunDecor";
 import { formatRating } from "../lib/formatRating";
 import ProfileScoreSliders from "../components/ProfileScoreSliders";
 import F5ProfileScorePickers from "../components/F5ProfileScorePickers";
@@ -139,10 +138,8 @@ export default function MisPerfilesPage() {
 
   return (
     <div className="page-shell mis-perfiles-page">
-      <PageCheer quote="Tu ficha, tus estrellas, tu estilo." icon="🌟" />
-      <FootballStrip items={["🌟", "⚽", "🧠", "💨", "❤️", "⭐"]} />
       <header className="page-hero">
-        <h1>🌟 Mis perfiles</h1>
+        <h1>Mis perfiles</h1>
         <p className="sub">
           @{me.apodo}. Completá cada pestaña por separado: datos de ficha, autopercepción F11 y F5. El historial de
           lesiones es privado.

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { api } from "../api";
-import { FootballStrip, PageCheer } from "../components/FunDecor";
 import { setActiveGrupoNombre } from "../lib/bridgeSession";
 import {
   DIAS_SEMANA,
@@ -105,10 +104,8 @@ export default function GrupoConfigPage() {
 
   return (
     <div className="page-shell grupo-config-page">
-      <PageCheer quote="El grupo se arma como ustedes juegan." icon="⚙️" />
-      <FootballStrip items={["⚙️", "🗓️", "👥", "🏟️", "📋"]} />
       <header className="page-hero">
-        <h1>⚙️ Configuración del grupo</h1>
+        <h1>Configuración del grupo</h1>
         <p className="sub">
           Solo admins. Personalizá días, cupos, reglas de inscripción y quién administra.
           {cfg.inviteCode ? (

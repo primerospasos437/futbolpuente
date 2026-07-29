@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
-import { FootballStrip, PageCheer } from "../components/FunDecor";
 import { formatRating } from "../lib/formatRating";
 import F5ProfileScorePickers from "../components/F5ProfileScorePickers";
 import ProfileImprovementSummary from "../components/ProfileImprovementSummary";
@@ -219,8 +218,6 @@ export default function PlayerProfilePage() {
 
   return (
     <div className="page-shell">
-      <PageCheer quote="La ficha del crack: mirá, valorá, mejorá." icon="👤" />
-      <FootballStrip items={["👤", "⭐", "⚽", "📊", "🔥", "🏆"]} />
       <p style={{ marginBottom: "1rem" }}>
         <Link to="/">← Volver al listado</Link>
       </p>

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { api, apiConvocatorias, apiPartidos, isAdminFromPlayersList, type ConvocatoriaRow, type PartidoRow } from "../api";
-import { FootballStrip, PageCheer } from "../components/FunDecor";
 import { formatRating } from "../lib/formatRating";
 import {
   grupoConfigGet,
@@ -328,10 +327,8 @@ export default function TeamsPage() {
 
   return (
     <div className="page-shell">
-      <PageCheer quote="Claros ☀️ · Oscuros 🌙 · que sea parejo." icon="⚖️" />
-      <FootballStrip items={["⚖️", "☀️", "🌙", "⚽", "🧤", "🏆"]} />
       <header className="page-hero">
-        <h1>⚖️ Armar equipos</h1>
+        <h1>Armar equipos</h1>
         <p className="sub">
           Armá el partido <strong>5 vs 5</strong> ({TITULARES_CAMPO} titulares). Podés usar solo los{" "}
           <strong>anotados</strong> o armar una lista <strong>manual</strong> con cualquier jugador registrado. El balanceo

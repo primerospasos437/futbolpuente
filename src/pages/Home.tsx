@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, apiEncuesta, apiPartidos } from "../api";
-import { FootballStrip, PageCheer } from "../components/FunDecor";
+import { Users, Trophy, Check } from "lucide-react";
 import { formatRating } from "../lib/formatRating";
 import type { EncuestaPendiente } from "../lib/encuestaPostPartido";
 import { buildPlayerListSnippets, type PlayerListSnippet } from "../lib/partidoStats";
@@ -17,27 +17,28 @@ const posLabel: Record<string, string> = {
 const ROW_TONES = ["green", "blue", "red", "lilac", "yellow"] as const;
 type RowTone = (typeof ROW_TONES)[number];
 
-function RateBadge({
-  label,
-  done,
-  to,
-}: {
-  label: string;
-  done: boolean;
-  to: string;
-}) {
-  const short = label === "F11" ? "11" : "5";
+function ProfileBadge({ label, done, to }: { label: string; done: boolean; to: string }) {
+  if (done) {
+    return (
+      <Link
+        to={to}
+        className="pb-badge pb-badge--done"
+        title={`${label}: perfil completo`}
+        aria-label={`${label} completo`}
+      >
+        <Check size={11} strokeWidth={3} />
+        {label}
+      </Link>
+    );
+  }
   return (
     <Link
       to={to}
-      className={`rate-ball ${done ? "rate-ball--ok" : "rate-ball--miss"}`}
-      title={done ? `${label}: ya valoraste` : `${label}: tocar para valorar`}
-      aria-label={done ? `${label} valorado` : `Valorar ${label}`}
+      className="pb-badge pb-badge--pending"
+      title={`Falta completar ${label}`}
+      aria-label={`Completar ${label}`}
     >
-      <span className="rate-ball-emoji" aria-hidden>
-        ⚽
-      </span>
-      <span className="rate-ball-num">{short}</span>
+      {label}
     </Link>
   );
 }
@@ -55,90 +56,55 @@ function PlayerRow({
   const hasMatches = pj > 0;
 
   return (
-    <div className={`player-row player-row--tone-${tone}${p.isSelf ? " player-row--self" : ""}`}>
-      <div className="player-row-grid">
-        <div className="pr-col pr-col--id">
+    <div className={`player-card player-card--tone-${tone}${p.isSelf ? " player-card--self" : ""}`}>
+      <div className="player-card-inner">
+        {/* Izquierda: nombre + posición + estado de perfil */}
+        <div className="pc-left">
           <Link to={`/jugador/${p.id}`} className="p-name-link">
             <span className="p-name">
               {p.apodo}
-              {p.isSelf ? (
-                <span className="muted" style={{ marginLeft: 6, fontWeight: 500, fontSize: "0.8em" }}>
-                  (vos)
-                </span>
-              ) : null}
+              {p.isSelf ? <span className="muted pc-self-tag">(vos)</span> : null}
             </span>
           </Link>
+          <span className="pc-pos">{posLabel[p.posicionPreferida] ?? p.posicionPreferida}</span>
           {!p.isSelf ? (
-            <div className="profile-badge-row">
-              <RateBadge
-                label="F11"
-                done={p.ratedByMe}
-                to={`/jugador/${p.id}#perfil-completo-valoracion`}
-              />
-              <RateBadge label="F5" done={p.ratedF5PerfilByMe} to={`/jugador/${p.id}#f5-valoracion`} />
+            <div className="pc-badges">
+              <ProfileBadge label="F11" done={p.ratedByMe} to={`/jugador/${p.id}#perfil-completo-valoracion`} />
+              <ProfileBadge label="F5" done={p.ratedF5PerfilByMe} to={`/jugador/${p.id}#f5-valoracion`} />
             </div>
           ) : (
-            <Link to="/mis-perfiles" className="pr-self-link">
-              Mis perfiles
-            </Link>
+            <Link to="/mis-perfiles" className="pr-self-link">Mis perfiles</Link>
           )}
         </div>
 
-        <div className="pr-col pr-col--pos">
-          <span className="pr-col-label">Posición</span>
-          <span className="pr-pos-badge">{posLabel[p.posicionPreferida] ?? p.posicionPreferida}</span>
-        </div>
-
-        <div className="pr-col pr-col--form">
-          <span className="pr-col-label">Últimos</span>
-          {hasMatches && snippet ? (
-            <div className="pr-form-chips">
-              {snippet.lastChips.map((c, i) => (
+        {/* Centro: últimos 3 (solo G/E/P) */}
+        <div className="pc-form">
+          <span className="pc-form__title">Últimos 3</span>
+          <div className="pc-form__dots">
+            {hasMatches && snippet ? (
+              snippet.lastChips.slice(0, 3).map((c, i) => (
                 <span
-                  key={`${c.letter}-${c.score}-${i}`}
-                  className={`pr-form-chip pr-form-chip--${c.letter.toLowerCase()}`}
-                  title={c.letter === "G" ? "Ganó" : c.letter === "P" ? "Perdió" : "Empató"}
+                  key={`${c.letter}-${i}`}
+                  className={`pc-form-dot pc-form-dot--${c.letter.toLowerCase()}`}
                 >
-                  <strong>{c.letter}</strong>
-                  <span>{c.score}</span>
+                  {c.letter}
                 </span>
-              ))}
-            </div>
-          ) : (
-            <span className="pr-empty muted">Sin partidos</span>
-          )}
+              ))
+            ) : (
+              <span className="muted pc-form-empty">—</span>
+            )}
+          </div>
         </div>
 
-        <div className="pr-col pr-col--record">
-          <span className="pr-col-label">Balance</span>
-          {hasMatches && snippet ? (
-            <div className="pr-record">
-              <span className="pr-record-item pr-record-item--g">
-                <em>{snippet.wins}</em> G
-              </span>
-              <span className="pr-record-item pr-record-item--e">
-                <em>{snippet.draws}</em> E
-              </span>
-              <span className="pr-record-item pr-record-item--p">
-                <em>{snippet.losses}</em> P
-              </span>
-            </div>
-          ) : (
-            <span className="pr-empty muted">—</span>
-          )}
-          {snippet?.frequentMate ? (
-            <span className="pr-mate muted" title={`Jugó ${snippet.frequentMateCount} veces juntos`}>
-              c/ {snippet.frequentMate} ×{snippet.frequentMateCount}
-            </span>
-          ) : null}
-        </div>
-
-        <Link to={`/jugador/${p.id}`} className="pr-col pr-col--scores">
-          <span className="score-pill score-pill--f11" title="Nota final F11">
-            F11 {formatRating(p.finalScore)}
+        {/* Derecha: promedios grandes */}
+        <Link to={`/jugador/${p.id}`} className="pc-scores">
+          <span className="pc-score pc-score--f11">
+            <em>{formatRating(p.finalScore)}</em>
+            <small>F11</small>
           </span>
-          <span className="score-pill score-pill--f5" title="Nota final F5">
-            F5 {formatRating(p.f5FinalScore)}
+          <span className="pc-score pc-score--f5">
+            <em>{formatRating(p.f5FinalScore)}</em>
+            <small>F5</small>
           </span>
         </Link>
       </div>
@@ -210,19 +176,16 @@ export default function HomePage() {
 
   return (
     <div className="page-shell">
-      <PageCheer quote="Calificá con onda: el grupo se mide entre todos." icon="⚽" />
-      <FootballStrip />
       <header className="page-hero">
-        <h1>⚽ Jugadores</h1>
+        <h1><Users size={24} className="neon-icon" /> Jugadores</h1>
         <p className="sub">
-          Tocá las pelotas <strong>11</strong> / <strong>5</strong> para valorar. A la derecha, notas F11 y F5 del
-          grupo. En el medio: posición, últimos resultados y balance.
+          Las insignias verdes <strong>F11</strong> / <strong>F5</strong> indican que ya valoraste a ese jugador. Tocalas para valorar.
         </p>
       </header>
 
       {encuestaPendientes.length > 0 ? (
         <div className="card card--purple home-alert encuesta-banner" style={{ marginBottom: "1rem" }}>
-          <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>🏆 Votación pendiente</h2>
+          <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}><Trophy size={16} className="neon-icon" /> Votación pendiente</h2>
           <p className="muted" style={{ marginTop: 0 }}>
             El partido ya tiene resultado. Elegí al Messi, Cuti, Julián y Dibu del encuentro.
           </p>

@@ -28,8 +28,9 @@ import GrupoConfigPage from "./pages/GrupoConfigPage";
 import ValorarF5PartidoPage from "./pages/ValorarF5PartidoPage";
 import EncuestaPostPartidoPage from "./pages/EncuestaPostPartidoPage";
 import NotificationsBell from "./components/NotificationsBell";
-import { PageSideDecor } from "./components/FunDecor";
 import ThemeToggle from "./components/ThemeToggle";
+import { SideFieldDecor } from "./components/FunDecor";
+import { Users, Calendar, BarChart3, Scale, Settings } from "lucide-react";
 
 function Shell() {
   const { loggedIn, logout, ready } = useAuth();
@@ -80,7 +81,7 @@ function Shell() {
 
   return (
     <div className="shell">
-      <PageSideDecor />
+      <SideFieldDecor />
       {isDemoMode() ? (
         <div className="demo-banner">
           <strong>Modo demostración</strong>
@@ -131,22 +132,22 @@ function Shell() {
 
         <nav className="app-group-nav" aria-label="Secciones del grupo">
           <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : "")}>
-            Jugadores
+            <Users size={15} className="neon-icon" /> Jugadores
           </NavLink>
           <NavLink to="/proximos-partidos" className={({ isActive }) => (isActive ? "active" : "")}>
-            Próximos partidos
+            <Calendar size={15} className="neon-icon" /> Próximos partidos
           </NavLink>
           <NavLink to="/stats" className={({ isActive }) => (isActive ? "active" : "")}>
-            Stats
+            <BarChart3 size={15} className="neon-icon" /> Stats
           </NavLink>
           {esAdminNav === true ? (
             <NavLink to="/equipos" className={({ isActive }) => (isActive ? "active" : "")}>
-              Equipos
+              <Scale size={15} className="neon-icon" /> Equipos
             </NavLink>
           ) : null}
           {esAdminNav === true ? (
             <NavLink to="/configuracion" className={({ isActive }) => (isActive ? "active" : "")}>
-              ⚙️ Configuración
+              <Settings size={15} className="neon-icon" /> Configuración
             </NavLink>
           ) : null}
         </nav>

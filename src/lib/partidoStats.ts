@@ -104,6 +104,11 @@ export type ConclusionItem = {
   text: string;
 };
 
+/** Resuelve el apodo real de un jugador; nunca expone el UUID crudo en la UI. */
+function resolveApodo(id: string, apodoById: Map<string, string>): string {
+  return apodoById.get(id) ?? "Ex-jugador";
+}
+
 export function classifyDifficulty(gc: number, go: number): MatchDifficulty {
   const diff = Math.abs(gc - go);
   if (diff <= 1) return "parejo";
@@ -188,7 +193,7 @@ export function lineupForMatch(
     return fromPres.map((pr) => ({
       id: pr.jugador_id,
       equipo: pr.equipo,
-      apodo: apodoById.get(pr.jugador_id) ?? pr.jugador_id.slice(0, 6),
+      apodo: resolveApodo(pr.jugador_id, apodoById),
     }));
   }
   return [
@@ -330,7 +335,7 @@ export function buildFunStats(
     title: "MVP histórico",
     value: mvpTop ? (apodoById.get(mvpTop[0]) ?? "—") : "—",
     detail: mvpTop ? `${mvpTop[1]} vez${mvpTop[1] === 1 ? "" : "es"}` : "Sin MVPs cargados",
-    names: mvpSorted.slice(1, 4).map(([id, n]) => `${apodoById.get(id) ?? id.slice(0, 6)} (${n})`),
+    names: mvpSorted.slice(1, 4).map(([id, n]) => `${resolveApodo(id, apodoById)} (${n})`),
     tone: "gold",
   });
 
@@ -463,8 +468,8 @@ export function buildPairStats(
   const all: PairStat[] = [...pairs.values()].map((a) => ({
     aId: a.aId,
     bId: a.bId,
-    aApodo: apodoById.get(a.aId) ?? a.aId.slice(0, 6),
-    bApodo: apodoById.get(a.bId) ?? a.bId.slice(0, 6),
+    aApodo: resolveApodo(a.aId, apodoById),
+    bApodo: resolveApodo(a.bId, apodoById),
     pj: a.pj,
     g: a.g,
     p: a.p,
@@ -834,7 +839,7 @@ export function buildRivalNemesis(
 
     rows.push({
       jugadorId: id,
-      apodo: apodoById.get(id) ?? id.slice(0, 6),
+      apodo: resolveApodo(id, apodoById),
       rivalId,
       rivalApodo: rivalId ? apodoById.get(rivalId) ?? null : null,
       winsVs,
@@ -995,7 +1000,7 @@ export function buildPlayerListSnippets(
     }
     if (bestId && bestN >= 3) {
       const sn = ensure(id);
-      sn.frequentMate = apodoById.get(bestId) ?? bestId.slice(0, 6);
+      sn.frequentMate = resolveApodo(bestId, apodoById);
       sn.frequentMateCount = bestN;
     }
   }

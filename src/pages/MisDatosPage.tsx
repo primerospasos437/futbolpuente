@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../AuthContext";
-import { FootballStrip, PageCheer } from "../components/FunDecor";
 import type { MisDatosPrivados } from "../types";
 
 function normEmail(s: string): string {
@@ -120,10 +119,8 @@ export default function MisDatosPage() {
 
   return (
     <div className="page-shell">
-      <PageCheer quote="Datos privados, vibes públicas." icon="🔐" />
-      <FootballStrip items={["🔐", "⚽", "📧", "📱", "🏆", "⭐"]} />
       <header className="page-hero">
-        <h1>🔐 Mis datos</h1>
+        <h1>Mis datos</h1>
         <p className="sub">
           Datos privados de tu cuenta. El apodo es el que usás para entrar. Si cambiás el correo, necesitás tu PIN actual.
         </p>
