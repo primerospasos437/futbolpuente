@@ -245,22 +245,35 @@ export default function LandingGroupWizard({ onGroupReady }: Props) {
 
       {hasGrupos ? (
         <ul className="psb-group-list">
-          {grupos.map((g) => (
-            <li key={g.grupoId}>
-              <button
-                type="button"
-                className="psb-group-card"
-                disabled={busy}
-                onClick={() => void onEnterExisting(g)}
-              >
-                <span className="psb-group-card-name">{g.nombre}</span>
-                <span className="psb-group-card-meta">
-                  {g.deporte}
-                  {g.esAdmin ? " · Admin" : " · Miembro"}
-                </span>
-              </button>
-            </li>
-          ))}
+          {grupos.map((g) => {
+            const unread = g.unreadCount ?? 0;
+            return (
+              <li key={g.grupoId}>
+                <button
+                  type="button"
+                  className={`psb-group-card${unread > 0 ? " psb-group-card--alert" : ""}`}
+                  disabled={busy}
+                  onClick={() => void onEnterExisting(g)}
+                >
+                  <span className="psb-group-card-top">
+                    <span className="psb-group-card-name">{g.nombre}</span>
+                    {unread > 0 ? (
+                      <span className="psb-group-badge" aria-label={`${unread} avisos`}>
+                        {unread > 9 ? "9+" : unread}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="psb-group-card-meta">
+                    {g.deporte}
+                    {g.esAdmin ? " · Admin" : " · Miembro"}
+                  </span>
+                  {unread > 0 && g.unreadPreview ? (
+                    <span className="psb-group-card-aviso">{g.unreadPreview}</span>
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
 

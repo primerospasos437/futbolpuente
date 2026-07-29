@@ -12,14 +12,18 @@ const SECTION_ICON: Record<string, string> = {
 export default function ProfileScoreSliders({
   scores,
   onChange,
+  allowEmpty = false,
 }: {
   scores: ProfileScores;
   onChange: (next: ProfileScores) => void;
+  /** Si true, arranca sin estrellas marcadas (valoración a un compañero). */
+  allowEmpty?: boolean;
 }) {
   return (
     <>
       <p className="muted profile-score-intro">
         Tocá las estrellas doradas (1–5) en cada ítem. Cada bloque tiene su color para ubicarte más fácil.
+        {allowEmpty ? " Ninguna viene marcada: elegí vos cada nota." : null}
       </p>
       {DIMENSION_SECTIONS.map((sec) => (
         <section key={sec.id} className={`profile-section profile-section--${sec.id}`}>
@@ -36,6 +40,7 @@ export default function ProfileScoreSliders({
                 <label className="star-metric-title">{DIMENSION_LABELS[key]}</label>
                 <StarRating
                   value={scores[key]}
+                  min={allowEmpty ? 0 : 1}
                   onChange={(v) =>
                     onChange({
                       ...scores,

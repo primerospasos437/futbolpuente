@@ -12,6 +12,10 @@ export type GrupoMembership = {
   jugadorId: string;
   joinedAt?: string;
   inviteCode?: string | null;
+  /** Notificaciones no leídas de esta ficha en el grupo. */
+  unreadCount?: number;
+  /** Título del aviso más reciente sin leer. */
+  unreadPreview?: string | null;
 };
 
 function requireToken(): string {
@@ -34,6 +38,11 @@ function mapGrupo(raw: Record<string, unknown>): GrupoMembership {
     jugadorId: String(raw.jugadorId ?? raw.jugadorid ?? ""),
     joinedAt: raw.joinedAt != null ? String(raw.joinedAt) : undefined,
     inviteCode: raw.inviteCode != null ? String(raw.inviteCode) : null,
+    unreadCount: Number(raw.unreadCount ?? raw.unreadcount ?? 0) || 0,
+    unreadPreview:
+      raw.unreadPreview != null || raw.unreadpreview != null
+        ? String(raw.unreadPreview ?? raw.unreadpreview)
+        : null,
   };
 }
 

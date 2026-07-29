@@ -55,6 +55,9 @@ export default function NotificationsBell() {
       if (n.tipo === "f5_valorar_partido") {
         return `/partido/${partidoId}/valorar-f5`;
       }
+      if (n.tipo === "encuesta_post_partido") {
+        return `/partido/${partidoId}/encuesta`;
+      }
     }
     if (n.tipo === "convocatoria_rol_actualizado") {
       return "/proximos-partidos";

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api, apiPartidos } from "../api";
 import F5ProfileScorePickers from "../components/F5ProfileScorePickers";
-import { defaultF5Scores } from "../dimensions-f5";
+import { defaultF5ScoresZeros, F5_DIMENSION_ORDER } from "../dimensions-f5";
 import { getSupabase } from "../lib/supabase";
 import type { F5ProfileScores } from "../types";
 
@@ -17,7 +17,7 @@ export default function ValorarF5PartidoPage() {
   const [meId, setMeId] = useState<string | null>(null);
   const [companeros, setCompaneros] = useState<{ id: string; apodo: string }[]>([]);
   const [targetId, setTargetId] = useState(paraId);
-  const [scores, setScores] = useState<F5ProfileScores>(defaultF5Scores());
+  const [scores, setScores] = useState<F5ProfileScores>(defaultF5ScoresZeros());
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -58,6 +58,11 @@ export default function ValorarF5PartidoPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!partidoId || !targetId || !meId) return;
+    const incomplete = F5_DIMENSION_ORDER.some((k) => !scores[k] || scores[k] < 1);
+    if (incomplete) {
+      setMsg("Marcá las estrellas en cada métrica (nada debe quedar vacío).");
+      return;
+    }
     setBusy(true);
     setMsg(null);
     try {
@@ -79,7 +84,7 @@ export default function ValorarF5PartidoPage() {
         <Link to="/">← Volver</Link>
       </p>
       <h1>Valorar F5 · partido</h1>
-      <p className="sub">Elegí al compañero que jugó esa noche y cargá las 12 dimensiones (1 a 5).</p>
+      <p className="sub">Elegí al compañero que jugó esa noche y cargá las 5 métricas (1 a 5). Las estrellas empiezan vacías.</p>
 
       {msg && <p className={msg === "Guardado." ? "muted" : "error"}>{msg}</p>}
 
@@ -106,7 +111,7 @@ export default function ValorarF5PartidoPage() {
       {targetId && target ? (
         <form className="card" onSubmit={submit}>
           <h2 style={{ marginTop: 0 }}>{target.apodo}</h2>
-          <F5ProfileScorePickers scores={scores} onChange={setScores} />
+          <F5ProfileScorePickers scores={scores} onChange={setScores} allowEmpty />
           <button type="submit" className="btn btn-primary" style={{ marginTop: "1rem" }} disabled={busy}>
             {busy ? "Guardando…" : "Guardar valoración F5"}
           </button>

@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Navigate, useParams } from "react-router-dom";
 import { api, apiConvocatorias, apiPartidos, type ConvocatoriaRow, type PartidoRow, type PresenciaRow } from "../api";
 import { FootballStrip, PageCheer } from "../components/FunDecor";
-import PartidoEquiposView from "../components/PartidoEquiposView";
+import MatchSpotlightCard, { type SpotlightPlayerExtra } from "../components/MatchSpotlightCard";
 import {
   grupoConfigGet,
   labelDia,
   nextMatchIsoForDia,
-  type DiaSemana,
+  fechaCoincideConCalendarioGrupo,
   type GrupoConfig,
 } from "../lib/grupoConfig";
 import {
@@ -15,8 +15,17 @@ import {
   parseEquipoNombres,
   partidoTieneEquiposPublicados,
 } from "../lib/partidoEquipos";
+import { buildPlayerListSnippets } from "../lib/partidoStats";
+import type { PlayerSummary } from "../types";
 
 const TZ = "America/Argentina/Buenos_Aires";
+
+const POS_LABEL: Record<string, string> = {
+  portero: "POR",
+  defensa: "DEF",
+  medio: "MED",
+  delantero: "DEL",
+};
 
 type SlotConvocatoria = { dia: string; fecha: string; label: string; tone: "purple" | "blue" | "ok" };
 
@@ -43,7 +52,8 @@ function formatFechaPartido(fecha: string): string {
 function buildSlots(cfg: GrupoConfig | null): SlotConvocatoria[] {
   if (!cfg?.configurado) return [];
 
-  const dias = cfg.diasPartido?.length ? cfg.diasPartido : (["martes", "jueves"] as DiaSemana[]);
+  const dias = cfg.diasPartido ?? [];
+  if (dias.length === 0 && !(cfg.fechasExtra?.length)) return [];
   const tones: Array<"purple" | "blue" | "ok"> = ["purple", "blue", "ok"];
   const slots: SlotConvocatoria[] = dias.map((dia, i) => ({
     dia,
@@ -75,7 +85,6 @@ export function nextMatchIso(dia: "martes" | "jueves"): string {
 
 export default function ProximosPartidosPage() {
   const { partidoId: partidoIdParam } = useParams<{ partidoId?: string }>();
-  const detalleRef = useRef<HTMLDivElement>(null);
 
   const [conv, setConv] = useState<ConvocatoriaRow[]>([]);
   const [me, setMe] = useState<{
@@ -89,6 +98,7 @@ export default function ProximosPartidosPage() {
   const [busy, setBusy] = useState<string | null>(null);
 
   const [companeros, setCompaneros] = useState<{ id: string; apodo: string }[]>([]);
+  const [players, setPlayers] = useState<PlayerSummary[]>([]);
   const [evita1, setEvita1] = useState("");
   const [evita2, setEvita2] = useState("");
   const [evitaBusy, setEvitaBusy] = useState(false);
@@ -105,10 +115,11 @@ export default function ProximosPartidosPage() {
     let cancelled = false;
     (async () => {
       try {
-        const [list, meRes, companerosRes, prt, pres, evitaRes, cfg] = await Promise.all([
+        const [list, meRes, companerosRes, playersRes, prt, pres, evitaRes, cfg] = await Promise.all([
           apiConvocatorias.list(),
           api.meForGate(),
           api.companerosOptions(),
+          api.players().catch(() => ({ jugadores: [] as PlayerSummary[] })),
           apiPartidos.list(),
           apiPartidos.listPresencias(),
           api.evitaCompanerosGet().catch(() => [] as { id: string; apodo: string }[]),
@@ -120,6 +131,7 @@ export default function ProximosPartidosPage() {
         setPartidos(Array.isArray(prt) ? prt : []);
         setPresencias(Array.isArray(pres) ? pres : []);
         setCompaneros(companerosRes);
+        setPlayers(playersRes.jugadores ?? []);
         setGrupoCfg(cfg);
         const ids = evitaRes.map((x) => x.id);
         setEvita1(ids[0] ?? "");
@@ -184,8 +196,14 @@ export default function ProximosPartidosPage() {
     () =>
       partidos
         .filter(partidoTieneEquiposPublicados)
-        .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0)),
-    [partidos],
+        .filter((p) => fechaCoincideConCalendarioGrupo(p.fecha, grupoCfg, TZ))
+        .sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0)),
+    [partidos, grupoCfg],
+  );
+
+  const fechasConEquiposConfirmados = useMemo(
+    () => new Set(partidosConEquipos.map((p) => p.fecha)),
+    [partidosConEquipos],
   );
 
   const misPartidosTitularConfirmados = useMemo(() => {
@@ -195,17 +213,27 @@ export default function ProximosPartidosPage() {
     return partidosConEquipos.filter((p) => map.has(p.id)).map((p) => ({ partido: p, presencia: map.get(p.id)! }));
   }, [meId, partidosConEquipos, presencias]);
 
-  const partidoDetalle = useMemo(() => {
-    if (!partidoIdParam) return null;
-    return partidos.find((p) => p.id === partidoIdParam) ?? null;
-  }, [partidoIdParam, partidos]);
+  const titularPartidoIds = useMemo(
+    () => new Set(misPartidosTitularConfirmados.map(({ partido }) => partido.id)),
+    [misPartidosTitularConfirmados],
+  );
 
-  const partidoDetallePublicado = partidoDetalle && partidoTieneEquiposPublicados(partidoDetalle);
-
-  useEffect(() => {
-    if (!partidoIdParam || !partidoDetallePublicado) return;
-    detalleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [partidoIdParam, partidoDetallePublicado]);
+  const playerExtras = useMemo(() => {
+    const apodoById = new Map(players.map((p) => [p.id, p.apodo]));
+    const snippets = buildPlayerListSnippets(partidos, presencias, apodoById);
+    const out: Record<string, SpotlightPlayerExtra> = {};
+    for (const p of players) {
+      const sn = snippets.get(p.id);
+      out[p.id] = {
+        posicionLabel: POS_LABEL[p.posicionPreferida] ?? p.posicionPreferida?.slice(0, 3).toUpperCase(),
+        lastResults: (sn?.lastChips ?? []).slice(0, 3).map((c) => ({
+          letter: c.letter,
+          score: c.score,
+        })),
+      };
+    }
+    return out;
+  }, [players, partidos, presencias]);
 
   async function bajaTitularPartidoConfirmado(partidoId: string) {
     setBajaPartidoBusy(partidoId);
@@ -236,6 +264,10 @@ export default function ProximosPartidosPage() {
     } finally {
       setEvitaBusy(false);
     }
+  }
+
+  if (partidoIdParam) {
+    return <Navigate to="/proximos-partidos" replace />;
   }
 
   if (loading) return <p className="muted">Cargando…</p>;
@@ -290,73 +322,45 @@ export default function ProximosPartidosPage() {
 
       {error && <div className="error">{error}</div>}
 
-      {partidoIdParam ? (
-        <div ref={detalleRef} className="card card--glow" style={{ marginTop: "1rem" }}>
-          <Link to="/proximos-partidos" className="muted" style={{ fontSize: "0.9rem", textDecoration: "none" }}>
-            ← Volver a próximos partidos
-          </Link>
-          {!partidoDetalle ? (
-            <p className="error" style={{ marginTop: "1rem", marginBottom: 0 }}>
-              No encontramos ese partido.
-            </p>
-          ) : !partidoDetallePublicado ? (
-            <p className="muted" style={{ marginTop: "1rem", marginBottom: 0 }}>
-              Este partido aún no tiene equipos publicados. Cuando el administrador confirme, vas a poder ver compañeros
-              y rivales en esta pantalla.
-            </p>
-          ) : (
-            <>
-              <h2 style={{ marginTop: "0.75rem", marginBottom: "0.25rem" }}>
-                {formatFechaPartido(partidoDetalle.fecha)}
-                {partidoDetalle.hora_partido ? ` · ${partidoDetalle.hora_partido} hs` : ""}
-              </h2>
-              <p className="muted" style={{ marginTop: 0 }}>
-                Equipos confirmados. Solo se muestran los nombres de los jugadores.
-              </p>
-              {partidoDetalle.texto_equipamiento?.trim() ? (
-                <p style={{ marginTop: "0.75rem", marginBottom: 0, fontSize: "0.95rem" }}>
-                  <strong>Observación:</strong> {partidoDetalle.texto_equipamiento.trim()}
-                </p>
-              ) : null}
-              <PartidoEquiposView
-                claros={parseEquipoNombres(partidoDetalle.equipo_claros)}
-                oscuros={parseEquipoNombres(partidoDetalle.equipo_oscuros)}
-                miEquipo={miEquipoEnPartido(partidoDetalle.id, meId, presencias)}
-              />
-              {misPartidosTitularConfirmados.some(({ partido }) => partido.id === partidoDetalle.id) ? (
-                <div style={{ marginTop: "1rem" }}>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    disabled={bajaPartidoBusy === partidoDetalle.id}
-                    onClick={() => void bajaTitularPartidoConfirmado(partidoDetalle.id)}
-                  >
-                    {bajaPartidoBusy === partidoDetalle.id ? "Procesando…" : "Darme de baja como titular"}
-                  </button>
-                </div>
-              ) : null}
-            </>
-          )}
-        </div>
-      ) : null}
-
-      {!partidoIdParam && partidosConEquipos.length > 0 ? (
-        <div className="card card--ok" style={{ marginTop: "1rem" }}>
-          <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Partidos con equipos confirmados</h2>
-          <p className="muted" style={{ marginTop: 0 }}>
-            Tocá un partido para ver quién juega en CLAROS y OSCUROS (solo nombres).
+      {partidosConEquipos.length > 0 ? (
+        <section style={{ marginTop: "1rem" }}>
+          <h2 className="proximos-section-title">⚽ Partidos con equipos confirmados</h2>
+          <p className="muted" style={{ marginTop: 0, marginBottom: "0.85rem" }}>
+            Compañeros, rivales, posición y últimos 3 resultados de cada uno.
           </p>
-          <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
-            {partidosConEquipos.map((p) => (
-              <li key={p.id} style={{ marginBottom: "0.4rem" }}>
-                <Link to={`/proximos-partidos/${p.id}`}>
-                  {formatFechaPartido(p.fecha)}
-                  {p.hora_partido ? ` · ${p.hora_partido} hs` : ""}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
+          <div className="proximos-spotlight-grid">
+            {partidosConEquipos.map((p) => {
+              const soyTitular = titularPartidoIds.has(p.id);
+              return (
+                <MatchSpotlightCard
+                  key={p.id}
+                  title="Próximo partido"
+                  fecha={p.fecha}
+                  hora={p.hora_partido}
+                  claros={parseEquipoNombres(p.equipo_claros)}
+                  oscuros={parseEquipoNombres(p.equipo_oscuros)}
+                  golesClaros={p.goles_claros}
+                  golesOscuros={p.goles_oscuros}
+                  miEquipo={meId ? miEquipoEnPartido(p.id, meId, presencias) : null}
+                  showScore={p.goles_claros != null && p.goles_oscuros != null}
+                  playerExtras={playerExtras}
+                  footer={
+                    soyTitular ? (
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        disabled={bajaPartidoBusy === p.id}
+                        onClick={() => void bajaTitularPartidoConfirmado(p.id)}
+                      >
+                        {bajaPartidoBusy === p.id ? "Procesando…" : "Darme de baja como titular"}
+                      </button>
+                    ) : null
+                  }
+                />
+              );
+            })}
+          </div>
+        </section>
       ) : null}
 
       {me && faltanRequisitos ? (
@@ -378,7 +382,7 @@ export default function ProximosPartidosPage() {
             ) : null}
             {(me.miValoracionesPerfilOtros ?? 0) < minVal ? (
               <li>
-                Valorá el perfil completo de al menos <strong>{minVal}</strong> compañeros distintos en «Jugadores»
+                Valorá (perfil completo o F5) al menos <strong>{minVal}</strong> compañeros distintos en «Jugadores»
                 (llevás <strong>{me.miValoracionesPerfilOtros ?? 0}</strong> de {minVal}).
               </li>
             ) : null}
@@ -386,86 +390,79 @@ export default function ProximosPartidosPage() {
         </div>
       ) : null}
 
-      {misPartidosTitularConfirmados.length > 0 ? (
-        <div className="card card--blue" style={{ marginTop: "1rem" }}>
-          <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Partidos confirmados (titular)</h2>
-          <p className="muted" style={{ marginTop: 0 }}>
-            Si no podés ir, avisá con tiempo. Si hay suplentes, sube el primero de la lista y recibe notificación.
-          </p>
-          <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
-            {misPartidosTitularConfirmados.map(({ partido: p }) => (
-              <li key={p.id} style={{ marginBottom: "0.65rem" }}>
-                <Link to={`/proximos-partidos/${p.id}`}>
-                  <strong>{formatFechaPartido(p.fecha)}</strong>
-                  {p.hora_partido ? ` · ${p.hora_partido} hs` : ""}
-                </Link>
-                <div style={{ marginTop: "0.35rem" }}>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    disabled={bajaPartidoBusy === p.id}
-                    onClick={() => void bajaTitularPartidoConfirmado(p.id)}
-                  >
-                    {bajaPartidoBusy === p.id ? "Procesando…" : "Darme de baja como titular"}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
       {grupoListo && slots.length > 0 ? (
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: "1rem",
-          marginTop: "1rem",
-        }}
-      >
-        {slots.map((slot) => {
-          const mine = myConvocatoria(conv, slot.dia, slot.fecha, meId);
-          const cardClass =
-            slot.tone === "blue" ? "card card--blue" : slot.tone === "ok" ? "card card--ok" : "card card--purple";
-          const busyKey = `${slot.dia}-${slot.fecha}`;
-          return (
-            <div key={busyKey} className={cardClass}>
-              <h2 style={{ marginTop: 0 }}>{slot.label}</h2>
-              <p className="muted">
-                Partido: {slot.fecha}
-                {grupoCfg?.horaPartidoDefault ? ` · ${grupoCfg.horaPartidoDefault} hs` : ""}
-              </p>
-              {mine ? (
-                <div>
-                  <p style={{ fontWeight: 600 }}>Estado: {mine.rol_convocatoria ?? "anotado"}</p>
-                  <p className="muted" style={{ fontSize: "0.9rem" }}>
-                    Inscripto el {mine.created_at ? new Date(mine.created_at).toLocaleString() : "—"}. Esperando armado
-                    de equipos por el administrador.
-                  </p>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    disabled={busy === busyKey}
-                    onClick={() => baja(slot.dia, slot.fecha)}
-                  >
-                    Darme de baja
-                  </button>
+        <div className="proximos-slots-grid">
+          {slots.map((slot) => {
+            const mine = myConvocatoria(conv, slot.dia, slot.fecha, meId);
+            const busyKey = `${slot.dia}-${slot.fecha}`;
+            const partidoYaArmado = fechasConEquiposConfirmados.has(slot.fecha);
+            const soyTitularEseDia = misPartidosTitularConfirmados.some(({ partido }) => partido.fecha === slot.fecha);
+            const toneClass =
+              slot.tone === "blue"
+                ? "proximos-slot proximos-slot--blue"
+                : slot.tone === "ok"
+                  ? "proximos-slot proximos-slot--ok"
+                  : "proximos-slot proximos-slot--purple";
+            return (
+              <div key={busyKey} className={toneClass}>
+                <div className="proximos-slot__head">
+                  <h2>{slot.label}</h2>
+                  <span className="proximos-slot__badge">📅 {slot.fecha}</span>
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={busy === busyKey || !puedeAnotarseConvocatoria}
-                  onClick={() => anotar(slot.dia, slot.fecha)}
-                >
-                  Anotarme
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                <p className="muted proximos-slot__hora">
+                  {grupoCfg?.horaPartidoDefault
+                    ? `Partido habitual: ${grupoCfg.horaPartidoDefault} hs`
+                    : "Horario según grupo"}
+                </p>
+                {partidoYaArmado || soyTitularEseDia ? (
+                  <div>
+                    <p style={{ fontWeight: 600, margin: "0 0 0.35rem" }}>
+                      {soyTitularEseDia ? "Ya estás confirmado como titular" : "Equipos ya confirmados"}
+                    </p>
+                    <p className="muted" style={{ margin: 0, fontSize: "0.88rem" }}>
+                      {formatFechaPartido(slot.fecha)}. No hace falta anotarte de nuevo para esta fecha.
+                      {soyTitularEseDia
+                        ? " Si no podés ir, usá «Darme de baja como titular» en la tarjeta de arriba."
+                        : ""}
+                    </p>
+                  </div>
+                ) : mine ? (
+                  <div>
+                    <p style={{ fontWeight: 600 }}>Estado: {mine.rol_convocatoria ?? "anotado"}</p>
+                    <p className="muted" style={{ fontSize: "0.9rem" }}>
+                      Inscripto el {mine.created_at ? new Date(mine.created_at).toLocaleString() : "—"}. Esperando armado
+                      de equipos por el administrador.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      disabled={busy === busyKey}
+                      onClick={() => baja(slot.dia, slot.fecha)}
+                    >
+                      Darme de baja
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      disabled={busy === busyKey}
+                      onClick={() => anotar(slot.dia, slot.fecha)}
+                    >
+                      Anotarme
+                    </button>
+                    {!puedeAnotarseConvocatoria ? (
+                      <p className="muted" style={{ margin: "0.5rem 0 0", fontSize: "0.82rem" }}>
+                        Revisá los requisitos arriba (perfiles y valoraciones F5/F11).
+                      </p>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       ) : null}
 
       <div className="card card--purple" style={{ marginTop: "1.5rem" }}>

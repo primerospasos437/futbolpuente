@@ -95,7 +95,13 @@ export type CuriosityCard = {
   id: string;
   title: string;
   body: string;
+  icon: string;
   tone: "gold" | "red" | "green" | "orange" | "blue" | "purple";
+};
+
+export type ConclusionItem = {
+  id: string;
+  text: string;
 };
 
 export function classifyDifficulty(gc: number, go: number): MatchDifficulty {
@@ -626,6 +632,7 @@ export function buildCuriosidades(
     const p = pairs.mejores[0];
     cards.push({
       id: "duo",
+      icon: "⚔️",
       title: "Dupla letal",
       body: `${p.aApodo} + ${p.bApodo} ganan el ${p.pctVict.toFixed(0)}% juntos (${p.pj} PJ).`,
       tone: "green",
@@ -635,6 +642,7 @@ export function buildCuriosidades(
     const p = pairs.invictas[0];
     cards.push({
       id: "invicta",
+      icon: "🛡️",
       title: "Invictos juntos",
       body: `${p.aApodo} + ${p.bApodo}: ${p.g} victorias sin derrota.`,
       tone: "blue",
@@ -644,6 +652,7 @@ export function buildCuriosidades(
   if (top && top.pj > 0) {
     cards.push({
       id: "leader",
+      icon: "⭐",
       title: "Líder del ranking",
       body: `${top.apodo} manda con ${top.pctVict.toFixed(0)}% de victorias (${top.g}G-${top.p}P).`,
       tone: "gold",
@@ -653,6 +662,7 @@ export function buildCuriosidades(
   if (last?.mvp_jugador_id) {
     cards.push({
       id: "last-mvp",
+      icon: "🥇",
       title: "Último MVP",
       body: `${apodoById.get(last.mvp_jugador_id) ?? "Jugador"} brilló en el ${Number(last.goles_claros)}-${Number(last.goles_oscuros)}.`,
       tone: "orange",
@@ -662,6 +672,7 @@ export function buildCuriosidades(
   if (undefeated[0]) {
     cards.push({
       id: "undefeated",
+      icon: "🔥",
       title: "Imparable",
       body: `${undefeated[0].apodo} sigue sin perder (${undefeated[0].pj} PJ).`,
       tone: "purple",
@@ -674,12 +685,90 @@ export function buildCuriosidades(
   if (unique.size) {
     cards.push({
       id: "roster",
+      icon: "👥",
       title: "Plantel activo",
       body: `${unique.size} jugadores distintos ya sumaron minutos esta temporada.`,
       tone: "blue",
     });
   }
   return cards.slice(0, 6);
+}
+
+export function buildConclusiones(
+  summary: SeasonSummary,
+  ranking: PlayerMatchStat[],
+  trends: TrendBuckets,
+  pairs: { invictasCount: number },
+  apodoById: Map<string, string>,
+  partidos: PartidoRow[],
+): ConclusionItem[] {
+  const items: ConclusionItem[] = [];
+  if (summary.totalPartidos === 0) return items;
+
+  items.push({
+    id: "season",
+    text: `Después de ${summary.totalPartidos} partido${summary.totalPartidos === 1 ? "" : "s"}: Claros ${summary.clarosWins} – ${summary.oscurosWins} Oscuros${summary.empates ? ` (${summary.empates} empates)` : ""}.`,
+  });
+
+  const top = ranking[0];
+  if (top && top.pj > 0) {
+    items.push({
+      id: "leader",
+      text: `${top.apodo} lidera el ranking con ${top.pctVict.toFixed(0)}% de victorias.`,
+    });
+  }
+
+  if (trends.subiendo[0]) {
+    items.push({
+      id: "racha-g",
+      text: `${trends.subiendo[0].apodo} viene en racha ganadora (${trends.subiendo[0].racha}).`,
+    });
+  }
+
+  if (trends.bajando[0]) {
+    items.push({
+      id: "racha-p",
+      text: `${trends.bajando[0].apodo} acumula derrotas seguidas (${trends.bajando[0].racha}).`,
+    });
+  }
+
+  if (trends.sinGanar.length) {
+    const nombres = trends.sinGanar
+      .slice(0, 3)
+      .map((t) => t.apodo)
+      .join(", ");
+    items.push({
+      id: "sin-ganar",
+      text:
+        trends.sinGanar.length === 1
+          ? `${nombres} es el único sin victorias todavía.`
+          : `${nombres}${trends.sinGanar.length > 3 ? " y más" : ""} siguen sin ganar.`,
+    });
+  }
+
+  if (pairs.invictasCount > 0) {
+    items.push({
+      id: "duplas",
+      text: `Hay ${pairs.invictasCount} dupla${pairs.invictasCount === 1 ? "" : "s"} invicta${pairs.invictasCount === 1 ? "" : "s"} en el grupo.`,
+    });
+  }
+
+  const last = finishedMatchesDesc(partidos)[0];
+  if (last?.mvp_jugador_id) {
+    items.push({
+      id: "mvp",
+      text: `Último MVP: ${apodoById.get(last.mvp_jugador_id) ?? "—"} (${Number(last.goles_claros)}-${Number(last.goles_oscuros)}).`,
+    });
+  }
+
+  if (summary.parejo >= summary.facil && summary.parejo >= summary.disparejo && summary.parejo > 0) {
+    items.push({
+      id: "parejos",
+      text: "La mayoría de los partidos fueron muy parejos: se definen por poco.",
+    });
+  }
+
+  return items.slice(0, 7);
 }
 
 export function buildRivalNemesis(
@@ -817,4 +906,99 @@ export function getLastFinishedMatch(partidos: PartidoRow[]): LastFinishedMatch 
     mvpId: p.mvp_jugador_id ?? null,
     comentario: p.comentario_partido?.trim() || null,
   };
+}
+
+/** Resultado individual para chips en la lista. */
+export type PlayerResultChip = {
+  letter: ResultLetter;
+  score: string;
+};
+
+/** Resumen corto para la lista de jugadores (últimos resultados + compañero frecuente). */
+export type PlayerListSnippet = {
+  /** Más reciente primero (máx. 4). */
+  lastChips: PlayerResultChip[];
+  wins: number;
+  draws: number;
+  losses: number;
+  /** Compañero con quien más coincidió (≥3 partidos juntos). */
+  frequentMate: string | null;
+  frequentMateCount: number;
+};
+
+export function buildPlayerListSnippets(
+  partidos: PartidoRow[],
+  presencias: PresenciaRow[],
+  apodoById: Map<string, string>,
+): Map<string, PlayerListSnippet> {
+  const finished = finishedMatchesDesc(partidos);
+  const out = new Map<string, PlayerListSnippet>();
+  const mateCounts = new Map<string, Map<string, number>>();
+
+  function ensure(id: string): PlayerListSnippet {
+    let s = out.get(id);
+    if (!s) {
+      s = {
+        lastChips: [],
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        frequentMate: null,
+        frequentMateCount: 0,
+      };
+      out.set(id, s);
+    }
+    return s;
+  }
+
+  // finished = más reciente primero → acumular W/D/L y chips
+  for (const p of finished) {
+    const gc = Number(p.goles_claros);
+    const go = Number(p.goles_oscuros);
+    const slots = lineupForMatch(p, presencias, apodoById);
+    const byTeam = {
+      claros: slots.filter((s) => s.equipo === "claros").map((s) => s.id),
+      oscuros: slots.filter((s) => s.equipo === "oscuros").map((s) => s.id),
+    };
+
+    for (const s of slots) {
+      const sn = ensure(s.id);
+      const letter = resultForTeam(gc, go, s.equipo);
+      const score = s.equipo === "claros" ? `${gc}-${go}` : `${go}-${gc}`;
+      if (letter === "G") sn.wins += 1;
+      else if (letter === "E") sn.draws += 1;
+      else sn.losses += 1;
+      if (sn.lastChips.length < 4) {
+        sn.lastChips.push({ letter, score });
+      }
+
+      const mates = byTeam[s.equipo].filter((id) => id !== s.id);
+      let bag = mateCounts.get(s.id);
+      if (!bag) {
+        bag = new Map();
+        mateCounts.set(s.id, bag);
+      }
+      for (const mid of mates) {
+        bag.set(mid, (bag.get(mid) ?? 0) + 1);
+      }
+    }
+  }
+
+  for (const [id, bag] of mateCounts) {
+    let bestId: string | null = null;
+    let bestN = 0;
+    for (const [mid, n] of bag) {
+      if (n > bestN) {
+        bestN = n;
+        bestId = mid;
+      }
+    }
+    if (bestId && bestN >= 3) {
+      const sn = ensure(id);
+      sn.frequentMate = apodoById.get(bestId) ?? bestId.slice(0, 6);
+      sn.frequentMateCount = bestN;
+    }
+  }
+
+  return out;
 }

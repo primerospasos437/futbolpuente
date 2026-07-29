@@ -56,7 +56,7 @@ const DEFAULT_CONFIG: GrupoConfig = {
   inviteCode: null,
   deporte: "futbol",
   configurado: false,
-  diasPartido: ["martes", "jueves"],
+  diasPartido: [],
   fechasExtra: [],
   horaPartidoDefault: "21:30",
   anotacionAbreDiasAntes: 7,
@@ -105,7 +105,7 @@ export function mapGrupoConfig(raw: Record<string, unknown>): GrupoConfig {
     inviteCode: raw.inviteCode != null ? String(raw.inviteCode) : null,
     deporte: String(raw.deporte ?? "futbol"),
     configurado: Boolean(raw.configurado),
-    diasPartido: dias.length ? dias : [...DEFAULT_CONFIG.diasPartido],
+    diasPartido: dias,
     fechasExtra: asStringArray(raw.fechasExtra ?? raw.fechas_extra),
     horaPartidoDefault: String(raw.horaPartidoDefault ?? "21:30"),
     anotacionAbreDiasAntes: Number(raw.anotacionAbreDiasAntes ?? 7),
@@ -234,4 +234,52 @@ export function labelDia(dia: string): string {
   if (found) return found.label;
   if (dia === "extra") return "Fecha especial";
   return dia;
+}
+
+const WEEKDAY_EN_TO_ES: Record<string, DiaSemana> = {
+  Sunday: "domingo",
+  Monday: "lunes",
+  Tuesday: "martes",
+  Wednesday: "miercoles",
+  Thursday: "jueves",
+  Friday: "viernes",
+  Saturday: "sabado",
+};
+
+/** Día de semana (ES) de una fecha ISO YYYY-MM-DD en la zona dada. */
+export function diaSemanaFromIso(fecha: string, timeZone = "America/Argentina/Buenos_Aires"): DiaSemana | null {
+  const [y, m, d] = fecha.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  // Mediodía UTC ≈ tarde en AR; evita bordes de medianoche
+  const probe = new Date(Date.UTC(y, m - 1, d, 15, 0, 0));
+  const weekday = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "long" }).format(probe);
+  return WEEKDAY_EN_TO_ES[weekday] ?? null;
+}
+
+/** Hoy (YYYY-MM-DD) en zona Argentina. */
+export function todayIsoInTz(timeZone = "America/Argentina/Buenos_Aires"): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+/**
+ * Fecha de partido visible en «Próximos»: hoy o futuro, y alineada a días/extras del grupo.
+ */
+export function fechaCoincideConCalendarioGrupo(
+  fecha: string,
+  cfg: Pick<GrupoConfig, "configurado" | "diasPartido" | "fechasExtra"> | null,
+  timeZone = "America/Argentina/Buenos_Aires",
+): boolean {
+  if (!cfg?.configurado) return false;
+  const today = todayIsoInTz(timeZone);
+  if (fecha < today) return false;
+  if ((cfg.fechasExtra ?? []).includes(fecha)) return true;
+  const dias = cfg.diasPartido ?? [];
+  if (dias.length === 0) return false;
+  const w = diaSemanaFromIso(fecha, timeZone);
+  return w != null && dias.includes(w);
 }

@@ -1,7 +1,7 @@
-/** Partición en dos equipos equilibrando promedio por dimensión y puestos en cancha. */
+/** Partición en dos equipos equilibrando puestos en cancha y, en segundo lugar, notas. */
 import { DIMENSION_ORDER } from "../dimensions";
 import { F5_DIMENSION_ORDER } from "../dimensions-f5";
-import type { PlayerSummary, Posicion } from "../types";
+import type { Dimension, PlayerSummary, Posicion } from "../types";
 
 export type BalanceInput = {
   id: string;
@@ -12,6 +12,11 @@ export type BalanceInput = {
   dimensionScores: number[];
   /** Promedio de dimensiones (referencia en UI). */
   score: number;
+  /**
+   * Despliegue / ida-y-vuelta (pulmón+compromiso en F5; resistencia+espíritu+actitud+posicionamiento en F11).
+   * Sirve para cubrir huecos defensivos con delanteros/medios colaborativos.
+   */
+  workRate: number;
 };
 
 export const TEAM_LABEL_CLAROS = "CLAROS";
@@ -19,7 +24,11 @@ export const TEAM_LABEL_OSCUROS = "OSCUROS";
 
 type PosCounts = Record<Posicion, number>;
 
-const POS_WEIGHT = 0.4;
+/** Prioridad alta: un desbalance de 1 por puesto pesa más que varias décimas de nota. */
+const POS_WEIGHT = 14;
+const FIELD_ORDER: Posicion[] = ["portero", "defensa", "medio", "delantero"];
+/** Roles que pueden “bajar” a cubrir cuando faltan defensores. */
+const COVER_ROLES: Posicion[] = ["delantero", "medio"];
 
 function emptyCounts(): PosCounts {
   return { defensa: 0, medio: 0, delantero: 0, portero: 0 };
@@ -30,8 +39,16 @@ function positionImbalance(cA: PosCounts, cB: PosCounts): number {
     Math.abs(cA.defensa - cB.defensa) +
     Math.abs(cA.medio - cB.medio) +
     Math.abs(cA.delantero - cB.delantero) +
-    Math.abs(cA.portero - cB.portero) * 1.5
+    Math.abs(cA.portero - cB.portero) * 2
   );
+}
+
+function preferredCounts(teamA: BalanceInput[], teamB: BalanceInput[]): { a: PosCounts; b: PosCounts } {
+  const a = emptyCounts();
+  const b = emptyCounts();
+  for (const p of teamA) a[p.posicionPreferida] += 1;
+  for (const p of teamB) b[p.posicionPreferida] += 1;
+  return { a, b };
 }
 
 function teamDimMeans(team: BalanceInput[], dimCount: number): number[] {
@@ -43,7 +60,7 @@ function teamDimMeans(team: BalanceInput[], dimCount: number): number[] {
   return sums.map((s) => s / team.length);
 }
 
-/** Suma de |promedio dimensión A − promedio dimensión B| entre ambos equipos. */
+/** Suma de |promedio dimensión A − B| (sin normalizar). */
 export function dimensionImbalance(teamA: BalanceInput[], teamB: BalanceInput[]): number {
   const dimCount = teamA[0]?.dimensionScores.length ?? teamB[0]?.dimensionScores.length ?? 0;
   if (dimCount === 0) return 0;
@@ -54,88 +71,47 @@ export function dimensionImbalance(teamA: BalanceInput[], teamB: BalanceInput[])
   return sum;
 }
 
+function dimensionImbalanceNorm(teamA: BalanceInput[], teamB: BalanceInput[]): number {
+  const dimCount = teamA[0]?.dimensionScores.length ?? teamB[0]?.dimensionScores.length ?? 0;
+  if (dimCount === 0) return 0;
+  return dimensionImbalance(teamA, teamB) / dimCount;
+}
+
+/** Ida y vuelta / colaboración (para cubrir el lado con menos defensa). */
+export function workRateFromScores(dimensionScores: number[]): number {
+  if (dimensionScores.length === F5_DIMENSION_ORDER.length) {
+    const pulmon = dimensionScores[F5_DIMENSION_ORDER.indexOf("pulmon")] ?? 0;
+    const compromiso = dimensionScores[F5_DIMENSION_ORDER.indexOf("compromiso")] ?? 0;
+    return (pulmon + compromiso) / 2;
+  }
+  const pick = (key: Dimension) => {
+    const i = DIMENSION_ORDER.indexOf(key);
+    return i >= 0 ? (dimensionScores[i] ?? 0) : 0;
+  };
+  return (
+    (pick("resistencia") +
+      pick("espirituEquipo") +
+      pick("actitudDisciplina") +
+      pick("posicionamiento")) /
+    4
+  );
+}
+
 type PartitionState = {
   teamA: BalanceInput[];
   teamB: BalanceInput[];
-  assignA: Map<string, Posicion>;
-  assignB: Map<string, Posicion>;
 };
 
-function getCounts(state: PartitionState): { a: PosCounts; b: PosCounts } {
-  const a = emptyCounts();
-  const b = emptyCounts();
-  for (const p of state.teamA) {
-    const pos = state.assignA.get(p.id) ?? p.posicionPreferida;
-    a[pos] += 1;
-  }
-  for (const p of state.teamB) {
-    const pos = state.assignB.get(p.id) ?? p.posicionPreferida;
-    b[pos] += 1;
-  }
-  return { a, b };
-}
-
-function choosePos(p: BalanceInput, cA: PosCounts, cB: PosCounts, toA: boolean): Posicion {
-  const opts: Posicion[] = [p.posicionPreferida];
-  if (p.posicionAlternativa !== p.posicionPreferida) opts.push(p.posicionAlternativa);
-  let best = opts[0];
-  let bestImb = Number.POSITIVE_INFINITY;
-  for (const pos of opts) {
-    const na = { ...cA };
-    const nb = { ...cB };
-    if (toA) na[pos] += 1;
-    else nb[pos] += 1;
-    const imb = positionImbalance(na, nb);
-    if (imb < bestImb) {
-      bestImb = imb;
-      best = pos;
-    }
-  }
-  return best;
-}
-
-function rebuildAssignments(state: PartitionState): void {
-  state.assignA.clear();
-  state.assignB.clear();
-  const cA = emptyCounts();
-  const cB = emptyCounts();
-  for (const p of state.teamA) {
-    const pos = choosePos(p, cA, cB, true);
-    state.assignA.set(p.id, pos);
-    cA[pos] += 1;
-  }
-  for (const p of state.teamB) {
-    const pos = choosePos(p, cA, cB, false);
-    state.assignB.set(p.id, pos);
-    cB[pos] += 1;
-  }
-}
-
 function totalCost(state: PartitionState): number {
-  const dimImb = dimensionImbalance(state.teamA, state.teamB);
-  const { a, b } = getCounts(state);
-  return dimImb + POS_WEIGHT * positionImbalance(a, b);
+  const { a, b } = preferredCounts(state.teamA, state.teamB);
+  return POS_WEIGHT * positionImbalance(a, b) + dimensionImbalanceNorm(state.teamA, state.teamB);
 }
 
 function cloneState(state: PartitionState): PartitionState {
   return {
     teamA: [...state.teamA],
     teamB: [...state.teamB],
-    assignA: new Map(state.assignA),
-    assignB: new Map(state.assignB),
   };
-}
-
-function addPlayer(state: PartitionState, p: BalanceInput, toA: boolean): void {
-  const { a, b } = getCounts(state);
-  const pos = choosePos(p, a, b, toA);
-  if (toA) {
-    state.teamA.push(p);
-    state.assignA.set(p.id, pos);
-  } else {
-    state.teamB.push(p);
-    state.assignB.set(p.id, pos);
-  }
 }
 
 function swapPlayers(state: PartitionState, ia: number, ib: number): void {
@@ -143,13 +119,10 @@ function swapPlayers(state: PartitionState, ia: number, ib: number): void {
   const pb = state.teamB[ib];
   state.teamA[ia] = pb;
   state.teamB[ib] = pa;
-  state.assignA.delete(pa.id);
-  state.assignB.delete(pb.id);
-  rebuildAssignments(state);
 }
 
-function vectorSum(p: BalanceInput): number {
-  return p.dimensionScores.reduce((a, b) => a + b, 0);
+function teamScoreSum(team: BalanceInput[]): number {
+  return team.reduce((s, p) => s + p.score, 0);
 }
 
 /** Tamaños fijos: mitad cada uno (par) o diferencia máxima 1 (impar). */
@@ -171,30 +144,106 @@ function assertBalancedSizes(
   }
 }
 
-function assignPlayerWithSizeCap(
-  state: PartitionState,
-  p: BalanceInput,
+/**
+ * Semilla: por cada puesto preferido, reparte en zigzag (fuerte/débil)
+ * para no amontonar todos los defensores o mediocampistas de un lado.
+ * Delanteros/medios se ordenan también por workRate cuando ya hay desbalance de defensas.
+ */
+function seedByPreferredPosition(
+  players: BalanceInput[],
   sizeA: number,
   sizeB: number,
-): void {
-  const canA = state.teamA.length < sizeA;
-  const canB = state.teamB.length < sizeB;
-  if (canA && !canB) {
-    addPlayer(state, p, true);
-    return;
+): PartitionState {
+  const state: PartitionState = { teamA: [], teamB: [] };
+  const buckets = new Map<Posicion, BalanceInput[]>();
+  for (const pos of FIELD_ORDER) buckets.set(pos, []);
+  for (const p of players) {
+    const list = buckets.get(p.posicionPreferida) ?? [];
+    list.push(p);
+    buckets.set(p.posicionPreferida, list);
   }
-  if (!canA && canB) {
-    addPlayer(state, p, false);
-    return;
+  for (const pos of FIELD_ORDER) {
+    let list = [...(buckets.get(pos) ?? [])];
+    if (pos === "delantero" || pos === "medio") {
+      list.sort((a, b) => b.workRate - a.workRate || b.score - a.score);
+    } else {
+      list.sort((a, b) => b.score - a.score);
+    }
+    for (const p of list) {
+      const canA = state.teamA.length < sizeA;
+      const canB = state.teamB.length < sizeB;
+      if (canA && !canB) {
+        state.teamA.push(p);
+        continue;
+      }
+      if (!canA && canB) {
+        state.teamB.push(p);
+        continue;
+      }
+      const { a, b } = preferredCounts(state.teamA, state.teamB);
+
+      // Delantero/medio colaborativo → equipo con menos defensores
+      if ((pos === "delantero" || pos === "medio") && a.defensa !== b.defensa) {
+        const preferWeakDefA = a.defensa < b.defensa;
+        if (preferWeakDefA && canA) {
+          state.teamA.push(p);
+          continue;
+        }
+        if (!preferWeakDefA && canB) {
+          state.teamB.push(p);
+          continue;
+        }
+      }
+
+      const preferA =
+        a[pos] < b[pos] || (a[pos] === b[pos] && teamScoreSum(state.teamA) <= teamScoreSum(state.teamB));
+      if (preferA && canA) state.teamA.push(p);
+      else if (!preferA && canB) state.teamB.push(p);
+      else if (canA) state.teamA.push(p);
+      else state.teamB.push(p);
+    }
   }
-  if (!canA && !canB) {
-    throw new Error("No hay cupo en ningún equipo al armar la partición.");
+  for (const p of players) {
+    if (state.teamA.includes(p) || state.teamB.includes(p)) continue;
+    if (state.teamA.length < sizeA) state.teamA.push(p);
+    else state.teamB.push(p);
   }
-  const tryA = cloneState(state);
-  addPlayer(tryA, p, true);
-  const tryB = cloneState(state);
-  addPlayer(tryB, p, false);
-  addPlayer(state, p, totalCost(tryA) <= totalCost(tryB));
+  return state;
+}
+
+/**
+ * Si un equipo tiene menos defensores, mueve ahí al delantero (o medio) con más
+ * pulmón/compromiso, intercambiándolo por uno menos colaborativo del otro lado.
+ * No cambia el conteo de puestos (swap mismo rol).
+ */
+function alignWorkRateToDefensiveNeed(state: PartitionState): void {
+  for (let pass = 0; pass < 4; pass += 1) {
+    const { a, b } = preferredCounts(state.teamA, state.teamB);
+    if (a.defensa === b.defensa) return;
+
+    const weakIsA = a.defensa < b.defensa;
+    const weak = weakIsA ? state.teamA : state.teamB;
+    const strong = weakIsA ? state.teamB : state.teamA;
+
+    let swapped = false;
+    for (const role of COVER_ROLES) {
+      const weakRole = weak.filter((p) => p.posicionPreferida === role);
+      const strongRole = strong.filter((p) => p.posicionPreferida === role);
+      if (!weakRole.length || !strongRole.length) continue;
+
+      const bestStrong = [...strongRole].sort((x, y) => y.workRate - x.workRate)[0];
+      const worstWeak = [...weakRole].sort((x, y) => x.workRate - y.workRate)[0];
+      if (bestStrong.workRate < worstWeak.workRate + 0.2) continue;
+
+      const ia = state.teamA.findIndex((p) => p.id === (weakIsA ? worstWeak.id : bestStrong.id));
+      const ib = state.teamB.findIndex((p) => p.id === (weakIsA ? bestStrong.id : worstWeak.id));
+      if (ia < 0 || ib < 0) continue;
+      swapPlayers(state, ia, ib);
+      swapped = true;
+      break;
+    }
+    if (!swapped) return;
+  }
 }
 
 export function playerToBalanceInput(p: PlayerSummary, useF5: boolean): BalanceInput {
@@ -212,6 +261,7 @@ export function playerToBalanceInput(p: PlayerSummary, useF5: boolean): BalanceI
     posicionAlternativa: p.posicionAlternativa ?? p.posicionPreferida,
     dimensionScores,
     score,
+    workRate: workRateFromScores(dimensionScores),
   };
 }
 
@@ -239,8 +289,8 @@ function totalViolations(teamA: BalanceInput[], teamB: BalanceInput[], avoid: Se
 }
 
 /**
- * Partición en dos equipos equilibrando promedios por dimensión y puestos (defensa / medio / delantero),
- * respetando pares que no deben quedar en el mismo equipo.
+ * Partición en dos equipos: primero equilibra puestos preferidos, después notas.
+ * Respeta pares que no deben quedar en el mismo equipo.
  */
 export function balanceTwoTeamsWithAvoid(
   players: BalanceInput[],
@@ -254,10 +304,7 @@ export function balanceTwoTeamsWithAvoid(
   let state: PartitionState = {
     teamA: [...a0],
     teamB: [...b0],
-    assignA: new Map(),
-    assignB: new Map(),
   };
-  rebuildAssignments(state);
 
   const costWithViolations = (s: PartitionState) => {
     const v = totalViolations(s.teamA, s.teamB, avoid);
@@ -291,6 +338,8 @@ export function balanceTwoTeamsWithAvoid(
     swapPlayers(state, bestIa, bestIb);
   }
 
+  alignWorkRateToDefensiveNeed(state);
+
   const { sizeA, sizeB } = targetTeamSizes(players.length);
   assertBalancedSizes(state.teamA, state.teamB, sizeA, sizeB);
 
@@ -311,17 +360,7 @@ export function balanceTwoTeams(
   }
 
   const { sizeA, sizeB } = targetTeamSizes(n);
-  const sorted = [...players].sort((a, b) => vectorSum(b) - vectorSum(a));
-  const state: PartitionState = {
-    teamA: [],
-    teamB: [],
-    assignA: new Map(),
-    assignB: new Map(),
-  };
-
-  for (const p of sorted) {
-    assignPlayerWithSizeCap(state, p, sizeA, sizeB);
-  }
+  const state = seedByPreferredPosition(players, sizeA, sizeB);
   assertBalancedSizes(state.teamA, state.teamB, sizeA, sizeB);
 
   const improve = () => {
@@ -334,6 +373,11 @@ export function balanceTwoTeams(
           const trial = cloneState(state);
           swapPlayers(trial, i, j);
           const c = totalCost(trial);
+          const posBefore = preferredCounts(state.teamA, state.teamB);
+          const posAfter = preferredCounts(trial.teamA, trial.teamB);
+          const imbBefore = positionImbalance(posBefore.a, posBefore.b);
+          const imbAfter = positionImbalance(posAfter.a, posAfter.b);
+          if (imbAfter > imbBefore) continue;
           if (c + 1e-9 < best) {
             swapPlayers(state, i, j);
             best = c;
@@ -346,15 +390,20 @@ export function balanceTwoTeams(
 
   improve();
   for (let k = 0; k < iterations; k += 1) {
-    improve();
     if (state.teamA.length === 0 || state.teamB.length === 0) break;
     const ia = Math.floor(Math.random() * state.teamA.length);
     const ib = Math.floor(Math.random() * state.teamB.length);
     const trial = cloneState(state);
     swapPlayers(trial, ia, ib);
+    const posBefore = preferredCounts(state.teamA, state.teamB);
+    const posAfter = preferredCounts(trial.teamA, trial.teamB);
+    const imbBefore = positionImbalance(posBefore.a, posBefore.b);
+    const imbAfter = positionImbalance(posAfter.a, posAfter.b);
+    if (imbAfter > imbBefore) continue;
     if (totalCost(trial) <= totalCost(state)) swapPlayers(state, ia, ib);
   }
   improve();
+  alignWorkRateToDefensiveNeed(state);
   assertBalancedSizes(state.teamA, state.teamB, sizeA, sizeB);
 
   return {

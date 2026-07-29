@@ -614,6 +614,11 @@
   transition: border-color 0.2s ease, transform 0.15s ease;
 }
 
+.psb-group-card--alert {
+  border-color: color-mix(in srgb, #e8a317 55%, var(--psb-border));
+  background: color-mix(in srgb, #e8a317 12%, var(--psb-panel, transparent));
+}
+
 .psb-group-card:hover:not(:disabled) {
   border-color: var(--psb-green);
   transform: translateY(-1px);
@@ -624,10 +629,32 @@
   cursor: wait;
 }
 
+.psb-group-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .psb-group-card-name {
   display: block;
   font-weight: 700;
   font-size: 1rem;
+}
+
+.psb-group-badge {
+  flex-shrink: 0;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.35rem;
+  border-radius: 99px;
+  background: #d4522a;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .psb-group-card-meta {
@@ -636,6 +663,14 @@
   font-size: 0.8rem;
   color: var(--psb-muted);
   text-transform: capitalize;
+}
+
+.psb-group-card-aviso {
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 0.82rem;
+  color: color-mix(in srgb, #e8a317 80%, var(--psb-text));
+  line-height: 1.35;
 }
 
 .psb-group-actions {

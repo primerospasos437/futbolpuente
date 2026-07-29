@@ -11,9 +11,12 @@ import StarRating from "./StarRating";
 export default function F5ProfileScorePickers({
   scores,
   onChange,
+  allowEmpty = false,
 }: {
   scores: F5ProfileScores;
   onChange: (next: F5ProfileScores) => void;
+  /** Si true, arranca sin estrellas marcadas (valoración a un compañero). */
+  allowEmpty?: boolean;
 }) {
   function setDim(k: keyof F5ProfileScores, v: number) {
     onChange({ ...scores, [k]: v });
@@ -23,6 +26,7 @@ export default function F5ProfileScorePickers({
     <div className="f5-pickers">
       <p className="muted profile-score-intro">
         Tocá las estrellas doradas (1–5). Carga ultrarrápida: solo cinco métricas.
+        {allowEmpty ? " Ninguna viene marcada: elegí vos cada nota." : null}
       </p>
       {F5_DIMENSION_ORDER.map((dim, i) => (
         <div key={dim} className={`star-metric-row star-metric-row--tone${(i % 4) + 1}`}>
@@ -40,6 +44,7 @@ export default function F5ProfileScorePickers({
           </div>
           <StarRating
             value={scores[dim]}
+            min={allowEmpty ? 0 : 1}
             onChange={(v) => setDim(dim, v)}
             aria-label={`${F5_LABELS[dim]}`}
           />

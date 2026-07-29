@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { api, apiPartidos, isAdminFromPlayersList, type PartidoRow, type PresenciaRow } from "../api";
+import { api, apiEncuesta, apiPartidos, isAdminFromPlayersList, type PartidoRow, type PresenciaRow } from "../api";
 import { parseEquipoNombres } from "../lib/partidoEquipos";
 import {
+  ENCUESTA_META,
+  type EncuestaTrofeoRow,
+} from "../lib/encuestaPostPartido";
+import {
   buildCuriosidades,
+  buildConclusiones,
   buildDifficultyPerformance,
   buildFunStats,
   buildPairStats,
@@ -17,6 +22,7 @@ import {
   type PairStat,
 } from "../lib/partidoStats";
 import { FootballStrip, FunSparkles, SoccerBall } from "../components/FunDecor";
+import MatchSpotlightCard from "../components/MatchSpotlightCard";
 import { TEAM_LABEL_CLAROS, TEAM_LABEL_OSCUROS } from "../lib/teamsBalance";
 import type { PlayerSummary } from "../types";
 import "../stats-dashboard.css";
@@ -104,19 +110,22 @@ export default function StatsPage() {
   const [mvpId, setMvpId] = useState("");
   const [comentario, setComentario] = useState("");
   const [okMsg, setOkMsg] = useState<string | null>(null);
+  const [trofeos, setTrofeos] = useState<EncuestaTrofeoRow[]>([]);
 
   const admin = players ? isAdminFromPlayersList(players) : false;
   const seasonYear = new Date().getFullYear();
 
   async function refresh() {
-    const [pl, prt, pres] = await Promise.all([
+    const [pl, prt, pres, trop] = await Promise.all([
       api.players(),
       apiPartidos.list(),
       apiPartidos.listPresencias(),
+      apiEncuesta.trofeos().catch(() => [] as EncuestaTrofeoRow[]),
     ]);
     setPlayers(pl.jugadores);
     setPartidos(Array.isArray(prt) ? prt : []);
     setPresencias(Array.isArray(pres) ? pres : []);
+    setTrofeos(Array.isArray(trop) ? trop : []);
   }
 
   useEffect(() => {
@@ -173,6 +182,21 @@ export default function StatsPage() {
       buildCuriosidades(partidos, presencias, apodoById, pairs, ranking),
     [partidos, presencias, apodoById, pairs, ranking],
   );
+  const conclusiones = useMemo(
+    () => buildConclusiones(summary, ranking, trends, pairs, apodoById, partidos),
+    [summary, ranking, trends, pairs, apodoById, partidos],
+  );
+  const spotlightMatch = useMemo(() => {
+    const last = recent[0];
+    if (!last) return null;
+    const p = partidos.find((x) => x.id === last.id);
+    if (!p) return null;
+    return {
+      ...last,
+      claros: parseEquipoNombres(p.equipo_claros),
+      oscuros: parseEquipoNombres(p.equipo_oscuros),
+    };
+  }, [recent, partidos]);
 
   const pendientesResultado = useMemo(
     () => partidos.filter((p) => p.confirmado_admin === true && !partidoTieneResultado(p)),
@@ -335,6 +359,68 @@ export default function StatsPage() {
             <p className="stats-kpi__label">Jugadores</p>
             <p className="stats-kpi__value">{summary.jugadoresUnicos}</p>
           </div>
+        </section>
+
+        {spotlightMatch ? (
+          <section className="stats-panel stats-panel--spotlight">
+            <MatchSpotlightCard
+              title="Partido del día"
+              fecha={spotlightMatch.fecha}
+              claros={spotlightMatch.claros}
+              oscuros={spotlightMatch.oscuros}
+              golesClaros={spotlightMatch.golesClaros}
+              golesOscuros={spotlightMatch.golesOscuros}
+              mvpApodo={spotlightMatch.mvpId ? apodoById.get(spotlightMatch.mvpId) ?? null : null}
+              dificultad={spotlightMatch.dificultad}
+            />
+          </section>
+        ) : null}
+
+        <section className="stats-panel">
+          <h2 className="stats-panel__title">
+            <span>🏆</span> Trofeos Scaloneta
+          </h2>
+          <p className="stats-panel__hint">
+            Votos acumulados de la encuesta post-partido: Messi, Cuti, Julián y Dibu.
+          </p>
+          {!trofeos.length ? (
+            <p className="muted" style={{ margin: 0 }}>
+              Todavía no hay votos. Cuando el admin cargue un resultado, los jugadores podrán votar.
+            </p>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table className="stats-dash-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Jugador</th>
+                    <th title={ENCUESTA_META.messi.titulo}>🐐 Messi</th>
+                    <th title={ENCUESTA_META.cuti.titulo}>🛡️ Cuti</th>
+                    <th title={ENCUESTA_META.julian.titulo}>🫁 Julián</th>
+                    <th title={ENCUESTA_META.dibu.titulo}>🧤 Dibu</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trofeos.map((t, i) => (
+                    <tr key={t.jugadorId}>
+                      <td>{i + 1}</td>
+                      <td>
+                        <strong>{t.apodo}</strong>
+                      </td>
+                      <td className="g">{t.messi || "—"}</td>
+                      <td>{t.cuti || "—"}</td>
+                      <td className="pct">{t.julian || "—"}</td>
+                      <td>{t.dibu || "—"}</td>
+                      <td>
+                        <strong>{t.total}</strong>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         <div className="stats-layout-2">
@@ -701,19 +787,43 @@ export default function StatsPage() {
           </div>
         </section>
 
-        {curiosidades.length ? (
-          <section className="stats-panel">
-            <h2 className="stats-panel__title">
-              <span>✨</span> Curiosidades
-            </h2>
-            <div className="stats-curio-grid">
-              {curiosidades.map((c) => (
-                <article key={c.id} className={`stats-curio stats-curio--${c.tone}`}>
-                  <h3>{c.title}</h3>
-                  <p>{c.body}</p>
-                </article>
-              ))}
-            </div>
+        {curiosidades.length || conclusiones.length ? (
+          <section className="stats-insights">
+            {curiosidades.length ? (
+              <div className="stats-insights__panel stats-insights__panel--curio">
+                <h2 className="stats-insights__title">
+                  <span>💡</span> Curiosidades
+                </h2>
+                <ul className="stats-curio-list">
+                  {curiosidades.map((c) => (
+                    <li key={c.id} className={`stats-curio-item stats-curio-item--${c.tone}`}>
+                      <span className="stats-curio-item__icon" aria-hidden>
+                        {c.icon}
+                      </span>
+                      <div>
+                        <strong>{c.title}</strong>
+                        <p>{c.body}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {conclusiones.length ? (
+              <div className="stats-insights__panel stats-insights__panel--concl">
+                <h2 className="stats-insights__title">
+                  <span>📋</span> Conclusiones
+                </h2>
+                <ol className="stats-conclusion-list">
+                  {conclusiones.map((c, i) => (
+                    <li key={c.id}>
+                      <span className="stats-conclusion-num">{i + 1}</span>
+                      <span>{c.text}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
           </section>
         ) : null}
 

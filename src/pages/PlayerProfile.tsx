@@ -6,9 +6,9 @@ import { formatRating } from "../lib/formatRating";
 import F5ProfileScorePickers from "../components/F5ProfileScorePickers";
 import ProfileImprovementSummary from "../components/ProfileImprovementSummary";
 import ProfileScoreSliders from "../components/ProfileScoreSliders";
-import { DIMENSION_LABELS, DIMENSION_SECTIONS, defaultScores } from "../dimensions";
-import { F5_ICONS, F5_LABELS, F5_SECTIONS, defaultF5Scores } from "../dimensions-f5";
-import type { F5Dimension, PlayerDetail, ProfileScores } from "../types";
+import { DIMENSION_LABELS, DIMENSION_ORDER, DIMENSION_SECTIONS, defaultScoresZeros } from "../dimensions";
+import { F5_DIMENSION_ORDER, F5_ICONS, F5_LABELS, F5_SECTIONS, defaultF5ScoresZeros } from "../dimensions-f5";
+import type { F5Dimension, F5ProfileScores, PlayerDetail, ProfileScores } from "../types";
 
 function DimensionReadonlyList({
   title,
@@ -103,7 +103,7 @@ export default function PlayerProfilePage() {
   const [data, setData] = useState<PlayerDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scores, setScores] = useState<ProfileScores | null>(null);
-  const [f5Scores, setF5Scores] = useState<ReturnType<typeof defaultF5Scores> | null>(null);
+  const [f5Scores, setF5Scores] = useState<F5ProfileScores | null>(null);
   const [saving, setSaving] = useState(false);
   const [savingF5, setSavingF5] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -118,8 +118,8 @@ export default function PlayerProfilePage() {
         const p = await api.player(id);
         if (cancelled) return;
         setData(p);
-        setScores(p.myRating?.scores ?? defaultScores());
-        setF5Scores(p.myF5PerfilRating?.scores ?? defaultF5Scores());
+        setScores(p.myRating?.scores ?? defaultScoresZeros());
+        setF5Scores(p.myF5PerfilRating?.scores ?? defaultF5ScoresZeros());
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       }
@@ -131,7 +131,7 @@ export default function PlayerProfilePage() {
 
   useEffect(() => {
     if (location.hash === "#f5-valoracion") setValoracionTab("f5");
-    else setValoracionTab("completo");
+    else if (location.hash === "#perfil-completo-valoracion") setValoracionTab("completo");
   }, [id, location.hash]);
 
   const canRate = useMemo(() => data && !data.isSelf, [data]);
@@ -163,13 +163,18 @@ export default function PlayerProfilePage() {
   async function submitRating(e: React.FormEvent) {
     e.preventDefault();
     if (!id || !scores || !canRate) return;
+    const incomplete = DIMENSION_ORDER.some((k) => !scores[k] || scores[k] < 1);
+    if (incomplete) {
+      setMsg("Marcá las estrellas en cada ítem (nada debe quedar vacío).");
+      return;
+    }
     setSaving(true);
     setMsg(null);
     try {
       await api.ratePlayer(id, scores);
       const p = await api.player(id);
       setData(p);
-      setScores(p.myRating?.scores ?? defaultScores());
+      setScores(p.myRating?.scores ?? defaultScoresZeros());
       setMsg("Valoración guardada.");
     } catch (err) {
       setMsg(err instanceof Error ? err.message : "Error");
@@ -181,13 +186,18 @@ export default function PlayerProfilePage() {
   async function submitF5Perfil(e: React.FormEvent) {
     e.preventDefault();
     if (!id || !f5Scores || !canRate) return;
+    const incomplete = F5_DIMENSION_ORDER.some((k) => !f5Scores[k] || f5Scores[k] < 1);
+    if (incomplete) {
+      setMsgF5("Marcá las estrellas en cada métrica F5 (nada debe quedar vacío).");
+      return;
+    }
     setSavingF5(true);
     setMsgF5(null);
     try {
       await api.ratePlayerF5Perfil(id, f5Scores);
       const p = await api.player(id);
       setData(p);
-      setF5Scores(p.myF5PerfilRating?.scores ?? defaultF5Scores());
+      setF5Scores(p.myF5PerfilRating?.scores ?? defaultF5ScoresZeros());
       setMsgF5("Valoración F5 guardada.");
     } catch (err) {
       setMsgF5(err instanceof Error ? err.message : "Error");
@@ -401,9 +411,25 @@ export default function PlayerProfilePage() {
 
       {canRate && valoracionFormVisible ? (
         <div className="card" id="valoracion-formulario" style={{ marginBottom: "1rem" }}>
-          <h3 style={{ marginTop: 0, marginBottom: "0.5rem", fontSize: "1.05rem" }}>Formulario de valoración</h3>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.75rem" }}>
+            <Link to="/" className="btn btn-ghost">
+              ← Jugadores
+            </Link>
+            {valoracionTab === "completo" ? (
+              <button type="button" className="btn btn-primary" onClick={() => setValoracionTabNav("f5")}>
+                Valorar F5
+              </button>
+            ) : (
+              <button type="button" className="btn btn-primary" onClick={() => setValoracionTabNav("completo")}>
+                Valorar F11
+              </button>
+            )}
+          </div>
+          <h3 style={{ marginTop: 0, marginBottom: "0.5rem", fontSize: "1.05rem" }}>
+            {valoracionTab === "completo" ? `Valorar F11 de ${data.apodo}` : `Valorar F5 de ${data.apodo}`}
+          </h3>
           <p className="muted" style={{ marginTop: 0 }}>
-            Podés cambiar entre perfil completo y F5 con las solapas o con los botones de arriba.
+            Las estrellas empiezan vacías. Completá todas antes de enviar.
           </p>
           <div className="tabs" style={{ marginBottom: "1rem" }}>
             <button
@@ -411,7 +437,7 @@ export default function PlayerProfilePage() {
               className={`btn btn-ghost ${valoracionTab === "completo" ? "active" : ""}`}
               onClick={() => setValoracionTabNav("completo")}
             >
-              Perfil completo (1–5)
+              F11 (1–5)
             </button>
             <button
               type="button"
@@ -424,36 +450,29 @@ export default function PlayerProfilePage() {
 
           {valoracionTab === "completo" ? (
             <div id="perfil-completo-valoracion">
-              <p className="muted">
-                Valorá cada aspecto del 1 al 5 (estrellas) según lo que ves en entrenamientos y partidos.
-              </p>
               <form onSubmit={submitRating}>
-                <ProfileScoreSliders scores={scores} onChange={setScores} />
+                <ProfileScoreSliders scores={scores} onChange={setScores} allowEmpty />
                 {msg && (
                   <p className={msg.includes("guardada") ? "muted" : "error"} style={{ marginTop: "1rem" }}>
                     {msg}
                   </p>
                 )}
                 <button className="btn btn-primary" type="submit" style={{ marginTop: "1rem" }} disabled={saving}>
-                  {saving ? "Guardando…" : data.myRating ? "Actualizar valoración" : "Enviar valoración"}
+                  {saving ? "Guardando…" : data.myRating ? "Actualizar F11" : "Enviar F11"}
                 </button>
               </form>
             </div>
           ) : (
             <div id="f5-valoracion">
-              <p className="muted">
-                Escala 1 a 5 (estrellas) en las cinco métricas F5. Se combina con las valoraciones por partido
-                para el promedio del grupo.
-              </p>
               <form onSubmit={submitF5Perfil}>
-                <F5ProfileScorePickers scores={f5Scores} onChange={setF5Scores} />
+                <F5ProfileScorePickers scores={f5Scores} onChange={setF5Scores} allowEmpty />
                 {msgF5 && (
                   <p className={msgF5.includes("guardada") ? "muted" : "error"} style={{ marginTop: "1rem" }}>
                     {msgF5}
                   </p>
                 )}
                 <button className="btn btn-primary" type="submit" style={{ marginTop: "1rem" }} disabled={savingF5}>
-                  {savingF5 ? "Guardando…" : data.myF5PerfilRating ? "Actualizar valoración F5" : "Enviar valoración F5"}
+                  {savingF5 ? "Guardando…" : data.myF5PerfilRating ? "Actualizar F5" : "Enviar F5"}
                 </button>
               </form>
             </div>

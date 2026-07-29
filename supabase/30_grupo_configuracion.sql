@@ -17,7 +17,7 @@ create extension if not exists "pgcrypto";
 -- 1. Columnas de configuración en grupos
 -- ---------------------------------------------------------------------------
 alter table public.grupos
-  add column if not exists dias_partido text[] not null default array['martes','jueves']::text[],
+  add column if not exists dias_partido text[] not null default '{}'::text[],
   add column if not exists fechas_extra date[] not null default array[]::date[],
   add column if not exists hora_partido_default text not null default '21:30',
   add column if not exists anotacion_abre_dias_antes int not null default 7,
@@ -45,7 +45,7 @@ begin
 end $$;
 
 comment on column public.grupos.dias_partido is
-  'Días habituales de juego (lunes…domingo).';
+  'Días habituales de juego elegidos por el admin. Vacío hasta configurar.';
 comment on column public.grupos.fechas_extra is
   'Fechas puntuales adicionales (fuera de la rotación semanal).';
 comment on column public.grupos.anotacion_abre_dias_antes is
@@ -53,7 +53,7 @@ comment on column public.grupos.anotacion_abre_dias_antes is
 comment on column public.grupos.anotacion_cierra_hora is
   'Hora (día del partido) en que cierra la lista (America/Argentina/Buenos_Aires).';
 comment on column public.grupos.min_valoraciones_perfil is
-  'Mínimo de compañeros valorados (perfil completo). 0 = no exige.';
+  'Mínimo de compañeros valorados (perfil completo y/o F5). 0 = no exige.';
 
 -- ---------------------------------------------------------------------------
 -- 2. Convocatorias: permitir más días
@@ -144,7 +144,7 @@ as $$
     'nombre', g.nombre,
     'inviteCode', g.invite_code,
     'deporte', g.deporte,
-    'diasPartido', to_jsonb(coalesce(g.dias_partido, array['martes','jueves']::text[])),
+    'diasPartido', to_jsonb(coalesce(g.dias_partido, array[]::text[])),
     'fechasExtra', to_jsonb(coalesce(g.fechas_extra, array[]::date[])),
     'horaPartidoDefault', coalesce(g.hora_partido_default, '21:30'),
     'anotacionAbreDiasAntes', coalesce(g.anotacion_abre_dias_antes, 7),

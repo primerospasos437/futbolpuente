@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../api";
+import { api, apiEncuesta, apiPartidos } from "../api";
 import { FootballStrip, PageCheer } from "../components/FunDecor";
 import { formatRating } from "../lib/formatRating";
+import type { EncuestaPendiente } from "../lib/encuestaPostPartido";
+import { buildPlayerListSnippets, type PlayerListSnippet } from "../lib/partidoStats";
 import type { PlayerSummary, PlayersListPayload } from "../types";
 
 const posLabel: Record<string, string> = {
@@ -12,90 +14,163 @@ const posLabel: Record<string, string> = {
   delantero: "DEL",
 };
 
-function rowClassName(p: PlayerSummary, listaTab: "completo" | "f5"): string {
-  if (p.isSelf) return "player-row";
-  const valorado = listaTab === "completo" ? p.ratedByMe : p.ratedF5PerfilByMe;
-  if (valorado) return "player-row player-row--valorado";
-  return "player-row player-row--pendiente";
+const ROW_TONES = ["green", "blue", "red", "lilac", "yellow"] as const;
+type RowTone = (typeof ROW_TONES)[number];
+
+function RateBadge({
+  label,
+  done,
+  to,
+}: {
+  label: string;
+  done: boolean;
+  to: string;
+}) {
+  const short = label === "F11" ? "11" : "5";
+  return (
+    <Link
+      to={to}
+      className={`rate-ball ${done ? "rate-ball--ok" : "rate-ball--miss"}`}
+      title={done ? `${label}: ya valoraste` : `${label}: tocar para valorar`}
+      aria-label={done ? `${label} valorado` : `Valorar ${label}`}
+    >
+      <span className="rate-ball-emoji" aria-hidden>
+        ⚽
+      </span>
+      <span className="rate-ball-num">{short}</span>
+    </Link>
+  );
 }
 
-function PlayerRowLink({ p, listaTab }: { p: PlayerSummary; listaTab: "completo" | "f5" }) {
-  const altLine =
-    p.posicionAlternativa && p.posicionAlternativa !== p.posicionPreferida
-      ? ` · alt ${posLabel[p.posicionAlternativa] ?? p.posicionAlternativa}`
-      : "";
-  const bio = p.ficha.alturaCm != null ? ` · ${p.ficha.alturaCm} cm` : "";
-  const estadoValoracion =
-    listaTab === "completo"
-      ? p.isSelf
-        ? ""
-        : p.ratedByMe
-          ? " · ya valoraste el perfil completo"
-          : " · pendiente: perfil completo"
-      : p.isSelf
-        ? ""
-        : p.ratedF5PerfilByMe
-          ? " · ya valoraste el F5"
-          : " · pendiente: F5";
-
-  const scoreLabel = listaTab === "completo" ? formatRating(p.finalScore) : formatRating(p.f5FinalScore);
-  const f5Peer = p.f5FinalBreakdown?.peerCount ?? 0;
-  const valoracionesMeta =
-    listaTab === "completo"
-      ? p.peerCount
-        ? ` · ${p.peerCount} valoraciones`
-        : " · sin valoraciones aún"
-      : f5Peer
-        ? ` · ${f5Peer} valoraciones F5`
-        : " · sin valoraciones F5 aún";
-
-  const to =
-    listaTab === "f5" ? `/jugador/${p.id}#f5-valoracion` : `/jugador/${p.id}#perfil-completo-valoracion`;
+function PlayerRow({
+  p,
+  tone,
+  snippet,
+}: {
+  p: PlayerSummary;
+  tone: RowTone;
+  snippet?: PlayerListSnippet;
+}) {
+  const pj = snippet ? snippet.wins + snippet.draws + snippet.losses : 0;
+  const hasMatches = pj > 0;
 
   return (
-    <Link key={p.id} to={to} style={{ textDecoration: "none", color: "inherit" }}>
-      <div className={rowClassName(p, listaTab)}>
-        <div className="p-main">
-          <span className="p-name">
-            {p.apodo}
-            {p.isSelf ? (
-              <span className="muted" style={{ marginLeft: 8, fontWeight: 500 }}>
-                (vos)
-              </span>
-            ) : null}
-          </span>
-          <span className="p-meta">
-            {p.nombreCompleto} · {posLabel[p.posicionPreferida] ?? p.posicionPreferida}
-            {altLine}
-            {bio}
-            {valoracionesMeta}
-            {estadoValoracion}
-          </span>
+    <div className={`player-row player-row--tone-${tone}${p.isSelf ? " player-row--self" : ""}`}>
+      <div className="player-row-grid">
+        <div className="pr-col pr-col--id">
+          <Link to={`/jugador/${p.id}`} className="p-name-link">
+            <span className="p-name">
+              {p.apodo}
+              {p.isSelf ? (
+                <span className="muted" style={{ marginLeft: 6, fontWeight: 500, fontSize: "0.8em" }}>
+                  (vos)
+                </span>
+              ) : null}
+            </span>
+          </Link>
+          {!p.isSelf ? (
+            <div className="profile-badge-row">
+              <RateBadge
+                label="F11"
+                done={p.ratedByMe}
+                to={`/jugador/${p.id}#perfil-completo-valoracion`}
+              />
+              <RateBadge label="F5" done={p.ratedF5PerfilByMe} to={`/jugador/${p.id}#f5-valoracion`} />
+            </div>
+          ) : (
+            <Link to="/mis-perfiles" className="pr-self-link">
+              Mis perfiles
+            </Link>
+          )}
         </div>
-        <span className="score-pill">{listaTab === "f5" ? `F5 ${scoreLabel}` : scoreLabel}</span>
+
+        <div className="pr-col pr-col--pos">
+          <span className="pr-col-label">Posición</span>
+          <span className="pr-pos-badge">{posLabel[p.posicionPreferida] ?? p.posicionPreferida}</span>
+        </div>
+
+        <div className="pr-col pr-col--form">
+          <span className="pr-col-label">Últimos</span>
+          {hasMatches && snippet ? (
+            <div className="pr-form-chips">
+              {snippet.lastChips.map((c, i) => (
+                <span
+                  key={`${c.letter}-${c.score}-${i}`}
+                  className={`pr-form-chip pr-form-chip--${c.letter.toLowerCase()}`}
+                  title={c.letter === "G" ? "Ganó" : c.letter === "P" ? "Perdió" : "Empató"}
+                >
+                  <strong>{c.letter}</strong>
+                  <span>{c.score}</span>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="pr-empty muted">Sin partidos</span>
+          )}
+        </div>
+
+        <div className="pr-col pr-col--record">
+          <span className="pr-col-label">Balance</span>
+          {hasMatches && snippet ? (
+            <div className="pr-record">
+              <span className="pr-record-item pr-record-item--g">
+                <em>{snippet.wins}</em> G
+              </span>
+              <span className="pr-record-item pr-record-item--e">
+                <em>{snippet.draws}</em> E
+              </span>
+              <span className="pr-record-item pr-record-item--p">
+                <em>{snippet.losses}</em> P
+              </span>
+            </div>
+          ) : (
+            <span className="pr-empty muted">—</span>
+          )}
+          {snippet?.frequentMate ? (
+            <span className="pr-mate muted" title={`Jugó ${snippet.frequentMateCount} veces juntos`}>
+              c/ {snippet.frequentMate} ×{snippet.frequentMateCount}
+            </span>
+          ) : null}
+        </div>
+
+        <Link to={`/jugador/${p.id}`} className="pr-col pr-col--scores">
+          <span className="score-pill score-pill--f11" title="Nota final F11">
+            F11 {formatRating(p.finalScore)}
+          </span>
+          <span className="score-pill score-pill--f5" title="Nota final F5">
+            F5 {formatRating(p.f5FinalScore)}
+          </span>
+        </Link>
       </div>
-    </Link>
+    </div>
   );
 }
 
 export default function HomePage() {
   const [data, setData] = useState<PlayersListPayload | null>(null);
-  const [listaTab, setListaTab] = useState<"completo" | "f5">("completo");
+  const [snippets, setSnippets] = useState<Map<string, PlayerListSnippet>>(new Map());
   const [f5Pendientes, setF5Pendientes] = useState<{ partidoId: string; fecha: string; companeros: { id: string; apodo: string }[] }[]>(
     [],
   );
+  const [encuestaPendientes, setEncuestaPendientes] = useState<EncuestaPendiente[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const payload = await api.players();
-        if (!cancelled) setData(payload);
+        const [payload, partidos, presencias] = await Promise.all([
+          api.players(),
+          apiPartidos.list().catch(() => []),
+          apiPartidos.listPresencias().catch(() => []),
+        ]);
+        if (cancelled) return;
+        setData(payload);
+        const apodoById = new Map(payload.jugadores.map((p) => [p.id, p.apodo]));
+        setSnippets(buildPlayerListSnippets(partidos, presencias, apodoById));
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       }
-      // Pendientes F5: no bloquean el listado (partidos/presencias pueden tardar).
       void api
         .pendientesValoracionF5Partidos()
         .then((pend) => {
@@ -111,24 +186,27 @@ export default function HomePage() {
         .catch(() => {
           /* opcional */
         });
+      void apiEncuesta
+        .pendientes()
+        .then((pend) => {
+          if (!cancelled) setEncuestaPendientes(pend);
+        })
+        .catch(() => {
+          /* opcional hasta aplicar migración 38 */
+        });
     })();
     return () => {
       cancelled = true;
     };
   }, []);
 
+  const list = data?.jugadores ?? [];
+  const otros = useMemo(() => list.filter((p) => !p.isSelf), [list]);
+  const f5Hechos = otros.filter((p) => p.ratedF5PerfilByMe).length;
+  const f11Hechos = otros.filter((p) => p.ratedByMe).length;
+
   if (error) return <div className="error">{error}</div>;
   if (!data) return <p className="muted">Cargando jugadores…</p>;
-
-  const list = data.jugadores;
-  const otrosJugadores = list.filter((p) => !p.isSelf);
-  const faltanCalificar = otrosJugadores.filter((p) => !p.ratedByMe);
-  const yaCalificados = otrosJugadores.filter((p) => p.ratedByMe);
-  const faltanCalificarF5 = otrosJugadores.filter((p) => !p.ratedF5PerfilByMe);
-  const yaCalificadosF5 = otrosJugadores.filter((p) => p.ratedF5PerfilByMe);
-
-  const sinValoracionesGrupo = otrosJugadores.filter((p) => p.peerCount === 0);
-  const sinValoracionesF5Grupo = otrosJugadores.filter((p) => (p.f5FinalBreakdown?.peerCount ?? 0) === 0);
 
   return (
     <div className="page-shell">
@@ -137,38 +215,40 @@ export default function HomePage() {
       <header className="page-hero">
         <h1>⚽ Jugadores</h1>
         <p className="sub">
-          Tocá un compañero para abrir su ficha. La autopercepción (cómo se califica cada uno) es privada: en la ficha solo
-          se muestra la nota final agregada para el resto. Recordá completar también el perfil F5 en «Mis perfiles».
+          Tocá las pelotas <strong>11</strong> / <strong>5</strong> para valorar. A la derecha, notas F11 y F5 del
+          grupo. En el medio: posición, últimos resultados y balance.
         </p>
       </header>
 
-      <div className="tabs">
-        <button
-          type="button"
-          className={`btn btn-ghost ${listaTab === "completo" ? "active" : ""}`}
-          onClick={() => setListaTab("completo")}
-        >
-          Perfil completo (1–5)
-        </button>
-        <button
-          type="button"
-          className={`btn btn-ghost ${listaTab === "f5" ? "active" : ""}`}
-          onClick={() => setListaTab("f5")}
-        >
-          F5 (1–5)
-        </button>
-      </div>
+      {encuestaPendientes.length > 0 ? (
+        <div className="card card--purple home-alert encuesta-banner" style={{ marginBottom: "1rem" }}>
+          <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>🏆 Votación pendiente</h2>
+          <p className="muted" style={{ marginTop: 0 }}>
+            El partido ya tiene resultado. Elegí al Messi, Cuti, Julián y Dibu del encuentro.
+          </p>
+          <ul style={{ margin: 0, paddingLeft: "1.1rem", lineHeight: 1.8 }}>
+            {encuestaPendientes.map((b) => (
+              <li key={b.partidoId}>
+                <Link to={`/partido/${b.partidoId}/encuesta`}>
+                  Tenés una votación pendiente del partido <strong>{b.fecha}</strong>
+                  {b.hora ? ` · ${b.hora} hs` : ""} ({b.golesClaros}–{b.golesOscuros})
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {f5Pendientes.length > 0 ? (
-        <div className="card card--warn" style={{ marginBottom: "1.25rem" }}>
-          <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Valoración F5 después del partido</h2>
+        <div className="card card--warn home-alert" style={{ marginBottom: "1rem" }}>
+          <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Valorar F5 del partido jugado</h2>
           <p className="muted" style={{ marginTop: 0 }}>
-            Tenés pendiente calificar a compañeros de partidos confirmados en los que participaste.
+            Solo después de jugado (desde las 22:30 del día del partido).
           </p>
           <ul style={{ margin: 0, paddingLeft: "1.1rem", lineHeight: 1.8 }}>
             {f5Pendientes.map((b) => (
               <li key={b.partidoId}>
-                <strong>Partido {b.fecha}</strong>:{" "}
+                <strong>{b.fecha}</strong>:{" "}
                 {b.companeros.map((c, i) => (
                   <span key={c.id}>
                     {i > 0 ? ", " : null}
@@ -181,108 +261,26 @@ export default function HomePage() {
         </div>
       ) : null}
 
-      {(sinValoracionesGrupo.length > 0 || sinValoracionesF5Grupo.length > 0) && otrosJugadores.length > 0 ? (
-        <div className="card card--purple" style={{ marginBottom: "1.25rem" }}>
-          <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Recordatorios para el grupo</h2>
-          <p className="muted" style={{ marginTop: 0, fontSize: "0.92rem" }}>
-            Avisales a tus compañeros si aún no tienen suficientes valoraciones del grupo (perfil completo o F5).
-          </p>
-          {sinValoracionesGrupo.length > 0 ? (
-            <p style={{ margin: "0.5rem 0 0", fontSize: "0.92rem" }}>
-              <strong>Perfil completo sin valoraciones del grupo:</strong>{" "}
-              {sinValoracionesGrupo.map((p) => p.apodo).join(", ")}
-            </p>
-          ) : null}
-          {sinValoracionesF5Grupo.length > 0 ? (
-            <p style={{ margin: "0.5rem 0 0", fontSize: "0.92rem" }}>
-              <strong>F5 sin valoraciones del grupo:</strong> {sinValoracionesF5Grupo.map((p) => p.apodo).join(", ")}
-            </p>
-          ) : null}
-        </div>
+      {otros.length > 0 ? (
+        <p className="home-progress muted">
+          Tus valoraciones: F5 <strong>{f5Hechos}</strong>/{otros.length} · F11 <strong>{f11Hechos}</strong>/
+          {otros.length}
+        </p>
       ) : null}
-
-      {otrosJugadores.length > 0 && (
-        <div className="home-status-grid">
-          <div
-            className={`card${(listaTab === "completo" ? faltanCalificar : faltanCalificarF5).length ? " card--warn" : ""}`}
-            style={{ marginBottom: 0 }}
-          >
-            <h3 style={{ margin: "0 0 0.35rem", fontSize: "1.05rem" }}>
-              ⏳ Te falta calificar{" "}
-              <span className="muted" style={{ fontSize: "0.85rem", fontWeight: 500 }}>
-                ({listaTab === "completo" ? faltanCalificar.length : faltanCalificarF5.length})
-              </span>
-            </h3>
-            <p className="muted" style={{ margin: "0 0 0.75rem", fontSize: "0.82rem" }}>
-              {listaTab === "completo"
-                ? "Entrá a la ficha de cada compañero y completá el perfil completo."
-                : "En la ficha, sección F5, valorá el perfil F5 de cada compañero."}
-            </p>
-            {(listaTab === "completo" ? faltanCalificar : faltanCalificarF5).length === 0 ? (
-              <p style={{ margin: 0, color: "var(--accent)", fontWeight: 600, fontSize: "0.95rem" }}>
-                ¡Listo! Calificaste a todos en esta categoría.
-              </p>
-            ) : (
-              <div className="chip-row">
-                {(listaTab === "completo" ? faltanCalificar : faltanCalificarF5).map((p) => (
-                  <Link
-                    key={p.id}
-                    to={
-                      listaTab === "f5"
-                        ? `/jugador/${p.id}#f5-valoracion`
-                        : `/jugador/${p.id}#perfil-completo-valoracion`
-                    }
-                    className="chip chip--warn"
-                  >
-                    {p.apodo}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div
-            className={`card${(listaTab === "completo" ? yaCalificados : yaCalificadosF5).length ? " card--ok" : ""}`}
-            style={{ marginBottom: 0 }}
-          >
-            <h3 style={{ margin: "0 0 0.35rem", fontSize: "1.05rem" }}>
-              ✓ Ya calificaste{" "}
-              <span className="muted" style={{ fontSize: "0.85rem", fontWeight: 500 }}>
-                ({listaTab === "completo" ? yaCalificados.length : yaCalificadosF5.length})
-              </span>
-            </h3>
-            <p className="muted" style={{ margin: "0 0 0.75rem", fontSize: "0.82rem" }}>
-              Podés volver a ajustar la valoración desde la ficha de cada uno.
-            </p>
-            {(listaTab === "completo" ? yaCalificados : yaCalificadosF5).length === 0 ? (
-              <p className="muted" style={{ margin: 0, fontSize: "0.9rem" }}>
-                Todavía no enviaste valoraciones a otros jugadores en esta categoría.
-              </p>
-            ) : (
-              <div className="chip-row">
-                {(listaTab === "completo" ? yaCalificados : yaCalificadosF5).map((p) => (
-                  <Link
-                    key={p.id}
-                    to={
-                      listaTab === "f5"
-                        ? `/jugador/${p.id}#f5-valoracion`
-                        : `/jugador/${p.id}#perfil-completo-valoracion`
-                    }
-                    className="chip chip--ok"
-                  >
-                    {p.apodo}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {list.length === 0 ? (
         <p className="muted">No hay jugadores registrados todavía.</p>
       ) : (
-        <div className="list">{list.map((p) => <PlayerRowLink key={p.id} p={p} listaTab={listaTab} />)}</div>
+        <div className="list">
+          {list.map((p, i) => (
+            <PlayerRow
+              key={p.id}
+              p={p}
+              tone={ROW_TONES[i % ROW_TONES.length]}
+              snippet={snippets.get(p.id)}
+            />
+          ))}
+        </div>
       )}
     </div>
   );

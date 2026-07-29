@@ -36,7 +36,7 @@ as $$
     'inviteCode', g.invite_code,
     'deporte', g.deporte,
     'configurado', coalesce(g.configurado, false),
-    'diasPartido', to_jsonb(coalesce(g.dias_partido, array['martes','jueves']::text[])),
+    'diasPartido', to_jsonb(coalesce(g.dias_partido, array[]::text[])),
     'fechasExtra', to_jsonb(coalesce(g.fechas_extra, array[]::date[])),
     'horaPartidoDefault', coalesce(g.hora_partido_default, '21:30'),
     'anotacionAbreDiasAntes', coalesce(g.anotacion_abre_dias_antes, 7),

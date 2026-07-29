@@ -28,6 +28,14 @@ import type {
 import { clearDemoSession, getDemoPlayerId, isDemoMode } from "./lib/demoMode";
 import { demoApi, demoConvocatorias, demoNotificaciones, demoPartidos } from "./lib/demoApi";
 import { getActiveGrupoId } from "./lib/bridgeSession";
+import type {
+  EncuestaCandidato,
+  EncuestaDificultad,
+  EncuestaPartidoPayload,
+  EncuestaPendiente,
+  EncuestaTrofeoRow,
+  EncuestaVotosPayload,
+} from "./lib/encuestaPostPartido";
 
 // Incluye el campo apodo en misDatosPrivados y setMisDatosPrivados
 export let misDatosPrivados: MisDatosPrivados | null = null;
@@ -169,8 +177,8 @@ function mapPublicRow(r: JugadorPublicoRow): PlayerInternal {
     esAdmin: Boolean(r.es_admin),
     modalidadPreferida: asModalidad(r.modalidad_preferida),
     createdAt: String(r.created_at ?? r.updated_at ?? new Date().toISOString()),
-    perfilCompletoCargado: r.perfil_completo_cargado !== false,
-    perfilF5Cargado: r.perfil_f5_cargado !== false,
+    perfilCompletoCargado: r.perfil_completo_cargado === true,
+    perfilF5Cargado: r.perfil_f5_cargado === true,
   };
 }
 
@@ -265,6 +273,15 @@ const PLAYERS_CACHE_TTL_MS = 45_000;
 
 export function invalidatePlayersCache(): void {
   playersListCache = null;
+  playersInflight = null;
+}
+
+function unionIdSets(...sets: Set<string>[]): Set<string> {
+  const out = new Set<string>();
+  for (const s of sets) {
+    for (const id of s) out.add(id);
+  }
+  return out;
 }
 
 /** Invalidar id de jugador de sesión (p. ej. al crear/entrar a un grupo). */
@@ -680,6 +697,71 @@ export const apiPartidos = {
   },
 };
 
+export const apiEncuesta = {
+  pendientes: async (): Promise<EncuestaPendiente[]> => {
+    if (isDemoMode()) return [];
+    const token = await requireToken();
+    const sb = getSupabase();
+    const { data, error } = await sb.rpc("futbol_encuesta_pendientes", { p_token: token });
+    if (error) throw new Error(error.message);
+    return rpcJsonArray<EncuestaPendiente>(data);
+  },
+
+  partido: async (partidoId: string): Promise<EncuestaPartidoPayload> => {
+    if (isDemoMode()) {
+      throw new Error("Encuesta no disponible en modo demo.");
+    }
+    const token = await requireToken();
+    const sb = getSupabase();
+    const { data, error } = await sb.rpc("futbol_encuesta_partido", {
+      p_token: token,
+      p_partido_id: partidoId,
+    });
+    if (error) throw new Error(error.message);
+    const row = (data ?? {}) as Record<string, unknown>;
+    return {
+      partidoId: String(row.partidoId ?? partidoId),
+      fecha: String(row.fecha ?? ""),
+      hora: (row.hora as string | null) ?? null,
+      golesClaros: Number(row.golesClaros ?? 0),
+      golesOscuros: Number(row.golesOscuros ?? 0),
+      yaVoto: row.yaVoto === true,
+      candidatos: Array.isArray(row.candidatos) ? (row.candidatos as EncuestaCandidato[]) : [],
+      misVotos: (row.misVotos as EncuestaPartidoPayload["misVotos"]) ?? {},
+      miDificultad:
+        row.miDificultad === "parejo" || row.miDificultad === "disparejo"
+          ? (row.miDificultad as EncuestaDificultad)
+          : null,
+    };
+  },
+
+  votar: async (
+    partidoId: string,
+    votos: EncuestaVotosPayload,
+    dificultad: EncuestaDificultad,
+  ): Promise<void> => {
+    if (isDemoMode()) throw new Error("Encuesta no disponible en modo demo.");
+    const token = await requireToken();
+    const sb = getSupabase();
+    const { error } = await sb.rpc("futbol_encuesta_votar", {
+      p_token: token,
+      p_partido_id: partidoId,
+      p_votos: votos,
+      p_dificultad: dificultad,
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  trofeos: async (): Promise<EncuestaTrofeoRow[]> => {
+    if (isDemoMode()) return [];
+    const token = await requireToken();
+    const sb = getSupabase();
+    const { data, error } = await sb.rpc("futbol_encuesta_trofeos", { p_token: token });
+    if (error) throw new Error(error.message);
+    return rpcJsonArray<EncuestaTrofeoRow>(data);
+  },
+};
+
 export const apiConvocatorias = {
   list: async (): Promise<ConvocatoriaRow[]> => {
     if (isDemoMode()) return demoConvocatorias.list();
@@ -812,37 +894,26 @@ export const api = {
         miValoracionesPerfilOtros: me.miValoracionesPerfilOtros ?? 0,
       };
     }
-    const token = await requireToken();
-    const cacheKey = sessionCacheKey(token);
-    if (playersListCache && playersListCache.key === cacheKey && Date.now() - playersListCache.at < PLAYERS_CACHE_TTL_MS) {
-      const self = playersListCache.data.jugadores.find((p) => p.isSelf);
-      if (self) {
-        return {
-          id: self.id,
-          perfilCompletoCargado: self.perfilCompletoCargado,
-          perfilF5Cargado: self.perfilF5Cargado,
-          miValoracionesPerfilOtros: self.miValoracionesPerfilOtros ?? 0,
-        };
-      }
-    }
+    await requireToken();
     const viewerId = await sessionPlayerId();
     const sb = getSupabase();
-    const [rowRes, myRated] = await Promise.all([
+    const [rowRes, myRated, myRatedF5] = await Promise.all([
       sb
         .from("jugadores_publico")
         .select("perfil_completo_cargado,perfil_f5_cargado")
         .eq("id", viewerId)
         .maybeSingle(),
       fetchMyRatedTargetIds(viewerId),
+      fetchMyRatedF5PerfilTargetIds(viewerId),
     ]);
     if (rowRes.error) throw new Error(rowRes.error.message);
     if (!rowRes.data) throw new Error("Jugador no encontrado");
     const row = rowRes.data as { perfil_completo_cargado?: boolean; perfil_f5_cargado?: boolean };
     return {
       id: viewerId,
-      perfilCompletoCargado: row.perfil_completo_cargado !== false,
-      perfilF5Cargado: row.perfil_f5_cargado !== false,
-      miValoracionesPerfilOtros: myRated.size,
+      perfilCompletoCargado: row.perfil_completo_cargado === true,
+      perfilF5Cargado: row.perfil_f5_cargado === true,
+      miValoracionesPerfilOtros: unionIdSets(myRated, myRatedF5).size,
     };
   },
 
@@ -927,7 +998,7 @@ export const api = {
 
       const ids = rows.map((r) => String(r.id));
       const [ratingsMap, f5Map] = await Promise.all([ratingsToMany(ids), buildF5PeerRatingsListMany(ids)]);
-      const miValCount = myRated.size;
+      const miValCount = unionIdSets(myRated, myRatedF5).size;
 
       const jugadores = rows.map((r) => {
         const p = mapPublicRow(r);
@@ -1061,7 +1132,23 @@ export const api = {
     const viewerId = await sessionPlayerId();
     const sb = getSupabase();
     const [partidos, presencias] = await Promise.all([apiPartidos.list(), apiPartidos.listPresencias()]);
-    const confirmados = partidos.filter((p) => p.confirmado_admin !== false);
+    const tz = "America/Argentina/Buenos_Aires";
+    const nowArt = new Date(
+      new Date().toLocaleString("en-US", { timeZone: tz }),
+    );
+    const todayArt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const minutesArt = nowArt.getHours() * 60 + nowArt.getMinutes();
+    const f5Eligible = (fecha: string) =>
+      fecha < todayArt || (fecha === todayArt && minutesArt >= 22 * 60 + 30);
+
+    const confirmados = partidos.filter(
+      (p) => p.confirmado_admin !== false && p.estado !== "cancelado" && f5Eligible(p.fecha),
+    );
     const out: { partido: PartidoRow; companeros: { id: string; apodo: string }[] }[] = [];
 
     const relevantPartidoIds: string[] = [];

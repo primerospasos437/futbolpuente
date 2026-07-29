@@ -3,11 +3,32 @@ import { Navigate } from "react-router-dom";
 import { api, apiConvocatorias, apiPartidos, isAdminFromPlayersList, type ConvocatoriaRow, type PartidoRow } from "../api";
 import { FootballStrip, PageCheer } from "../components/FunDecor";
 import { formatRating } from "../lib/formatRating";
+import {
+  grupoConfigGet,
+  labelDia,
+  nextMatchIsoForDia,
+  type DiaSemana,
+} from "../lib/grupoConfig";
 import { TEAM_LABEL_CLAROS, TEAM_LABEL_OSCUROS } from "../lib/teamsBalance";
-import type { BalanceResponse, PlayerSummary } from "../types";
-import { nextMatchIso } from "./ProximosPartidosPage";
+import type { BalanceResponse, PlayerSummary, Posicion, TeamSlot } from "../types";
 
 const TITULARES_CAMPO = 10;
+
+const POS_ORDER: Record<Posicion, number> = {
+  portero: 0,
+  defensa: 1,
+  medio: 2,
+  delantero: 3,
+};
+
+function sortTeamSlots(slots: TeamSlot[]): TeamSlot[] {
+  return [...slots].sort((a, b) => {
+    const pa = POS_ORDER[a.posicionPreferida] ?? 9;
+    const pb = POS_ORDER[b.posicionPreferida] ?? 9;
+    if (pa !== pb) return pa - pb;
+    return a.apodo.localeCompare(b.apodo, "es");
+  });
+}
 
 type ModoFuente = "anotados" | "manual";
 
@@ -20,7 +41,8 @@ function playerScoreLine(p: PlayerSummary): string {
 export default function TeamsPage() {
   const [players, setPlayers] = useState<PlayerSummary[] | null>(null);
   const [convocatorias, setConvocatorias] = useState<ConvocatoriaRow[]>([]);
-  const [diaPartido, setDiaPartido] = useState<"martes" | "jueves">("martes");
+  const [diasGrupo, setDiasGrupo] = useState<DiaSemana[]>([]);
+  const [diaPartido, setDiaPartido] = useState<DiaSemana | "">("");
   const [modoFuente, setModoFuente] = useState<ModoFuente>("anotados");
   const [manualPoolIds, setManualPoolIds] = useState<string[]>([]);
   const [busquedaManual, setBusquedaManual] = useState("");
@@ -33,11 +55,15 @@ export default function TeamsPage() {
   const [partidos, setPartidos] = useState<PartidoRow[]>([]);
   const [borradorPartidoId, setBorradorPartidoId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [partidoConfirmado, setPartidoConfirmado] = useState(false);
   const [useF5Balance, setUseF5Balance] = useState(true);
   const [horaPartido, setHoraPartido] = useState("21:30");
   const [observacion, setObservacion] = useState("");
 
-  const fechaPartidoCal = useMemo(() => nextMatchIso(diaPartido), [diaPartido]);
+  const fechaPartidoCal = useMemo(
+    () => (diaPartido ? nextMatchIsoForDia(diaPartido) : ""),
+    [diaPartido],
+  );
 
   const convFiltradas = useMemo(
     () => convocatorias.filter((c) => c.dia === diaPartido && c.fecha_partido === fechaPartidoCal),
@@ -97,16 +123,21 @@ export default function TeamsPage() {
     let cancelled = false;
     (async () => {
       try {
-        const [{ jugadores: list }, conv, pl] = await Promise.all([
+        const [{ jugadores: list }, conv, pl, cfg] = await Promise.all([
           api.players(),
           apiConvocatorias.list(),
           apiPartidos.list(),
+          grupoConfigGet().catch(() => null),
         ]);
         if (cancelled) return;
         setPlayers(list);
         setConvocatorias(Array.isArray(conv) ? conv : []);
         setAdmin(isAdminFromPlayersList(list));
         setPartidos(Array.isArray(pl) ? pl : []);
+        const dias = cfg?.diasPartido ?? [];
+        setDiasGrupo(dias);
+        setDiaPartido((prev) => (prev && dias.includes(prev as DiaSemana) ? prev : dias[0] ?? ""));
+        if (cfg?.horaPartidoDefault) setHoraPartido(cfg.horaPartidoDefault);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       }
@@ -126,6 +157,7 @@ export default function TeamsPage() {
     setSelected(n);
     setResult(null);
     setBorradorPartidoId(null);
+    setPartidoConfirmado(false);
   }, [diaPartido, fechaPartidoCal, modoFuente, poolKey]);
 
   function syncTitularFromSelected(next: Record<string, boolean>) {
@@ -186,6 +218,7 @@ export default function TeamsPage() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setPartidoConfirmado(false);
     try {
       if (chosenIds.length !== TITULARES_CAMPO) {
         throw new Error(`Tenés que elegir exactamente ${TITULARES_CAMPO} titulares para jugar 5 vs 5.`);
@@ -250,7 +283,7 @@ export default function TeamsPage() {
   }
 
   async function confirmarNotificar() {
-    if (!result) return;
+    if (!result || partidoConfirmado) return;
     setBusy(true);
     setError(null);
     try {
@@ -258,6 +291,7 @@ export default function TeamsPage() {
       if (!pid) pid = await guardarBorradorInterno();
       setBorradorPartidoId(pid);
       await apiPartidos.confirmar(pid);
+      setPartidoConfirmado(true);
       await refreshPartidos();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -273,6 +307,7 @@ export default function TeamsPage() {
       await apiPartidos.rearmar(partidoId);
       setBorradorPartidoId(null);
       setResult(null);
+      setPartidoConfirmado(false);
       await refreshPartidos();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
@@ -283,6 +318,7 @@ export default function TeamsPage() {
 
   function recalcularEquipos() {
     setError(null);
+    setPartidoConfirmado(false);
     void generate();
   }
 
@@ -299,8 +335,8 @@ export default function TeamsPage() {
         <p className="sub">
           Armá el partido <strong>5 vs 5</strong> ({TITULARES_CAMPO} titulares). Podés usar solo los{" "}
           <strong>anotados</strong> o armar una lista <strong>manual</strong> con cualquier jugador registrado. El balanceo
-          equilibra el <strong>promedio en cada característica</strong> (F5 o F11) y reparte defensas, mediocampistas y
-          delanteros según puesto principal o alternativo; se respetan las exclusiones «no compartir equipo».
+          equilibra puestos y notas (F5 o F11). Si un lado queda con menos defensores, prioriza mandar ahí al delantero o
+          medio con más <strong>pulmón/compromiso</strong> (ida y vuelta). Se respetan las exclusiones «no compartir equipo».
         </p>
       </header>
 
@@ -336,27 +372,41 @@ export default function TeamsPage() {
 
       <div className="card" style={{ marginBottom: "1rem" }}>
         <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Partido a armar</h2>
-        <div className="row">
-          <label>Día</label>
-          <select value={diaPartido} onChange={(e) => setDiaPartido(e.target.value as "martes" | "jueves")}>
-            <option value="martes">Martes</option>
-            <option value="jueves">Jueves</option>
-          </select>
-        </div>
-        <p className="muted" style={{ marginBottom: 0 }}>
-          Fecha de convocatoria (Argentina): <strong>{fechaPartidoCal}</strong>
-          {modoFuente === "anotados" ? (
-            <>
-              {" "}
-              · {anotadosPlayers.length} anotados
-            </>
-          ) : (
-            <>
-              {" "}
-              · {poolPlayers.length} en el pool manual
-            </>
-          )}
-        </p>
+        {diasGrupo.length === 0 ? (
+          <p className="muted" style={{ marginBottom: 0 }}>
+            No hay días configurados. Un admin tiene que elegirlos en «⚙️ Configuración».
+          </p>
+        ) : (
+          <>
+            <div className="row">
+              <label>Día</label>
+              <select
+                value={diaPartido}
+                onChange={(e) => setDiaPartido(e.target.value as DiaSemana)}
+              >
+                {diasGrupo.map((d) => (
+                  <option key={d} value={d}>
+                    {labelDia(d)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="muted" style={{ marginBottom: 0 }}>
+              Fecha de convocatoria (Argentina): <strong>{fechaPartidoCal}</strong>
+              {modoFuente === "anotados" ? (
+                <>
+                  {" "}
+                  · {anotadosPlayers.length} anotados
+                </>
+              ) : (
+                <>
+                  {" "}
+                  · {poolPlayers.length} en el pool manual
+                </>
+              )}
+            </p>
+          </>
+        )}
       </div>
 
       <div className="card" style={{ marginBottom: "1rem" }}>
@@ -550,11 +600,20 @@ export default function TeamsPage() {
 
       {result && (
         <>
+          {partidoConfirmado ? (
+            <div className="card card--ok" style={{ marginBottom: "0.85rem" }}>
+              <p style={{ margin: 0, fontWeight: 700 }}>
+                ✅ Partido confirmado y notificaciones enviadas
+              </p>
+            </div>
+          ) : null}
           <div className="team-grid">
             <div className="card team-card team-card--claros">
-              <h3>{TEAM_LABEL_CLAROS} · prom. {formatRating(result.sumA)}</h3>
+              <h3>
+                {TEAM_LABEL_CLAROS} · prom. {formatRating(result.sumA)}
+              </h3>
               <ul>
-                {result.teamA.map((x) => (
+                {sortTeamSlots(result.teamA).map((x) => (
                   <li key={x.id}>
                     {x.apodo} · {x.posicionPreferida} · {formatRating(x.score)}
                   </li>
@@ -562,9 +621,11 @@ export default function TeamsPage() {
               </ul>
             </div>
             <div className="card team-card team-card--oscuros">
-              <h3>{TEAM_LABEL_OSCUROS} · prom. {formatRating(result.sumB)}</h3>
+              <h3>
+                {TEAM_LABEL_OSCUROS} · prom. {formatRating(result.sumB)}
+              </h3>
               <ul>
-                {result.teamB.map((x) => (
+                {sortTeamSlots(result.teamB).map((x) => (
                   <li key={x.id}>
                     {x.apodo} · {x.posicionPreferida} · {formatRating(x.score)}
                   </li>
@@ -575,14 +636,33 @@ export default function TeamsPage() {
 
           {admin === true && (
             <div style={{ marginTop: "1rem", display: "flex", flexWrap: "wrap", gap: "0.5rem", alignItems: "center" }}>
-              <button type="button" className="btn btn-ghost" disabled={busy} onClick={recalcularEquipos}>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={busy || partidoConfirmado}
+                onClick={recalcularEquipos}
+              >
                 Recalcular equipos
               </button>
-              <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void guardarBorrador()}>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={busy || partidoConfirmado}
+                onClick={() => void guardarBorrador()}
+              >
                 {busy ? "Guardando…" : "Solo guardar borrador (sin notificar)"}
               </button>
-              <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void confirmarNotificar()}>
-                {busy ? "Procesando…" : "Confirmar partido y enviar notificaciones automáticamente"}
+              <button
+                type="button"
+                className={`btn ${partidoConfirmado ? "btn-confirmed" : "btn-danger"}`}
+                disabled={busy || partidoConfirmado}
+                onClick={() => void confirmarNotificar()}
+              >
+                {busy
+                  ? "Procesando…"
+                  : partidoConfirmado
+                    ? "✅ Confirmado · enviado"
+                    : "Confirmar partido y enviar notificaciones"}
               </button>
               {borradorPartidoId ? (
                 <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => rearmarBorradorDb(borradorPartidoId)}>

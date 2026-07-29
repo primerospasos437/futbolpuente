@@ -26,7 +26,9 @@ import TeamsPage from "./pages/Teams";
 import StatsPage from "./pages/StatsPage";
 import GrupoConfigPage from "./pages/GrupoConfigPage";
 import ValorarF5PartidoPage from "./pages/ValorarF5PartidoPage";
+import EncuestaPostPartidoPage from "./pages/EncuestaPostPartidoPage";
 import NotificationsBell from "./components/NotificationsBell";
+import { PageSideDecor } from "./components/FunDecor";
 import ThemeToggle from "./components/ThemeToggle";
 
 function Shell() {
@@ -78,6 +80,7 @@ function Shell() {
 
   return (
     <div className="shell">
+      <PageSideDecor />
       {isDemoMode() ? (
         <div className="demo-banner">
           <strong>Modo demostración</strong>
@@ -178,6 +181,7 @@ function AppRoutes() {
         <Route path="/equipos" element={<TeamsPage />} />
         <Route path="/configuracion" element={<GrupoConfigPage />} />
         <Route path="/partido/:partidoId/valorar-f5" element={<ValorarF5PartidoPage />} />
+        <Route path="/partido/:partidoId/encuesta" element={<EncuestaPostPartidoPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
