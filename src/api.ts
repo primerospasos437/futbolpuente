@@ -1198,7 +1198,7 @@ export const api = {
     for (const { partido, ids } of pendingByPartido) {
       out.push({
         partido,
-        companeros: ids.map((id) => ({ id, apodo: map.get(id) ?? id.slice(0, 8) })),
+        companeros: ids.map((id) => ({ id, apodo: map.get(id) ?? "Ex-jugador" })),
       });
     }
     return out;

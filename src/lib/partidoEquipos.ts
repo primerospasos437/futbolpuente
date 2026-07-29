@@ -6,16 +6,28 @@ export type PartidoJugadorNombre = {
   apodo: string;
 };
 
-export function parseEquipoNombres(raw: unknown): PartidoJugadorNombre[] {
+/**
+ * Parsea el JSON de equipo guardado en el partido. Si se pasa `apodoById`,
+ * prioriza el apodo actual del jugador; si el JSON no tenía un apodo real
+ * (dato viejo con solo el id) y el jugador ya no está en el mapa, usa
+ * "Ex-jugador" en vez de exponer el UUID crudo en la UI.
+ */
+export function parseEquipoNombres(
+  raw: unknown,
+  apodoById?: Map<string, string>,
+): PartidoJugadorNombre[] {
   if (!Array.isArray(raw)) return [];
   const out: PartidoJugadorNombre[] = [];
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
     const o = item as Record<string, unknown>;
     const id = String(o.id ?? "").trim();
-    const apodo = String(o.apodo ?? o.nombre ?? "").trim();
-    if (!apodo && !id) continue;
-    out.push({ id: id || apodo, apodo: apodo || id });
+    const storedApodo = String(o.apodo ?? o.nombre ?? "").trim();
+    if (!storedApodo && !id) continue;
+    const finalId = id || storedApodo;
+    const live = id ? apodoById?.get(id) : undefined;
+    const apodo = live ?? (storedApodo && storedApodo !== id ? storedApodo : "Ex-jugador");
+    out.push({ id: finalId, apodo });
   }
   return out;
 }

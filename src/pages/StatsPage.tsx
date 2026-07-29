@@ -193,10 +193,10 @@ export default function StatsPage() {
     if (!p) return null;
     return {
       ...last,
-      claros: parseEquipoNombres(p.equipo_claros),
-      oscuros: parseEquipoNombres(p.equipo_oscuros),
+      claros: parseEquipoNombres(p.equipo_claros, apodoById),
+      oscuros: parseEquipoNombres(p.equipo_oscuros, apodoById),
     };
-  }, [recent, partidos]);
+  }, [recent, partidos, apodoById]);
 
   const pendientesResultado = useMemo(
     () => partidos.filter((p) => p.confirmado_admin === true && !partidoTieneResultado(p)),
@@ -218,17 +218,17 @@ export default function StatsPage() {
     if (fromPres.length) {
       return fromPres.map((pr) => ({
         id: pr.jugador_id,
-        apodo: apodoById.get(pr.jugador_id) ?? pr.jugador_id,
+        apodo: apodoById.get(pr.jugador_id) ?? "Ex-jugador",
         equipo: pr.equipo,
       }));
     }
     return [
-      ...parseEquipoNombres(formPartido.equipo_claros).map((x) => ({
+      ...parseEquipoNombres(formPartido.equipo_claros, apodoById).map((x) => ({
         id: x.id,
         apodo: x.apodo,
         equipo: "claros" as const,
       })),
-      ...parseEquipoNombres(formPartido.equipo_oscuros).map((x) => ({
+      ...parseEquipoNombres(formPartido.equipo_oscuros, apodoById).map((x) => ({
         id: x.id,
         apodo: x.apodo,
         equipo: "oscuros" as const,

@@ -218,8 +218,9 @@ export default function ProximosPartidosPage() {
     [misPartidosTitularConfirmados],
   );
 
+  const apodoById = useMemo(() => new Map(players.map((p) => [p.id, p.apodo])), [players]);
+
   const playerExtras = useMemo(() => {
-    const apodoById = new Map(players.map((p) => [p.id, p.apodo]));
     const snippets = buildPlayerListSnippets(partidos, presencias, apodoById);
     const out: Record<string, SpotlightPlayerExtra> = {};
     for (const p of players) {
@@ -233,7 +234,7 @@ export default function ProximosPartidosPage() {
       };
     }
     return out;
-  }, [players, partidos, presencias]);
+  }, [players, partidos, presencias, apodoById]);
 
   async function bajaTitularPartidoConfirmado(partidoId: string) {
     setBajaPartidoBusy(partidoId);
@@ -335,8 +336,8 @@ export default function ProximosPartidosPage() {
                   title="Próximo partido"
                   fecha={p.fecha}
                   hora={p.hora_partido}
-                  claros={parseEquipoNombres(p.equipo_claros)}
-                  oscuros={parseEquipoNombres(p.equipo_oscuros)}
+                  claros={parseEquipoNombres(p.equipo_claros, apodoById)}
+                  oscuros={parseEquipoNombres(p.equipo_oscuros, apodoById)}
                   golesClaros={p.goles_claros}
                   golesOscuros={p.goles_oscuros}
                   miEquipo={meId ? miEquipoEnPartido(p.id, meId, presencias) : null}

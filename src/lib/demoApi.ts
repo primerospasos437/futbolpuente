@@ -144,7 +144,7 @@ export const demoApi = {
     const uniq = [...new Set(evitaIds)].slice(0, 2);
     getDemoState().evitaCompaneros = uniq.map((id) => {
       const p = list.find((x) => x.id === id);
-      return { id, apodo: p?.apodo ?? id.slice(0, 8) };
+      return { id, apodo: p?.apodo ?? "Ex-jugador" };
     });
     return delay([...getDemoState().evitaCompaneros]);
   },

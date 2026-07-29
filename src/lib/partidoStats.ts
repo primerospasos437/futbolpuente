@@ -105,7 +105,7 @@ export type ConclusionItem = {
 };
 
 /** Resuelve el apodo real de un jugador; nunca expone el UUID crudo en la UI. */
-function resolveApodo(id: string, apodoById: Map<string, string>): string {
+export function resolveApodo(id: string, apodoById: Map<string, string>): string {
   return apodoById.get(id) ?? "Ex-jugador";
 }
 
@@ -197,12 +197,12 @@ export function lineupForMatch(
     }));
   }
   return [
-    ...parseEquipoNombres(p.equipo_claros).map((x) => ({
+    ...parseEquipoNombres(p.equipo_claros, apodoById).map((x) => ({
       id: x.id,
       equipo: "claros" as const,
       apodo: x.apodo,
     })),
-    ...parseEquipoNombres(p.equipo_oscuros).map((x) => ({
+    ...parseEquipoNombres(p.equipo_oscuros, apodoById).map((x) => ({
       id: x.id,
       equipo: "oscuros" as const,
       apodo: x.apodo,
@@ -250,7 +250,7 @@ export function buildPlayerRanking(
     const go = Number(p.goles_oscuros);
     const slots = lineupForMatch(p, presencias, apodoById);
     for (const s of slots) {
-      const acc = ensure(s.id, s.apodo || apodoById.get(s.id) || s.id);
+      const acc = ensure(s.id, apodoById.get(s.id) ?? s.apodo);
       if (apodoById.has(s.id)) acc.apodo = apodoById.get(s.id)!;
       const r = resultForTeam(gc, go, s.equipo);
       acc.pj += 1;
