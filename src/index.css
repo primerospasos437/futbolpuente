@@ -856,6 +856,49 @@ textarea:focus {
   cursor: not-allowed;
   filter: none;
 }
+/* Baja como titular: rojo neón que llama la atención */
+.btn-baja-neon {
+  width: 100%;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(180deg, #ff4d6d 0%, #c9183a 100%);
+  border: 2px solid #ff6b85;
+  box-shadow:
+    0 0 16px rgba(255, 77, 109, 0.55),
+    0 0 32px rgba(255, 77, 109, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
+  animation: baja-neon-pulse 2.4s ease-in-out infinite;
+}
+.btn-baja-neon:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow:
+    0 0 22px rgba(255, 77, 109, 0.75),
+    0 0 40px rgba(255, 77, 109, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.btn-baja-neon:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  animation: none;
+  filter: none;
+}
+@keyframes baja-neon-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 14px rgba(255, 77, 109, 0.45),
+      0 0 28px rgba(255, 77, 109, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+  50% {
+    box-shadow:
+      0 0 22px rgba(255, 77, 109, 0.7),
+      0 0 40px rgba(255, 77, 109, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  }
+}
 .btn-confirmed {
   background: linear-gradient(180deg, #5dffb0, #1a9e5c);
   color: #041208;
@@ -2122,6 +2165,51 @@ body.light-mode .btn-confirmed {
   margin-top: 0.85rem;
   padding-top: 0.65rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.match-spotlight__preview-cta {
+  margin-top: 0.9rem;
+}
+.match-preview-cta {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 800;
+  border: 1.5px solid rgba(0, 212, 255, 0.45);
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.14), rgba(61, 255, 154, 0.1));
+  box-shadow: 0 0 16px rgba(0, 212, 255, 0.18);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+.match-preview-cta:hover {
+  border-color: rgba(61, 255, 154, 0.65);
+  box-shadow: 0 0 22px rgba(61, 255, 154, 0.28);
+  transform: translateY(-1px);
+}
+.match-preview-cta__label {
+  flex: 1;
+  font-size: 0.95rem;
+}
+.match-preview-cta__count {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  color: #041208;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(61, 255, 154, 0.45);
+}
+.match-preview-cta__chev {
+  color: var(--neon-blue);
+  font-size: 1.1rem;
 }
 
 /* —— Próxima fecha · datos (previa con insights) —— */

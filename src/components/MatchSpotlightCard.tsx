@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import type { PartidoJugadorNombre } from "../lib/partidoEquipos";
-import { difficultyLabel, type MatchDifficulty, type MatchPreviewInsight } from "../lib/partidoStats";
+import { difficultyLabel, type MatchDifficulty } from "../lib/partidoStats";
 import { TEAM_LABEL_CLAROS, TEAM_LABEL_OSCUROS } from "../lib/teamsBalance";
-import MatchPreviewDatos from "./MatchPreviewDatos";
 
 export type SpotlightPlayerExtra = {
   posicionLabel?: string;
@@ -23,8 +23,8 @@ type Props = {
   title?: string;
   showScore?: boolean;
   playerExtras?: Record<string, SpotlightPlayerExtra>;
-  /** Insights de previa (rachas, duplas, H2H…) debajo del VS. */
-  previewInsights?: MatchPreviewInsight[];
+  /** Botón único a la planilla de previa (con cantidad de datos). */
+  previewLink?: { to: string; count: number } | null;
   /** Acciones bajo la tarjeta (ej. darse de baja). */
   footer?: ReactNode;
 };
@@ -147,7 +147,7 @@ export default function MatchSpotlightCard({
   title = "Partido del día",
   showScore = true,
   playerExtras,
-  previewInsights,
+  previewLink,
   footer,
 }: Props) {
   const winner = winnerLabel(golesClaros, golesOscuros);
@@ -210,7 +210,21 @@ export default function MatchSpotlightCard({
         />
       </div>
 
-      {previewInsights?.length ? <MatchPreviewDatos insights={previewInsights} /> : null}
+      {previewLink && previewLink.count > 0 ? (
+        <div className="match-spotlight__preview-cta">
+          <Link to={previewLink.to} className="match-preview-cta">
+            <span className="match-preview-cta__label">
+              <span aria-hidden>📊</span> Próxima fecha · datos
+            </span>
+            <span className="match-preview-cta__count">
+              {previewLink.count} dato{previewLink.count === 1 ? "" : "s"}
+            </span>
+            <span className="match-preview-cta__chev" aria-hidden>
+              →
+            </span>
+          </Link>
+        </div>
+      ) : null}
 
       {footer ? <div className="match-spotlight__footer">{footer}</div> : null}
     </article>

@@ -346,11 +346,12 @@ export default function ProximosPartidosPage() {
         <section style={{ marginTop: "1rem" }}>
           <h2 className="proximos-section-title"><Shield size={16} className="neon-icon" /> Partidos con equipos confirmados</h2>
           <p className="muted" style={{ marginTop: 0, marginBottom: "0.85rem" }}>
-            Compañeros, rivales y abajo la previa con datos: rachas, enfrentamientos y duplas de este partido.
+            Compañeros, rivales y un botón a la previa con datos del partido.
           </p>
           <div className="proximos-spotlight-grid">
             {partidosConEquipos.map((p) => {
               const soyTitular = titularPartidoIds.has(p.id);
+              const insights = previewByPartidoId[p.id] ?? [];
               return (
                 <MatchSpotlightCard
                   key={p.id}
@@ -364,12 +365,16 @@ export default function ProximosPartidosPage() {
                   miEquipo={meId ? miEquipoEnPartido(p.id, meId, presencias) : null}
                   showScore={p.goles_claros != null && p.goles_oscuros != null}
                   playerExtras={playerExtras}
-                  previewInsights={previewByPartidoId[p.id]}
+                  previewLink={
+                    insights.length
+                      ? { to: `/partido/${p.id}/previa`, count: insights.length }
+                      : null
+                  }
                   footer={
                     soyTitular ? (
                       <button
                         type="button"
-                        className="btn btn-ghost"
+                        className="btn btn-baja-neon"
                         disabled={bajaPartidoBusy === p.id}
                         onClick={() => void bajaTitularPartidoConfirmado(p.id)}
                       >

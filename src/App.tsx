@@ -24,6 +24,7 @@ import MisDatosPage from "./pages/MisDatosPage";
 import ProximosPartidosPage from "./pages/ProximosPartidosPage";
 import TeamsPage from "./pages/Teams";
 import StatsPage from "./pages/StatsPage";
+import PreviaPartidoPage from "./pages/PreviaPartidoPage";
 import GrupoConfigPage from "./pages/GrupoConfigPage";
 import ValorarF5PartidoPage from "./pages/ValorarF5PartidoPage";
 import EncuestaPostPartidoPage from "./pages/EncuestaPostPartidoPage";
@@ -181,6 +182,7 @@ function AppRoutes() {
         <Route path="/mis-datos" element={<MisDatosPage />} />
         <Route path="/equipos" element={<TeamsPage />} />
         <Route path="/configuracion" element={<GrupoConfigPage />} />
+        <Route path="/partido/:partidoId/previa" element={<PreviaPartidoPage />} />
         <Route path="/partido/:partidoId/valorar-f5" element={<ValorarF5PartidoPage />} />
         <Route path="/partido/:partidoId/encuesta" element={<EncuestaPostPartidoPage />} />
       </Route>
