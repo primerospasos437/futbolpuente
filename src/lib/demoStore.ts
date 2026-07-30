@@ -228,7 +228,7 @@ function createInitialState(): DemoState {
 
   const partidoConfirmado: PartidoRow = {
     id: "demo-partido-confirmado",
-    fecha,
+    fecha: fecha2,
     equipo_claros: claros,
     equipo_oscuros: oscuros,
     estado: "finalizado",
@@ -245,7 +245,8 @@ function createInitialState(): DemoState {
     resultado_cargado_at: new Date().toISOString(),
   };
 
-  /** Partido confirmado sin resultado: el admin demo puede cargarlo en Stats. */
+  /** Partido confirmado sin resultado: el admin demo puede cargarlo en Stats.
+   *  También sirve para ver «Próxima fecha · datos» en Próximos partidos. */
   const partidoPendienteResultado: PartidoRow = {
     id: "demo-partido-sin-resultado",
     fecha: fecha,
@@ -263,11 +264,12 @@ function createInitialState(): DemoState {
       { id: "demo-p005", apodo: "Turco" },
       { id: "demo-p010", apodo: "Cabeza" },
     ],
-    estado: "confirmado",
+    estado: "pendiente",
     confirmado_admin: true,
     hora_partido: "21:30",
     goles_claros: null,
     goles_oscuros: null,
+    comentario_partido: "Demo previa — sin resultado aún",
   };
 
   const presencias: PresenciaRow[] = [];
