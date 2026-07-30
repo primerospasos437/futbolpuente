@@ -11,6 +11,7 @@ import {
   type GrupoConfig,
 } from "../lib/grupoConfig";
 import {
+  collectApodosFromPartidos,
   miEquipoEnPartido,
   parseEquipoNombres,
   partidoTieneEquiposPublicados,
@@ -218,7 +219,11 @@ export default function ProximosPartidosPage() {
     [misPartidosTitularConfirmados],
   );
 
-  const apodoById = useMemo(() => new Map(players.map((p) => [p.id, p.apodo])), [players]);
+  const apodoById = useMemo(() => {
+    const m = collectApodosFromPartidos(partidos);
+    for (const p of players) m.set(p.id, p.apodo);
+    return m;
+  }, [players, partidos]);
 
   const playerExtras = useMemo(() => {
     const snippets = buildPlayerListSnippets(partidos, presencias, apodoById);

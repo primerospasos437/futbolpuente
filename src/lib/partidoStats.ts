@@ -1,5 +1,5 @@
 import type { PartidoRow, PresenciaRow } from "../types";
-import { parseEquipoNombres } from "./partidoEquipos";
+import { isUsableApodo, parseEquipoNombres } from "./partidoEquipos";
 
 export type ResultLetter = "G" | "P" | "E";
 
@@ -105,8 +105,11 @@ export type ConclusionItem = {
 };
 
 /** Resuelve el apodo real de un jugador; nunca expone el UUID crudo en la UI. */
-export function resolveApodo(id: string, apodoById: Map<string, string>): string {
-  return apodoById.get(id) ?? "Ex-jugador";
+export function resolveApodo(id: string, apodoById: Map<string, string>, fallback?: string): string {
+  const live = apodoById.get(id);
+  if (live && isUsableApodo(live, id)) return live;
+  if (fallback && isUsableApodo(fallback, id)) return fallback;
+  return "Ex-jugador";
 }
 
 export function classifyDifficulty(gc: number, go: number): MatchDifficulty {
@@ -185,18 +188,7 @@ export function lineupForMatch(
   presencias: PresenciaRow[],
   apodoById: Map<string, string>,
 ): LineupSlot[] {
-  const fromPres = presencias.filter(
-    (pr) =>
-      pr.partido_id === p.id && (pr.estado === "convocado" || pr.estado === "presente"),
-  );
-  if (fromPres.length > 0) {
-    return fromPres.map((pr) => ({
-      id: pr.jugador_id,
-      equipo: pr.equipo,
-      apodo: resolveApodo(pr.jugador_id, apodoById),
-    }));
-  }
-  return [
+  const fromJson = [
     ...parseEquipoNombres(p.equipo_claros, apodoById).map((x) => ({
       id: x.id,
       equipo: "claros" as const,
@@ -208,6 +200,21 @@ export function lineupForMatch(
       apodo: x.apodo,
     })),
   ];
+  const apodoFromJson = new Map(fromJson.map((x) => [x.id, x.apodo]));
+
+  const fromPres = presencias.filter(
+    (pr) =>
+      pr.partido_id === p.id && (pr.estado === "convocado" || pr.estado === "presente"),
+  );
+  if (fromPres.length > 0) {
+    return fromPres.map((pr) => ({
+      id: pr.jugador_id,
+      equipo: pr.equipo,
+      // Prioridad: roster actual → apodo guardado en el JSON del partido → Ex-jugador
+      apodo: resolveApodo(pr.jugador_id, apodoById, apodoFromJson.get(pr.jugador_id)),
+    }));
+  }
+  return fromJson;
 }
 
 /**
@@ -432,7 +439,16 @@ export function buildPairStats(
   invictas: PairStat[];
   invictasCount: number;
 } {
-  type Acc = { aId: string; bId: string; pj: number; g: number; p: number; e: number };
+  type Acc = {
+    aId: string;
+    bId: string;
+    aApodo: string;
+    bApodo: string;
+    pj: number;
+    g: number;
+    p: number;
+    e: number;
+  };
   const pairs = new Map<string, Acc>();
 
   const finished = finishedMatchesDesc(partidos);
@@ -440,21 +456,41 @@ export function buildPairStats(
     const gc = Number(p.goles_claros);
     const go = Number(p.goles_oscuros);
     const slots = lineupForMatch(p, presencias, apodoById);
-    const byTeam: Record<"claros" | "oscuros", string[]> = { claros: [], oscuros: [] };
-    for (const s of slots) byTeam[s.equipo].push(s.id);
+    const byTeam: Record<"claros" | "oscuros", LineupSlot[]> = { claros: [], oscuros: [] };
+    for (const s of slots) byTeam[s.equipo].push(s);
 
     for (const equipo of ["claros", "oscuros"] as const) {
-      const ids = byTeam[equipo];
+      const team = byTeam[equipo];
       const r = resultForTeam(gc, go, equipo);
-      for (let i = 0; i < ids.length; i += 1) {
-        for (let j = i + 1; j < ids.length; j += 1) {
-          const a = ids[i];
-          const b = ids[j];
-          const key = pairKey(a, b);
+      for (let i = 0; i < team.length; i += 1) {
+        for (let j = i + 1; j < team.length; j += 1) {
+          const sa = team[i];
+          const sb = team[j];
+          const key = pairKey(sa.id, sb.id);
           let acc = pairs.get(key);
           if (!acc) {
-            acc = { aId: a < b ? a : b, bId: a < b ? b : a, pj: 0, g: 0, p: 0, e: 0 };
+            const ordered = sa.id < sb.id ? [sa, sb] : [sb, sa];
+            acc = {
+              aId: ordered[0].id,
+              bId: ordered[1].id,
+              aApodo: ordered[0].apodo,
+              bApodo: ordered[1].apodo,
+              pj: 0,
+              g: 0,
+              p: 0,
+              e: 0,
+            };
             pairs.set(key, acc);
+          } else {
+            // Si en un partido posterior aparece un apodo usable, actualizamos.
+            const aSlot = sa.id === acc.aId ? sa : sb;
+            const bSlot = sa.id === acc.bId ? sa : sb;
+            if (!isUsableApodo(acc.aApodo, acc.aId) && isUsableApodo(aSlot.apodo, aSlot.id)) {
+              acc.aApodo = aSlot.apodo;
+            }
+            if (!isUsableApodo(acc.bApodo, acc.bId) && isUsableApodo(bSlot.apodo, bSlot.id)) {
+              acc.bApodo = bSlot.apodo;
+            }
           }
           acc.pj += 1;
           if (r === "G") acc.g += 1;
@@ -468,8 +504,8 @@ export function buildPairStats(
   const all: PairStat[] = [...pairs.values()].map((a) => ({
     aId: a.aId,
     bId: a.bId,
-    aApodo: resolveApodo(a.aId, apodoById),
-    bApodo: resolveApodo(a.bId, apodoById),
+    aApodo: resolveApodo(a.aId, apodoById, a.aApodo),
+    bApodo: resolveApodo(a.bId, apodoById, a.bApodo),
     pj: a.pj,
     g: a.g,
     p: a.p,
@@ -783,6 +819,8 @@ export function buildRivalNemesis(
 ): RivalNemesisRow[] {
   /** wins[a][b] = veces que a ganó contra b (equipos opuestos) */
   const wins = new Map<string, Map<string, number>>();
+  /** Apodos vistos en lineups (incluye históricos del JSON del partido). */
+  const seenApodos = new Map<string, string>();
 
   function addWin(winner: string, loser: string) {
     let m = wins.get(winner);
@@ -798,6 +836,11 @@ export function buildRivalNemesis(
     const go = Number(p.goles_oscuros);
     if (gc === go) continue;
     const slots = lineupForMatch(p, presencias, apodoById);
+    for (const s of slots) {
+      if (isUsableApodo(s.apodo, s.id) && !seenApodos.has(s.id)) {
+        seenApodos.set(s.id, s.apodo);
+      }
+    }
     const claros = slots.filter((s) => s.equipo === "claros").map((s) => s.id);
     const oscuros = slots.filter((s) => s.equipo === "oscuros").map((s) => s.id);
     const winners = gc > go ? claros : oscuros;
@@ -812,6 +855,8 @@ export function buildRivalNemesis(
     playerIds.add(w);
     for (const l of m.keys()) playerIds.add(l);
   }
+
+  const nameOf = (id: string) => resolveApodo(id, apodoById, seenApodos.get(id));
 
   const rows: RivalNemesisRow[] = [];
   for (const id of playerIds) {
@@ -839,12 +884,12 @@ export function buildRivalNemesis(
 
     rows.push({
       jugadorId: id,
-      apodo: resolveApodo(id, apodoById),
+      apodo: nameOf(id),
       rivalId,
-      rivalApodo: rivalId ? apodoById.get(rivalId) ?? null : null,
+      rivalApodo: rivalId ? nameOf(rivalId) : null,
       winsVs,
       nemesisId,
-      nemesisApodo: nemesisId ? apodoById.get(nemesisId) ?? null : null,
+      nemesisApodo: nemesisId ? nameOf(nemesisId) : null,
       lossesVs,
     });
   }

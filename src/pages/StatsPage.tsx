@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, apiEncuesta, apiPartidos, isAdminFromPlayersList, type PartidoRow, type PresenciaRow } from "../api";
-import { parseEquipoNombres } from "../lib/partidoEquipos";
+import { collectApodosFromPartidos, parseEquipoNombres } from "../lib/partidoEquipos";
 import {
   ENCUESTA_META,
   type EncuestaTrofeoRow,
@@ -145,10 +145,13 @@ export default function StatsPage() {
   }, []);
 
   const apodoById = useMemo(() => {
-    const m = new Map<string, string>();
+    // 1) Apodos históricos guardados en el JSON de cada partido (cubre jugadores
+    //    que ya no están en el roster actual pero sí en Duplas / Enfrentamientos).
+    const m = collectApodosFromPartidos(partidos);
+    // 2) Roster actual pisa lo anterior (apodo vigente).
     for (const p of players ?? []) m.set(p.id, p.apodo);
     return m;
-  }, [players]);
+  }, [players, partidos]);
 
   const ranking = useMemo(
     () => buildPlayerRanking(partidos, presencias, apodoById),
