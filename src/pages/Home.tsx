@@ -5,6 +5,7 @@ import { Users, Trophy, Check } from "lucide-react";
 import { formatRating } from "../lib/formatRating";
 import type { EncuestaPendiente } from "../lib/encuestaPostPartido";
 import { buildPlayerListSnippets, type PlayerListSnippet } from "../lib/partidoStats";
+import { personAvatarUrl } from "../lib/avatarImage";
 import type { PlayerSummary, PlayersListPayload } from "../types";
 
 const posLabel: Record<string, string> = {
@@ -58,6 +59,12 @@ function PlayerRow({
   return (
     <div className={`player-card player-card--tone-${tone}${p.isSelf ? " player-card--self" : ""}`}>
       <div className="player-card-inner">
+        <img
+          className={`pc-avatar pc-avatar--${tone}`}
+          src={personAvatarUrl(p.id)}
+          alt={p.apodo}
+          loading="lazy"
+        />
         {/* Izquierda: nombre + posición + estado de perfil */}
         <div className="pc-left">
           <Link to={`/jugador/${p.id}`} className="p-name-link">

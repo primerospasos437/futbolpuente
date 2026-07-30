@@ -2,28 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { api, apiPartidos, type PartidoRow, type PresenciaRow } from "../api";
 import MatchPreviewDatos from "../components/MatchPreviewDatos";
-import MatchSpotlightCard, { type SpotlightPlayerExtra } from "../components/MatchSpotlightCard";
 import {
   collectApodosFromPartidos,
   miEquipoEnPartido,
   parseEquipoNombres,
   partidoTieneEquiposPublicados,
 } from "../lib/partidoEquipos";
-import {
-  buildMatchPreviewInsights,
-  buildPlayerListSnippets,
-} from "../lib/partidoStats";
+import { buildMatchPreviewSheet } from "../lib/partidoStats";
 import type { PlayerSummary } from "../types";
 
-const POS_LABEL: Record<string, string> = {
-  portero: "POR",
-  defensa: "DEF",
-  medio: "MED",
-  delantero: "DEL",
-};
-
 /**
- * Planilla completa «Próxima fecha · datos» (previa con insights numerados).
+ * Planilla completa «PREVIA DEL PARTIDO» (formato infografía).
  */
 export default function PreviaPartidoPage() {
   const { partidoId } = useParams<{ partidoId: string }>();
@@ -71,22 +60,6 @@ export default function PreviaPartidoPage() {
     return m;
   }, [players, partidos]);
 
-  const playerExtras = useMemo(() => {
-    const snippets = buildPlayerListSnippets(partidos, presencias, apodoById);
-    const out: Record<string, SpotlightPlayerExtra> = {};
-    for (const p of players) {
-      const sn = snippets.get(p.id);
-      out[p.id] = {
-        posicionLabel: POS_LABEL[p.posicionPreferida] ?? p.posicionPreferida?.slice(0, 3).toUpperCase(),
-        lastResults: (sn?.lastChips ?? []).slice(0, 3).map((c) => ({
-          letter: c.letter,
-          score: c.score,
-        })),
-      };
-    }
-    return out;
-  }, [players, partidos, presencias, apodoById]);
-
   const claros = useMemo(
     () => (partido ? parseEquipoNombres(partido.equipo_claros, apodoById) : []),
     [partido, apodoById],
@@ -96,15 +69,15 @@ export default function PreviaPartidoPage() {
     [partido, apodoById],
   );
 
-  const insights = useMemo(() => {
-    if (!partido) return [];
-    return buildMatchPreviewInsights(claros, oscuros, partidos, presencias, apodoById);
+  const sheet = useMemo(() => {
+    if (!partido) return null;
+    return buildMatchPreviewSheet(claros, oscuros, partidos, presencias, apodoById);
   }, [partido, claros, oscuros, partidos, presencias, apodoById]);
 
   if (loading) return <p className="muted">Cargando previa…</p>;
   if (error) return <div className="error">{error}</div>;
   if (!partidoId) return <Navigate to="/proximos-partidos" replace />;
-  if (!partido || !partidoTieneEquiposPublicados(partido)) {
+  if (!partido || !partidoTieneEquiposPublicados(partido) || !sheet) {
     return (
       <div className="page-shell">
         <p className="muted">No encontré ese partido con equipos publicados.</p>
@@ -115,33 +88,17 @@ export default function PreviaPartidoPage() {
 
   return (
     <div className="page-shell previa-partido-page">
-      <p style={{ marginBottom: "0.75rem" }}>
+      <p className="previa-partido-page__back">
         <Link to="/proximos-partidos">← Volver a Próximos partidos</Link>
       </p>
-
-      <header className="page-hero previa-partido-page__hero">
-        <h1>Previa del partido</h1>
-        <p className="sub">
-          {insights.length
-            ? `${insights.length} dato${insights.length === 1 ? "" : "s"} armados con el historial del grupo.`
-            : "Todavía no hay historial suficiente para armar la previa."}
-        </p>
-      </header>
-
-      <MatchSpotlightCard
-        title="Próximo partido"
+      <MatchPreviewDatos
         fecha={partido.fecha}
         hora={partido.hora_partido}
         claros={claros}
         oscuros={oscuros}
-        golesClaros={partido.goles_claros}
-        golesOscuros={partido.goles_oscuros}
         miEquipo={meId ? miEquipoEnPartido(partido.id, meId, presencias) : null}
-        showScore={partido.goles_claros != null && partido.goles_oscuros != null}
-        playerExtras={playerExtras}
+        sheet={sheet}
       />
-
-      <MatchPreviewDatos insights={insights} />
     </div>
   );
 }

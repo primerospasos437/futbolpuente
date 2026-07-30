@@ -1066,6 +1066,8 @@ export type MatchPreviewInsight = {
   names?: string[];
   /** Métrica corta a la derecha (ej. "2-0", "40%"). */
   metric?: string;
+  /** Badges apilados (ej. "1G · Muy disparejo (GD 7)") cuando no hay avatares que mostrar. */
+  badges?: { text: string; tone: "green" | "red" | "gold" | "blue" | "purple" | "orange" }[];
 };
 
 type PreviewPlayer = { id: string; apodo: string };
@@ -1166,18 +1168,18 @@ export function buildMatchPreviewInsights(
     cards.push({
       id: "debuts",
       icon: "🆕",
-      title: debuts.length === 1 ? "Hay debut" : "Hay debutantes",
+      title: debuts.length === 1 ? "Debuta un pibe nuevo" : "Bienvenida a los debutantes",
       body:
         debuts.length === 1
-          ? `${apodoLive(debuts[0])} juega su primer partido del grupo.`
-          : `${debuts.map(apodoLive).join(", ")} todavía no tienen partidos registrados.`,
+          ? `${apodoLive(debuts[0])} estrena la camiseta hoy. Si gana, debut de novela; si pierde, bienvenido al plantel de los que "todavía no ganaron ninguno".`
+          : `${debuts.map(apodoLive).join(", ")} debutan hoy. Si ganan, quedan para la historia grande; si no, arrancan directo en el sótano de la tabla.`,
       tone: "purple",
       names: debuts.slice(0, 4).map(apodoLive),
       metric: String(debuts.length),
     });
   }
 
-  // 2) Mejor enfrentamiento cruzado
+  // 2) Mejor enfrentamiento cruzado (el "clásico" de la noche)
   let bestH2h: { a: string; b: string; wa: number; wb: number } | null = null;
   for (const [w, m] of crossWins) {
     for (const [l, n] of m) {
@@ -1202,13 +1204,13 @@ export function buildMatchPreviewInsights(
     cards.push({
       id: "h2h",
       icon: "⚔️",
-      title: `${aName} vs ${bName}`,
+      title: `${aName} vs ${bName}, el clásico de hoy`,
       body:
         bestH2h.wa === bestH2h.wb
-          ? `Historial parejo entre ellos: ${bestH2h.wa}-${bestH2h.wb} cuando se cruzaron.`
+          ? `La tienen jugada: ${bestH2h.wa}-${bestH2h.wb} en los mano a mano. Historia empatada, hoy se desempata.`
           : bestH2h.wa > bestH2h.wb
-            ? `${aName} le lleva ventaja a ${bName} (${bestH2h.wa}-${bestH2h.wb}) en enfrentamientos directos.`
-            : `${bName} le lleva ventaja a ${aName} (${bestH2h.wb}-${bestH2h.wa}) en enfrentamientos directos.`,
+            ? `${aName} le tiene el número tomado a ${bName} (${bestH2h.wa}-${bestH2h.wb} cara a cara). ¿Sigue el dominio o hoy se lo cobra?`
+            : `${bName} le tiene el número tomado a ${aName} (${bestH2h.wb}-${bestH2h.wa} cara a cara). ¿Sigue el dominio o hoy se lo cobra?`,
       tone: "orange",
       names: [aName, bName],
       metric: `${Math.max(bestH2h.wa, bestH2h.wb)}-${Math.min(bestH2h.wa, bestH2h.wb)}`,
@@ -1225,8 +1227,8 @@ export function buildMatchPreviewInsights(
     cards.push({
       id: "win-streak",
       icon: "🔥",
-      title: `${r.apodo} viene en racha`,
-      body: `Lleva ${n} victoria${n === 1 ? "" : "s"} seguida${n === 1 ? "" : "s"}. Si sigue así, puede desbalancear el partido.`,
+      title: `${r.apodo} no la pincha`,
+      body: `Lleva ${n} triunfo${n === 1 ? "" : "s"} seguido${n === 1 ? "" : "s"} y no afloja. Si suma otro hoy, llega a ${n + 1} al hilo — ya le puede pedir la llave del club al presidente.`,
       tone: "green",
       names: [r.apodo],
       chips: Array.from({ length: Math.min(n, 5) }, () => "G" as ResultLetter),
@@ -1244,8 +1246,8 @@ export function buildMatchPreviewInsights(
     cards.push({
       id: "loss-streak",
       icon: "🧊",
-      title: `${r.apodo} viene flojo`,
-      body: `${n} derrota${n === 1 ? "" : "s"} al hilo. Hoy es una chance de cortar la racha… o seguirla.`,
+      title: `${r.apodo} anda en la lona`,
+      body: `${n} caída${n === 1 ? "" : "s"} al hilo. Hoy es la chance de cortar la mufa antes de que se la pongan de apodo.`,
       tone: "blue",
       names: [r.apodo],
       chips: Array.from({ length: Math.min(n, 5) }, () => "P" as ResultLetter),
@@ -1257,28 +1259,30 @@ export function buildMatchPreviewInsights(
   const withMin = ranking.filter((r) => allIds.has(r.jugadorId) && r.pj >= 2);
   const bestPct = [...withMin].sort((a, b) => b.pctVict - a.pctVict || b.g - a.g)[0];
   if (bestPct) {
+    const pct = bestPct.pctVict.toFixed(0);
     cards.push({
       id: "best-pct",
       icon: "📈",
-      title: `Más efectivo: ${bestPct.apodo}`,
-      body: `${bestPct.g}G-${bestPct.p}P-${bestPct.e}E en ${bestPct.pj} PJ. Gana el ${bestPct.pctVict.toFixed(0)}% de sus partidos.`,
+      title: `${bestPct.apodo}, el que la mueve bien`,
+      body: `${bestPct.g}G-${bestPct.p}P-${bestPct.e}E en ${bestPct.pj} PJ. Gana el ${pct}% — cuando está en cancha, el resto solo mira.`,
       tone: "gold",
       names: [bestPct.apodo],
-      metric: `${bestPct.pctVict.toFixed(0)}%`,
+      metric: `${pct}%`,
     });
   }
 
   // 6) Peor % del partido
   const worstPct = [...withMin].sort((a, b) => a.pctVict - b.pctVict || b.p - a.p)[0];
   if (worstPct && (!bestPct || worstPct.jugadorId !== bestPct.jugadorId)) {
+    const pct = worstPct.pctVict.toFixed(0);
     cards.push({
       id: "worst-pct",
       icon: "📉",
-      title: `Más irregular: ${worstPct.apodo}`,
-      body: `${worstPct.g}G-${worstPct.p}P-${worstPct.e}E · ${worstPct.pctVict.toFixed(0)}% de victorias. Hoy busca enderezarlo.`,
+      title: `${worstPct.apodo}, a contramano`,
+      body: `${worstPct.g}G-${worstPct.p}P-${worstPct.e}E · gana apenas el ${pct}%. Hoy busca cortar el maleficio antes de que le cambien el apodo.`,
       tone: "red",
       names: [worstPct.apodo],
-      metric: `${worstPct.pctVict.toFixed(0)}%`,
+      metric: `${pct}%`,
     });
   }
 
@@ -1296,8 +1300,8 @@ export function buildMatchPreviewInsights(
     cards.push({
       id: "best-duo",
       icon: "🤝",
-      title: `${bestDuo.aApodo} + ${bestDuo.bApodo}`,
-      body: `Cuando juegan juntos: ${bestDuo.g}-${bestDuo.p}-${bestDuo.e} (${bestDuo.pct.toFixed(0)}% en ${bestDuo.pj} PJ). Hoy vuelven a estar del mismo lado.`,
+      title: `${bestDuo.aApodo} + ${bestDuo.bApodo}, sociedad que rinde`,
+      body: `Juntos ganan ${bestDuo.g}-${bestDuo.p}-${bestDuo.e} (${bestDuo.pct.toFixed(0)}% en ${bestDuo.pj} PJ). El técnico los vuelve a juntar hoy — por algo será.`,
       tone: "green",
       names: [bestDuo.aApodo, bestDuo.bApodo],
       metric: `${bestDuo.pct.toFixed(0)}%`,
@@ -1310,15 +1314,91 @@ export function buildMatchPreviewInsights(
     cards.push({
       id: "worst-duo",
       icon: "💀",
-      title: `${worstDuo.aApodo} + ${worstDuo.bApodo}`,
-      body: `Juntos van ${worstDuo.g}-${worstDuo.p}-${worstDuo.e} (${worstDuo.pct.toFixed(0)}%). La mufa vuelve a juntarse… o se rompe hoy.`,
+      title: `${worstDuo.aApodo} + ${worstDuo.bApodo}, la mufa anda suelta`,
+      body: `Ganan apenas ${worstDuo.pct.toFixed(0)}% juntos (${worstDuo.g}-${worstDuo.p}-${worstDuo.e}). O cortan la maldición hoy, o mejor no se sientan juntos en el asado.`,
       tone: "red",
       names: [worstDuo.aApodo, worstDuo.bApodo],
       metric: `${worstDuo.g}-${worstDuo.p}`,
     });
   }
 
-  // 9) Serie de color
+  // 9) El más figura: más MVPs entre los presentes hoy
+  const mvpCount = new Map<string, number>();
+  for (const p of finishedMatchesDesc(partidos)) {
+    if (!p.mvp_jugador_id || !allIds.has(p.mvp_jugador_id)) continue;
+    mvpCount.set(p.mvp_jugador_id, (mvpCount.get(p.mvp_jugador_id) ?? 0) + 1);
+  }
+  const mvpTop = [...mvpCount.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (mvpTop && mvpTop[1] >= 1) {
+    const [id, n] = mvpTop;
+    const apodo = nameOf(id);
+    cards.push({
+      id: "mvp-mas",
+      icon: "🏅",
+      title: `${apodo}, el más figura`,
+      body: `Se llevó la cinta de MVP ${n} vez${n === 1 ? "" : "es"}. Cuando hay que elegir a uno solo, suele ser él.`,
+      tone: "gold",
+      names: [apodo],
+      metric: `${n}⭐`,
+    });
+  }
+
+  // 10) Invicto individual entre los presentes hoy
+  const invictoRow = [...withMin]
+    .filter((r) => r.p === 0 && r.pj >= 2)
+    .sort((a, b) => b.pj - a.pj)[0];
+  if (invictoRow) {
+    cards.push({
+      id: "invicto-individual",
+      icon: "🛡️",
+      title: `${invictoRow.apodo} sigue invicto`,
+      body: `${invictoRow.pj} partidos sin conocer la derrota. La pregunta ya no es si gana, es por cuánto.`,
+      tone: "blue",
+      names: [invictoRow.apodo],
+      metric: `${invictoRow.pj} PJ`,
+    });
+  }
+
+  // 11) Batacazo histórico: la goleada más grande con gente de este partido en cancha
+  let biggest: { p: PartidoRow; margin: number; gc: number; go: number } | null = null;
+  for (const p of finishedMatchesDesc(partidos)) {
+    const slots = lineupForMatch(p, presencias, apodoById);
+    if (!slots.some((s) => allIds.has(s.id))) continue;
+    const gc = Number(p.goles_claros);
+    const go = Number(p.goles_oscuros);
+    const margin = Math.abs(gc - go);
+    if (margin >= 3 && (!biggest || margin > biggest.margin)) {
+      biggest = { p, margin, gc, go };
+    }
+  }
+  if (biggest) {
+    const winTeam = biggest.gc > biggest.go ? "Claros" : "Oscuros";
+    cards.push({
+      id: "goleada",
+      icon: "💥",
+      title: "La joya del historial",
+      body: `El batacazo más grande con gente de esta convocatoria en cancha fue un ${biggest.gc}-${biggest.go} para ${winTeam}. ${biggest.margin} de diferencia — quedó para el recuerdo (o para el olvido, según el bando).`,
+      tone: "orange",
+      metric: `${biggest.gc}-${biggest.go}`,
+    });
+  }
+
+  // 12) A futuro: cuánto falta para empatar la serie
+  if (standings.partidosConResultado >= 3 && standings.clarosWins !== standings.oscurosWins) {
+    const leaderClaros = standings.clarosWins > standings.oscurosWins;
+    const diff = Math.abs(standings.clarosWins - standings.oscurosWins);
+    const atras = leaderClaros ? "Oscuros" : "Claros";
+    cards.push({
+      id: "prediction",
+      icon: "🔮",
+      title: "¿Cuánto falta para el empate?",
+      body: `La serie está ${standings.clarosWins}-${standings.oscurosWins}. A ${atras} le faltan ${diff} triunfo${diff === 1 ? "" : "s"} para emparejarla. ¿Arranca hoy la remontada o se agranda la diferencia?`,
+      tone: "purple",
+      metric: `${diff} para el ${atras === "Oscuros" ? "🌙" : "☀️"} empate`,
+    });
+  }
+
+  // 13) Serie de color (se muestra en bloque propio del layout, no en la grilla)
   if (standings.partidosConResultado > 0) {
     cards.push({
       id: "color-series",
@@ -1332,7 +1412,7 @@ export function buildMatchPreviewInsights(
     });
   }
 
-  // 10) Factores a favor (resumen)
+  // 14) Factores a favor (resumen, se muestra en bloque propio del layout)
   const favorOscuros: string[] = [];
   const favorClaros: string[] = [];
   for (const r of streakers.slice(0, 3)) {
@@ -1368,6 +1448,336 @@ export function buildMatchPreviewInsights(
     });
   }
 
-  return cards.slice(0, 10);
+  return cards;
 }
+
+/** Planilla completa de previa (estilo infografía PREVIA DEL PARTIDO). */
+export type MatchPreviewSheet = {
+  cards: MatchPreviewInsight[];
+  debuts: { id: string; apodo: string; team: "claros" | "oscuros" }[];
+  serie: { clarosWins: number; oscurosWins: number; empates: number; total: number };
+  /** Comentario de "bonus de mesa": resumen picante que cruza serie + convocatoria de hoy. */
+  bonusMesa: string;
+  factores: {
+    side: "claros" | "oscuros" | "ambos";
+    label: string;
+    items: string[];
+  };
+  ultimo: {
+    fecha: string;
+    golesClaros: number;
+    golesOscuros: number;
+    claros: string[];
+    oscuros: string[];
+    dificultad: MatchDifficulty;
+  } | null;
+  temporada: {
+    inicio: string | null;
+    partidos: number;
+    /** Número de la próxima fecha (partidos jugados + 1). */
+    fechaNumero: number;
+  };
+};
+
+/**
+ * Arma la planilla completa de previa: cards + serie + factores + último partido.
+ */
+export function buildMatchPreviewSheet(
+  claros: PreviewPlayer[],
+  oscuros: PreviewPlayer[],
+  partidos: PartidoRow[],
+  presencias: PresenciaRow[],
+  apodoById: Map<string, string>,
+): MatchPreviewSheet {
+  const cards = buildMatchPreviewInsights(claros, oscuros, partidos, presencias, apodoById);
+  // Las cards de serie/factores se muestran en bloques propios del layout.
+  const narrativeCards = cards.filter((c) => c.id !== "color-series" && c.id !== "favor");
+
+  const ranking = buildPlayerRanking(partidos, presencias, apodoById);
+  const byId = new Map(ranking.map((r) => [r.jugadorId, r]));
+  const standings = buildClarosOscurosStandings(partidos);
+  const finished = finishedMatchesDesc(partidos);
+  const snippets = buildPlayerListSnippets(partidos, presencias, apodoById);
+
+  // Enriquecer cards de racha con últimos resultados reales (hasta 5).
+  for (const card of narrativeCards) {
+    if ((card.id === "win-streak" || card.id === "loss-streak") && card.names?.[0]) {
+      const row = ranking.find((r) => r.apodo === card.names![0]);
+      if (row) {
+        const sn = snippets.get(row.jugadorId);
+        if (sn?.lastChips?.length) {
+          card.chips = sn.lastChips.slice(0, 5).map((c) => c.letter);
+        }
+      }
+    }
+  }
+
+  // Extra: "los partidos abiertos" — jugador con una sola victoria en una
+  // dificultad puntual y sus derrotas concentradas en otra (perfil clutch/anti-clutch).
+  if (narrativeCards.length < 10) {
+    const claroIds = new Set(claros.map((p) => p.id));
+    const oscuroIds = new Set(oscuros.map((p) => p.id));
+    const allIds = new Set([...claroIds, ...oscuroIds]);
+
+    type Row = { dificultad: MatchDifficulty; letter: ResultLetter; gd: number };
+    function breakdownFor(jugadorId: string): Row[] {
+      const rows: Row[] = [];
+      for (const p of finishedMatchesDesc(partidos)) {
+        const slot = lineupForMatch(p, presencias, apodoById).find((s) => s.id === jugadorId);
+        if (!slot) continue;
+        const gc = Number(p.goles_claros);
+        const go = Number(p.goles_oscuros);
+        rows.push({
+          dificultad: classifyDifficulty(gc, go),
+          letter: resultForTeam(gc, go, slot.equipo),
+          gd: Math.abs(gc - go),
+        });
+      }
+      return rows;
+    }
+
+    let aperturas: {
+      apodo: string;
+      winDiff: MatchDifficulty;
+      winGd: number;
+      lossDiff: MatchDifficulty;
+      lossCount: number;
+      lossGdMin: number;
+      lossGdMax: number;
+    } | null = null;
+
+    for (const id of allIds) {
+      const rows = breakdownFor(id);
+      const wins = rows.filter((r) => r.letter === "G");
+      const losses = rows.filter((r) => r.letter === "P");
+      if (wins.length !== 1 || losses.length < 2) continue;
+      const lossByDiff = new Map<MatchDifficulty, Row[]>();
+      for (const l of losses) {
+        const arr = lossByDiff.get(l.dificultad) ?? [];
+        arr.push(l);
+        lossByDiff.set(l.dificultad, arr);
+      }
+      const [lossDiff, lossRows] = [...lossByDiff.entries()].sort((a, b) => b[1].length - a[1].length)[0];
+      if (lossRows.length < 2 || lossDiff === wins[0].dificultad) continue;
+      aperturas = {
+        apodo: resolveApodo(id, apodoById),
+        winDiff: wins[0].dificultad,
+        winGd: wins[0].gd,
+        lossDiff,
+        lossCount: lossRows.length,
+        lossGdMin: Math.min(...lossRows.map((r) => r.gd)),
+        lossGdMax: Math.max(...lossRows.map((r) => r.gd)),
+      };
+      break;
+    }
+
+    if (aperturas) {
+      const lossGdLabel =
+        aperturas.lossGdMin === aperturas.lossGdMax
+          ? `GD ${aperturas.lossGdMin}`
+          : `GD ${aperturas.lossGdMin}-${aperturas.lossGdMax}`;
+      narrativeCards.push({
+        id: "aperturas",
+        icon: "🎯",
+        title: `${aperturas.apodo} y los partidos abiertos`,
+        body: `Su única G fue en un ${difficultyLabel(aperturas.winDiff).toLowerCase()} (GD ${aperturas.winGd}); sus ${aperturas.lossCount} derrotas fueron en ${difficultyLabel(aperturas.lossDiff).toLowerCase()}. Si la noche se pone cerrada… el guión histórico no lo ayuda.`,
+        tone: "orange",
+        badges: [
+          { text: `1G · ${difficultyLabel(aperturas.winDiff)} (GD ${aperturas.winGd})`, tone: "green" },
+          { text: `${aperturas.lossCount}P · ${difficultyLabel(aperturas.lossDiff)} (${lossGdLabel})`, tone: "red" },
+        ],
+      });
+    } else {
+      const diffPerf = buildDifficultyPerformance(partidos, presencias, apodoById).filter((r) =>
+        allIds.has(r.jugadorId),
+      );
+      let best: { apodo: string; text: string; metric: string } | null = null;
+      for (const r of diffPerf) {
+        if (r.facil.pj >= 1 && r.parejo.pj >= 1) {
+          const gap = r.facil.pct - r.parejo.pct;
+          if (Math.abs(gap) >= 25) {
+            const text =
+              gap > 0
+                ? `Gana el ${r.facil.pct.toFixed(0)}% en partidos fáciles, pero solo ${r.parejo.pct.toFixed(0)}% cuando es parejo.`
+                : `Rinde mejor en partidos parejos (${r.parejo.pct.toFixed(0)}%) que en fáciles (${r.facil.pct.toFixed(0)}%).`;
+            if (!best || Math.abs(gap) > 30) {
+              best = { apodo: r.apodo, text, metric: `${Math.abs(gap).toFixed(0)}Δ` };
+            }
+          }
+        }
+      }
+      if (best) {
+        narrativeCards.push({
+          id: "diff-perf",
+          icon: "🎯",
+          title: `${best.apodo} según el partido`,
+          body: best.text,
+          tone: "orange",
+          names: [best.apodo],
+          metric: best.metric,
+        });
+      }
+    }
+  }
+
+  // Extra: trío reciente del mismo color si hay espacio
+  if (narrativeCards.length < 10 && finished[0]) {
+    const last = finished[0];
+    const gc = Number(last.goles_claros);
+    const go = Number(last.goles_oscuros);
+    if (gc !== go) {
+      const slots = lineupForMatch(last, presencias, apodoById);
+      const winTeam = gc > go ? "claros" : "oscuros";
+      const winners = slots.filter((s) => s.equipo === winTeam);
+      const claroIds = new Set(claros.map((p) => p.id));
+      const oscuroIds = new Set(oscuros.map((p) => p.id));
+      const stillTogether = winners.filter((w) =>
+        winTeam === "claros" ? claroIds.has(w.id) : oscuroIds.has(w.id),
+      );
+      if (stillTogether.length >= 3) {
+        const names = stillTogether.slice(0, 3).map((w) => w.apodo);
+        narrativeCards.push({
+          id: "block",
+          icon: "🧱",
+          title: `Bloque ${winTeam === "claros" ? "Claros" : "Oscuros"}`,
+          body: `${names.join(", ")} ganaron juntos el último partido y hoy vuelven a estar del mismo lado.`,
+          tone: winTeam === "claros" ? "green" : "purple",
+          names,
+          metric: `${gc}-${go}`,
+        });
+      }
+    }
+  }
+
+  const debuts = [
+    ...claros
+      .filter((p) => (byId.get(p.id)?.pj ?? 0) === 0)
+      .map((p) => ({ id: p.id, apodo: resolveApodo(p.id, apodoById, p.apodo), team: "claros" as const })),
+    ...oscuros
+      .filter((p) => (byId.get(p.id)?.pj ?? 0) === 0)
+      .map((p) => ({ id: p.id, apodo: resolveApodo(p.id, apodoById, p.apodo), team: "oscuros" as const })),
+  ];
+
+  const streakers = ranking
+    .filter(
+      (r) =>
+        (claros.some((c) => c.id === r.jugadorId) || oscuros.some((o) => o.id === r.jugadorId)) &&
+        r.racha.startsWith("G") &&
+        Number(r.racha.slice(1)) >= 2,
+    )
+    .sort((a, b) => Number(b.racha.slice(1)) - Number(a.racha.slice(1)));
+  const withMin = ranking.filter(
+    (r) =>
+      (claros.some((c) => c.id === r.jugadorId) || oscuros.some((o) => o.id === r.jugadorId)) &&
+      r.pj >= 2,
+  );
+
+  const favorClaros: string[] = [];
+  const favorOscuros: string[] = [];
+  const claroIds = new Set(claros.map((p) => p.id));
+  for (const r of streakers.slice(0, 3)) {
+    const tip = `${r.apodo} en racha (${r.racha})`;
+    if (claroIds.has(r.jugadorId)) favorClaros.push(tip);
+    else favorOscuros.push(tip);
+  }
+  for (const r of withMin.filter((x) => x.pctVict >= 60).slice(0, 4)) {
+    const tip = `${r.apodo} al ${r.pctVict.toFixed(0)}%`;
+    if (claroIds.has(r.jugadorId)) {
+      if (!favorClaros.some((t) => t.startsWith(r.apodo))) favorClaros.push(tip);
+    } else if (!favorOscuros.some((t) => t.startsWith(r.apodo))) {
+      favorOscuros.push(tip);
+    }
+  }
+  if (debuts.some((d) => d.team === "oscuros")) {
+    favorOscuros.push(
+      `${debuts.filter((d) => d.team === "oscuros").length} debutante${debuts.filter((d) => d.team === "oscuros").length === 1 ? "" : "s"} con hambre de gloria`,
+    );
+  }
+  if (debuts.some((d) => d.team === "claros")) {
+    favorClaros.push(
+      `${debuts.filter((d) => d.team === "claros").length} debutante${debuts.filter((d) => d.team === "claros").length === 1 ? "" : "s"} con hambre de gloria`,
+    );
+  }
+
+  const side: "claros" | "oscuros" | "ambos" =
+    favorClaros.length === favorOscuros.length
+      ? "ambos"
+      : favorClaros.length > favorOscuros.length
+        ? "claros"
+        : "oscuros";
+  const factoresItems =
+    side === "claros"
+      ? favorClaros.slice(0, 4)
+      : side === "oscuros"
+        ? favorOscuros.slice(0, 4)
+        : [...favorClaros.slice(0, 2), ...favorOscuros.slice(0, 2)];
+
+  const last = getLastFinishedMatch(partidos);
+  let ultimo: MatchPreviewSheet["ultimo"] = null;
+  if (last) {
+    const slots = lineupForMatch(last.partido, presencias, apodoById);
+    ultimo = {
+      fecha: last.partido.fecha,
+      golesClaros: last.golesClaros,
+      golesOscuros: last.golesOscuros,
+      claros: slots.filter((s) => s.equipo === "claros").map((s) => s.apodo),
+      oscuros: slots.filter((s) => s.equipo === "oscuros").map((s) => s.apodo),
+      dificultad: classifyDifficulty(last.golesClaros, last.golesOscuros),
+    };
+  }
+
+  const oldest = [...finished].sort((a, b) => (a.fecha < b.fecha ? -1 : 1))[0];
+
+  // Bonus de mesa: cruza la serie histórica con la "incomodidad" de la convocatoria de hoy.
+  let bonusMesa: string;
+  if (standings.partidosConResultado === 0) {
+    bonusMesa = "Todavía no hay serie de color para hablar: hoy se estrena el marcador de la historia.";
+  } else if (standings.clarosWins === standings.oscurosWins) {
+    bonusMesa = `La serie de color está empatadísima ${standings.clarosWins}-${standings.oscurosWins}. Hoy es mano a mano puro, sin ventajas en el papel.`;
+  } else {
+    const leader = standings.clarosWins > standings.oscurosWins ? "Claros" : "Oscuros";
+    const retador = leader === "Claros" ? "Oscuros" : "Claros";
+    const mayor = Math.max(standings.clarosWins, standings.oscurosWins);
+    const menor = Math.min(standings.clarosWins, standings.oscurosWins);
+    const retadorFavorecido = factoresItems.length && side !== "ambos" && side !== leader.toLowerCase();
+    bonusMesa = `${leader} gana la serie de color ${mayor}-${menor} en la temporada`;
+    if (retadorFavorecido) {
+      const debCount = debuts.length;
+      bonusMesa += `, pero esta convocatoria de ${retador} (${factoresItems.slice(0, 2).join(", ")}${debCount ? `, +${debCount} debutante${debCount === 1 ? "" : "s"}` : ""}) es de las más incómodas que le armó a ${leader} en el papel.`;
+    } else if (debuts.length) {
+      bonusMesa += `, y aunque el historial la favorece, los ${debuts.length} debutante${debuts.length === 1 ? "" : "s"} de hoy pueden meter ruido en el pronóstico.`;
+    } else {
+      bonusMesa += ". El papel dice una cosa, pero la cancha siempre tiene la última palabra.";
+    }
+  }
+
+  return {
+    cards: narrativeCards.slice(0, 10),
+    debuts,
+    serie: {
+      clarosWins: standings.clarosWins,
+      oscurosWins: standings.oscurosWins,
+      empates: standings.empates,
+      total: standings.partidosConResultado,
+    },
+    bonusMesa,
+    factores: {
+      side,
+      label:
+        side === "ambos"
+          ? "Factores repartidos"
+          : side === "claros"
+            ? "Factores a favor · Claros"
+            : "Factores a favor · Oscuros",
+      items: factoresItems,
+    },
+    ultimo,
+    temporada: {
+      inicio: oldest?.fecha ?? null,
+      partidos: standings.partidosConResultado,
+      fechaNumero: standings.partidosConResultado + 1,
+    },
+  };
+}
+
 

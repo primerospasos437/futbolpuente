@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { PartidoJugadorNombre } from "../lib/partidoEquipos";
 import { difficultyLabel, type MatchDifficulty } from "../lib/partidoStats";
 import { TEAM_LABEL_CLAROS, TEAM_LABEL_OSCUROS } from "../lib/teamsBalance";
+import { personAvatarUrl } from "../lib/avatarImage";
 
 export type SpotlightPlayerExtra = {
   posicionLabel?: string;
@@ -45,17 +46,13 @@ function winnerLabel(golesClaros?: number | null, golesOscuros?: number | null):
   return golesClaros > golesOscuros ? TEAM_LABEL_CLAROS.toUpperCase() : TEAM_LABEL_OSCUROS.toUpperCase();
 }
 
-function initials(apodo: string): string {
-  const parts = apodo.trim().split(/\s+/);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return apodo.slice(0, 2).toUpperCase();
-}
-
 function PlayerRow({
   player,
+  tone,
   extra,
 }: {
   player: PartidoJugadorNombre;
+  tone: "claros" | "oscuros";
   extra?: SpotlightPlayerExtra;
 }) {
   const results = (extra?.lastResults ?? []).slice(0, 3);
@@ -64,9 +61,12 @@ function PlayerRow({
   return (
     <li className="match-spotlight__player">
       <div className="match-spotlight__player-left">
-        <span className="match-spotlight__avatar" aria-hidden>
-          {initials(player.apodo)}
-        </span>
+        <img
+          className={`match-spotlight__avatar match-spotlight__avatar--${tone}`}
+          src={personAvatarUrl(player.id)}
+          alt={player.apodo}
+          loading="lazy"
+        />
         <div className="match-spotlight__name-row">
           <span className="match-spotlight__name">{player.apodo}</span>
           {extra?.posicionLabel ? (
@@ -84,10 +84,7 @@ function PlayerRow({
                 className={`match-spotlight__ball match-spotlight__ball--${r.letter.toLowerCase()}`}
                 title={r.letter === "G" ? "Ganado" : r.letter === "E" ? "Empatado" : "Perdido"}
               >
-                <span className="match-spotlight__ball-emoji" aria-hidden>
-                  ⚽
-                </span>
-                <strong>{r.letter}</strong>
+                {r.letter}
               </span>
             ))}
             {Array.from({ length: Math.max(0, 3 - results.length) }).map((_, i) => (
@@ -127,7 +124,7 @@ function TeamColumn({
         {players.length === 0 ? (
           <li className="match-spotlight__player match-spotlight__player--empty">Sin jugadores</li>
         ) : (
-          players.map((j) => <PlayerRow key={j.id} player={j} extra={playerExtras?.[j.id]} />)
+          players.map((j) => <PlayerRow key={j.id} player={j} tone={tone} extra={playerExtras?.[j.id]} />)
         )}
       </ul>
     </div>
@@ -182,9 +179,12 @@ export default function MatchSpotlightCard({
         {mvpApodo ? (
           <div className="match-spotlight__mvp">
             <span className="match-spotlight__mvp-badge">MVP</span>
-            <span className="match-spotlight__mvp-avatar" aria-hidden>
-              {initials(mvpApodo)}
-            </span>
+            <img
+              className="match-spotlight__mvp-avatar"
+              src={personAvatarUrl(mvpApodo)}
+              alt={mvpApodo}
+              loading="lazy"
+            />
             <strong>{mvpApodo}</strong>
           </div>
         ) : null}

@@ -16,7 +16,7 @@ import {
   parseEquipoNombres,
   partidoTieneEquiposPublicados,
 } from "../lib/partidoEquipos";
-import { buildMatchPreviewInsights, buildPlayerListSnippets } from "../lib/partidoStats";
+import { buildMatchPreviewSheet, buildPlayerListSnippets } from "../lib/partidoStats";
 import type { PlayerSummary } from "../types";
 
 const TZ = "America/Argentina/Buenos_Aires";
@@ -246,12 +246,12 @@ export default function ProximosPartidosPage() {
 
   /** Previa de stats por partido confirmado (solo si aún no hay resultado). */
   const previewByPartidoId = useMemo(() => {
-    const out: Record<string, ReturnType<typeof buildMatchPreviewInsights>> = {};
+    const out: Record<string, ReturnType<typeof buildMatchPreviewSheet>> = {};
     for (const p of partidosConEquipos) {
       if (p.goles_claros != null && p.goles_oscuros != null) continue;
       const claros = parseEquipoNombres(p.equipo_claros, apodoById);
       const oscuros = parseEquipoNombres(p.equipo_oscuros, apodoById);
-      out[p.id] = buildMatchPreviewInsights(claros, oscuros, partidos, presencias, apodoById);
+      out[p.id] = buildMatchPreviewSheet(claros, oscuros, partidos, presencias, apodoById);
     }
     return out;
   }, [partidosConEquipos, partidos, presencias, apodoById]);
@@ -351,7 +351,10 @@ export default function ProximosPartidosPage() {
           <div className="proximos-spotlight-grid">
             {partidosConEquipos.map((p) => {
               const soyTitular = titularPartidoIds.has(p.id);
-              const insights = previewByPartidoId[p.id] ?? [];
+              const sheet = previewByPartidoId[p.id];
+              const datosCount = sheet
+                ? sheet.cards.length + (sheet.serie.total > 0 ? 1 : 0) + (sheet.factores.items.length ? 1 : 0)
+                : 0;
               return (
                 <MatchSpotlightCard
                   key={p.id}
@@ -366,9 +369,7 @@ export default function ProximosPartidosPage() {
                   showScore={p.goles_claros != null && p.goles_oscuros != null}
                   playerExtras={playerExtras}
                   previewLink={
-                    insights.length
-                      ? { to: `/partido/${p.id}/previa`, count: insights.length }
-                      : null
+                    datosCount > 0 ? { to: `/partido/${p.id}/previa`, count: datosCount } : null
                   }
                   footer={
                     soyTitular ? (
