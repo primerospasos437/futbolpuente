@@ -47,7 +47,7 @@ body {
   isolation: isolate;
 }
 
-/* Todo el contenido de la app por encima de reflectores / cancha */
+/* Todo el contenido de la app por encima de los reflectores de fondo */
 #root > * {
   position: relative;
   z-index: 1;
@@ -70,32 +70,12 @@ body {
   opacity: 0.7;
 }
 
-/* Marca de agua de cancha (visible ~13%) */
-#root::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1050 680' fill='none'%3E%3Crect x='36' y='36' width='978' height='608' rx='6' stroke='%2300ff88' stroke-opacity='1' stroke-width='3.5'/%3E%3Cline x1='525' y1='36' x2='525' y2='644' stroke='%2300e1ff' stroke-opacity='1' stroke-width='3'/%3E%3Ccircle cx='525' cy='340' r='92' stroke='%2300ff88' stroke-opacity='1' stroke-width='3'/%3E%3Ccircle cx='525' cy='340' r='5.5' fill='%2300e1ff' fill-opacity='1'/%3E%3Crect x='36' y='185' width='168' height='310' stroke='%2300e1ff' stroke-opacity='0.95' stroke-width='2.6'/%3E%3Crect x='36' y='248' width='72' height='184' stroke='%2300ff88' stroke-opacity='0.9' stroke-width='2.4'/%3E%3Ccircle cx='156' cy='340' r='5' fill='%2300ff88' fill-opacity='0.85'/%3E%3Crect x='846' y='185' width='168' height='310' stroke='%2300e1ff' stroke-opacity='0.95' stroke-width='2.6'/%3E%3Crect x='942' y='248' width='72' height='184' stroke='%2300ff88' stroke-opacity='0.9' stroke-width='2.4'/%3E%3Ccircle cx='894' cy='340' r='5' fill='%2300ff88' fill-opacity='0.85'/%3E%3Cpath d='M36 60 Q52 60 52 76' stroke='%2300e1ff' stroke-opacity='0.85' stroke-width='2.4'/%3E%3Cpath d='M36 620 Q52 620 52 604' stroke='%2300e1ff' stroke-opacity='0.85' stroke-width='2.4'/%3E%3Cpath d='M1014 60 Q998 60 998 76' stroke='%2300e1ff' stroke-opacity='0.85' stroke-width='2.4'/%3E%3Cpath d='M1014 620 Q998 620 998 604' stroke='%2300e1ff' stroke-opacity='0.85' stroke-width='2.4'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center 40%;
-  background-size: min(1100px, 96vw) auto;
-  opacity: 0.13;
-}
-
 body.light-mode #root::before {
   opacity: 0.35;
 }
 
-body.light-mode #root::after {
-  opacity: 0.05;
-}
-
 #root:has(.mis-perfiles-page) > ::before,
-#root:has(.mis-perfiles-page) > ::after,
-#root:has(.mis-perfiles-page)::before,
-#root:has(.mis-perfiles-page)::after {
+#root:has(.mis-perfiles-page)::before {
   opacity: 0 !important;
 }
 
@@ -449,7 +429,39 @@ body.light-mode .app-group-nav a.active {
 }
 
 .page-hero {
+  position: relative;
+  z-index: 0;
+  overflow: hidden;
   margin-bottom: 1.15rem;
+}
+/* Arte neón integrado detrás del título (no en los márgenes sueltos). */
+.page-hero__decor {
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  right: -18px;
+  transform: translateY(-46%);
+  width: 130px;
+  height: auto;
+  opacity: 0.4;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  display: none;
+}
+.page-hero__decor--left {
+  right: auto;
+  left: -18px;
+}
+@media (min-width: 720px) {
+  .page-hero__decor {
+    display: block;
+    width: 160px;
+  }
+}
+@media (min-width: 1100px) {
+  .page-hero__decor {
+    width: 190px;
+  }
 }
 .page-hero h1 {
   margin: 0;

@@ -25,7 +25,7 @@
   --neon-lilac: #d8b4fe;
   --neon-gold: #ffe566;
 
-  /* Reflectores + atmósfera nocturna; la cancha SVG va en body::after (index.css) */
+  /* Reflectores + atmósfera nocturna */
   --body-bg-image:
     radial-gradient(ellipse 42% 38% at 0% 0%, rgba(0, 255, 136, 0.16) 0%, transparent 68%),
     radial-gradient(ellipse 42% 38% at 100% 0%, rgba(0, 225, 255, 0.14) 0%, transparent 68%),

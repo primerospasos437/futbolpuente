@@ -285,6 +285,7 @@ export default function ProximosPartidosPage() {
   return (
     <div className="page-shell">
       <header className="page-hero">
+        <img className="page-hero__decor page-hero__decor--left" src="/decor/side-goal-neon.png" alt="" aria-hidden="true" />
         <h1><Calendar size={22} className="neon-icon" /> Próximos partidos</h1>
         <p className="sub">
           {grupoListo ? (

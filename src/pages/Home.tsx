@@ -177,6 +177,7 @@ export default function HomePage() {
   return (
     <div className="page-shell">
       <header className="page-hero">
+        <img className="page-hero__decor" src="/decor/side-ball-neon.png" alt="" aria-hidden="true" />
         <h1><Users size={24} className="neon-icon" /> Jugadores</h1>
         <p className="sub">
           Las insignias verdes <strong>F11</strong> / <strong>F5</strong> indican que ya valoraste a ese jugador. Tocalas para valorar.

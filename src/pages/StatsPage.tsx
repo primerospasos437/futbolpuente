@@ -285,6 +285,7 @@ export default function StatsPage() {
   return (
     <div className="stats-page">
       <div className="stats-float">
+        <img className="stats-float__decor" src="/decor/side-trophy-neon.png" alt="" aria-hidden="true" />
         <div className="stats-float__chrome" aria-hidden>
           <span className="stats-float__dot stats-float__dot--r" />
           <span className="stats-float__dot stats-float__dot--y" />

@@ -328,6 +328,7 @@ export default function TeamsPage() {
   return (
     <div className="page-shell">
       <header className="page-hero">
+        <img className="page-hero__decor" src="/decor/side-jersey-neon.png" alt="" aria-hidden="true" />
         <h1>Armar equipos</h1>
         <p className="sub">
           Armá el partido <strong>5 vs 5</strong> ({TITULARES_CAMPO} titulares). Podés usar solo los{" "}
