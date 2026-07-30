@@ -7,7 +7,7 @@ import {
   grupoConfigGet,
   labelDia,
   nextMatchIsoForDia,
-  fechaCoincideConCalendarioGrupo,
+  todayIsoInTz,
   type GrupoConfig,
 } from "../lib/grupoConfig";
 import {
@@ -197,9 +197,12 @@ export default function ProximosPartidosPage() {
     () =>
       partidos
         .filter(partidoTieneEquiposPublicados)
-        .filter((p) => fechaCoincideConCalendarioGrupo(p.fecha, grupoCfg, TZ))
+        // Ya armados: se muestran siempre si la fecha es hoy/futuro.
+        // No dependen del calendario de anotación (días del grupo), porque
+        // el admin puede confirmar un partido en cualquier fecha.
+        .filter((p) => p.fecha >= todayIsoInTz(TZ))
         .sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0)),
-    [partidos, grupoCfg],
+    [partidos],
   );
 
   const fechasConEquiposConfirmados = useMemo(
