@@ -1,7 +1,122 @@
-import { DIMENSION_LABELS, DIMENSION_ORDER } from "../dimensions";
+import { DIMENSION_LABELS, DIMENSION_ORDER, DIMENSION_SECTIONS } from "../dimensions";
 import { formatRating } from "../lib/formatRating";
-import { F5_DIMENSION_ORDER, F5_LABELS } from "../dimensions-f5";
+import { F5_DIMENSION_ORDER, F5_ICONS, F5_LABELS } from "../dimensions-f5";
 import type { Dimension, F5Dimension, PlayerDetail, ProfileScores } from "../types";
+
+/**
+ * Ejercicios individuales concretos por dimensión: cosas que se pueden practicar
+ * solo (o con lo mínimo, una pared/conos/pelota), sin depender de filmarse ni de
+ * pedirle devolución a un compañero.
+ */
+const F11_EXERCISES: Record<Dimension, { icon: string; tip: string }> = {
+  controlPrimerToque: {
+    icon: "🎯",
+    tip: "Pase contra una pared 15–20 min: controlá siempre orientado hacia un lado, alternando pierna hábil y la otra.",
+  },
+  pase: {
+    icon: "🎯",
+    tip: "Pase a una pared variando distancias (5, 10, 15 m) buscando que la pelota te quede «muerta» para el primer toque siguiente.",
+  },
+  regate1v1: {
+    icon: "🌀",
+    tip: "Circuito de 5–6 conos en zigzag: 10 pasadas de conducción con cambios de ritmo y de perfil (interior/exterior).",
+  },
+  remateFinalizacion: {
+    icon: "🥅",
+    tip: "Series de definición: 10 remates con la pierna hábil y 10 con la otra desde distintos ángulos, priorizando colocación sobre potencia.",
+  },
+  juegoAereo: {
+    icon: "🤾",
+    tip: "Autopase con la mano y cabeceo a un arco o pared, buscando dirección exacta (no solo pegarle fuerte).",
+  },
+  posicionamiento: {
+    icon: "🧭",
+    tip: "Mirá un tiempo de un partido (propio o profesional) siguiendo solo a un jugador de tu posición: anotá 3 lugares donde te ubicarías distinto.",
+  },
+  visionJuego: {
+    icon: "👀",
+    tip: "Convertí el «chequeo de hombros» (mirar atrás antes de recibir) en hábito: practicalo trotando o caminando, incluso sin pelota.",
+  },
+  movimientosSinBalon: {
+    icon: "🏃",
+    tip: "Trabajo en sombra sin pelota: 10 arranques explosivos con cambio de dirección cada 5–8 metros, simulando desmarques.",
+  },
+  tomaDecisiones: {
+    icon: "⚡",
+    tip: "Pase contra una pared con «toque limitado»: decidí antes de recibir si vas a primer toque, girar o devolver, y cumplilo.",
+  },
+  comprensionTactica: {
+    icon: "🧠",
+    tip: "Mirá un partido anotando qué hace tu línea (defensa/medio/ataque) cada vez que el equipo pierde la pelota, para entender las coberturas.",
+  },
+  velocidadAceleracion: {
+    icon: "💨",
+    tip: "8–10 sprints de 15–20 metros con descanso completo entre cada uno, foco en la salida explosiva de los primeros pasos.",
+  },
+  resistencia: {
+    icon: "🫁",
+    tip: "Intervalos 4×4 min fuerte / 3 min suave (trote o bici), dos veces por semana.",
+  },
+  fuerzaPotencia: {
+    icon: "🏋️",
+    tip: "Tren inferior con el propio peso: 3 series de 12–15 sentadillas, zancadas y saltos al cajón o escalón.",
+  },
+  agilidadCoordinacion: {
+    icon: "🪜",
+    tip: "Escalera de coordinación (o dibujada con tiza): 10–12 pasadas variando el patrón de pisada.",
+  },
+  fortalezaMental: {
+    icon: "🧘",
+    tip: "Visualización de 2–3 minutos antes de dormir: imaginate resolviendo bien jugadas de tu posición bajo presión.",
+  },
+  actitudDisciplina: {
+    icon: "📋",
+    tip: "Armá una rutina fija de calentamiento/movilidad antes de jugar y sostenela las próximas 4 fechas sin saltearla.",
+  },
+  espirituEquipo: {
+    icon: "🤝",
+    tip: "Objetivo para el próximo partido: dar en voz alta al menos 3 indicaciones o aliento a un compañero por tiempo.",
+  },
+  motivacion: {
+    icon: "🔥",
+    tip: "Antes de cada partido, anotá un objetivo personal simple y medible (ej. «ganar 3 duelos 1v1») y revisalo al terminar.",
+  },
+};
+
+/** Categoría de cada dimensión F11, para colorear la tarjeta igual que las barras de arriba. */
+const DIMENSION_CATEGORY: Record<Dimension, "tecnico" | "tactico" | "fisico" | "psico"> = (() => {
+  const map = {} as Record<Dimension, "tecnico" | "tactico" | "fisico" | "psico">;
+  for (const sec of DIMENSION_SECTIONS) {
+    for (const k of sec.keys) map[k] = sec.id as "tecnico" | "tactico" | "fisico" | "psico";
+  }
+  return map;
+})();
+
+const F5_TONE_CYCLE: Record<F5Dimension, string> = {
+  pulmon: "tone1",
+  pegada: "tone2",
+  pase: "tone3",
+  quite: "tone4",
+  compromiso: "tone5",
+};
+
+const F5_EXERCISES: Record<F5Dimension, { tip: string }> = {
+  pulmon: {
+    tip: "Intervalos cortos 30 seg fuerte / 30 seg trote durante 15–20 min, simulando el ida y vuelta constante del F5.",
+  },
+  pegada: {
+    tip: "20 remates a los ángulos desde la media luna priorizando colocación por sobre potencia.",
+  },
+  pase: {
+    tip: "Pase contra una pared variando ángulos y perfiles, buscando que la pelota te quede pronta para salir rápido de primera.",
+  },
+  quite: {
+    tip: "Trabajo de posición defensiva en sombra (sin pelota): practicá el paso y la salida al despeje, 10 repeticiones por lado.",
+  },
+  compromiso: {
+    tip: "Fijate un objetivo de esfuerzo medible para el próximo partido (ej. no perder ningún sprint de vuelta) y evaluate solo al terminar.",
+  },
+};
 
 function topLowestPeerDims(
   peerByDimension: PlayerDetail["peerByDimension"],
@@ -61,6 +176,48 @@ function topSelfAbovePeerF5(
   return rows.slice(0, n);
 }
 
+function TipCard({
+  icon,
+  label,
+  scoreLabel,
+  scoreValue,
+  tip,
+  colorTone,
+  kind,
+}: {
+  icon: string;
+  label: string;
+  scoreLabel: string;
+  scoreValue: number;
+  tip: string;
+  /** Color de la tarjeta según categoría de la dimensión (variedad visual). */
+  colorTone: "tecnico" | "tactico" | "fisico" | "psico" | "tone1" | "tone2" | "tone3" | "tone4" | "tone5";
+  /** Significado del dato: prioridad de mejora o gap de autopercepción. */
+  kind: "low" | "gap";
+}) {
+  return (
+    <div className={`pd-tip-card pd-tip-card--${colorTone}`}>
+      <div className="pd-tip-card__head">
+        <span className="pd-tip-card__icon" aria-hidden>
+          {icon}
+        </span>
+        <div className="pd-tip-card__headtext">
+          <p className="pd-tip-card__label">{label}</p>
+          <p className="pd-tip-card__score">
+            {scoreLabel} <strong>{formatRating(scoreValue)}</strong>
+          </p>
+        </div>
+        <span className={`pd-tip-card__kind pd-tip-card__kind--${kind}`}>
+          {kind === "low" ? "Prioridad" : "Autopercepción alta"}
+        </span>
+      </div>
+      <p className="pd-tip-card__exercise">
+        <span className="pd-tip-card__exercise-kicker">Ejercicio</span> {tip}
+      </p>
+    </div>
+  );
+}
+
 export default function ProfileImprovementSummary({ data }: { data: PlayerDetail }) {
   if (!data.isSelf) return null;
 
@@ -73,80 +230,114 @@ export default function ProfileImprovementSummary({ data }: { data: PlayerDetail
   const highSelfF5 = f5PeerN > 0 ? topSelfAbovePeerF5(data.f5Profile, data.peerF5ByDimension, 3) : [];
 
   return (
-    <div className="card" style={{ marginBottom: "1rem" }}>
-      <h2 style={{ marginTop: 0 }}>Resumen para mejorar</h2>
-      <p className="muted" style={{ marginTop: 0 }}>
+    <div className="pd-panel">
+      <h2 className="pd-panel__title">
+        <span aria-hidden>📈</span> Resumen para mejorar
+      </h2>
+      <p className="pd-panel__hint" style={{ marginBottom: "0.75rem" }}>
         Basado en la diferencia entre tu autopercepción y el promedio que te dejan tus compañeros (cuando ya hay
-        valoraciones). Es orientativo, no una nota definitiva.
+        valoraciones). Es orientativo, no una nota definitiva. Los ejercicios son para practicar solo, con lo mínimo.
       </p>
 
-      <h3 style={{ fontSize: "1.02rem", marginTop: "1rem" }}>Perfil completo (1–5)</h3>
+      <h3 className="pd-tip-subtitle">
+        <span aria-hidden>⚽</span> Perfil completo (1–5)
+      </h3>
       {peerN === 0 ? (
         <p className="muted">Todavía no hay suficientes valoraciones del grupo para armar sugerencias.</p>
       ) : (
         <>
           {low.length > 0 ? (
-            <div style={{ marginTop: "0.5rem" }}>
-              <p style={{ margin: "0 0 0.35rem", fontWeight: 600 }}>Donde el grupo te ubica más abajo (priorizá trabajo acá)</p>
-              <ul style={{ margin: 0, paddingLeft: "1.1rem", color: "var(--muted)", lineHeight: 1.65 }}>
+            <div className="pd-tip-block">
+              <p className="pd-tip-block__title pd-tip-block__title--low">
+                🔧 Donde el grupo te ubica más abajo (priorizá acá)
+              </p>
+              <div className="pd-tip-grid">
                 {low.map(({ key, peer }) => (
-                  <li key={key}>
-                    <strong style={{ color: "var(--text)" }}>{DIMENSION_LABELS[key]}</strong> — promedio del grupo{" "}
-                    {formatRating(peer)}. Qué hacer: pedí feedback concreto después del partido o en entrenamiento, filmá
-                    situaciones similares y repetí con calidad (pocos toques, buena toma de decisión).
-                  </li>
+                  <TipCard
+                    key={key}
+                    icon={F11_EXERCISES[key].icon}
+                    label={DIMENSION_LABELS[key]}
+                    scoreLabel="Promedio del grupo"
+                    scoreValue={peer}
+                    tip={F11_EXERCISES[key].tip}
+                    colorTone={DIMENSION_CATEGORY[key]}
+                    kind="low"
+                  />
                 ))}
-              </ul>
+              </div>
             </div>
           ) : null}
           {highSelf.length > 0 ? (
-            <div style={{ marginTop: "0.85rem" }}>
-              <p style={{ margin: "0 0 0.35rem", fontWeight: 600 }}>Donde te autovalorás bastante más alto que el grupo</p>
-              <ul style={{ margin: 0, paddingLeft: "1.1rem", color: "var(--muted)", lineHeight: 1.65 }}>
+            <div className="pd-tip-block">
+              <p className="pd-tip-block__title pd-tip-block__title--gap">
+                🪞 Te autovalorás bastante más alto que el grupo
+              </p>
+              <div className="pd-tip-grid">
                 {highSelf.map(({ key, gap }) => (
-                  <li key={key}>
-                    <strong style={{ color: "var(--text)" }}>{DIMENSION_LABELS[key]}</strong> — diferencia aprox.{" "}
-                    {formatRating(gap)} puntos. Qué hacer: alineá expectativas con lo que ven los demás; mostrá esas
-                    cualidades de forma más estable en partido (menos “picos” y más constancia).
-                  </li>
+                  <TipCard
+                    key={key}
+                    icon={F11_EXERCISES[key].icon}
+                    label={DIMENSION_LABELS[key]}
+                    scoreLabel="Diferencia aprox."
+                    scoreValue={gap}
+                    tip={F11_EXERCISES[key].tip}
+                    colorTone={DIMENSION_CATEGORY[key]}
+                    kind="gap"
+                  />
                 ))}
-              </ul>
+              </div>
             </div>
           ) : null}
         </>
       )}
 
-      <h3 style={{ fontSize: "1.02rem", marginTop: "1.25rem" }}>F5 (1–5)</h3>
+      <h3 className="pd-tip-subtitle" style={{ marginTop: "1.25rem" }}>
+        <span aria-hidden>🏐</span> F5 (1–5)
+      </h3>
       {f5PeerN === 0 ? (
         <p className="muted">Todavía no hay valoraciones F5 del grupo para sugerencias.</p>
       ) : (
         <>
           {lowF5.length > 0 ? (
-            <div style={{ marginTop: "0.5rem" }}>
-              <p style={{ margin: "0 0 0.35rem", fontWeight: 600 }}>Dimensiones F5 con menor promedio del grupo</p>
-              <ul style={{ margin: 0, paddingLeft: "1.1rem", color: "var(--muted)", lineHeight: 1.65 }}>
+            <div className="pd-tip-block">
+              <p className="pd-tip-block__title pd-tip-block__title--low">
+                🔧 Métricas F5 con menor promedio del grupo
+              </p>
+              <div className="pd-tip-grid">
                 {lowF5.map(({ key, peer }) => (
-                  <li key={key}>
-                    <strong style={{ color: "var(--text)" }}>{F5_LABELS[key]}</strong> — promedio {formatRating(peer)}. Qué
-                    hacer: practicá micro-situaciones (transiciones, duelos, comunicación) y pedí una mirada honesta a
-                    un compañero después del partido.
-                  </li>
+                  <TipCard
+                    key={key}
+                    icon={F5_ICONS[key]}
+                    label={F5_LABELS[key]}
+                    scoreLabel="Promedio del grupo"
+                    scoreValue={peer}
+                    tip={F5_EXERCISES[key].tip}
+                    colorTone={F5_TONE_CYCLE[key] as "tone1" | "tone2" | "tone3" | "tone4" | "tone5"}
+                    kind="low"
+                  />
                 ))}
-              </ul>
+              </div>
             </div>
           ) : null}
           {highSelfF5.length > 0 ? (
-            <div style={{ marginTop: "0.85rem" }}>
-              <p style={{ margin: "0 0 0.35rem", fontWeight: 600 }}>Donde tu autopercepción F5 supera bastante al grupo</p>
-              <ul style={{ margin: 0, paddingLeft: "1.1rem", color: "var(--muted)", lineHeight: 1.65 }}>
+            <div className="pd-tip-block">
+              <p className="pd-tip-block__title pd-tip-block__title--gap">
+                🪞 Tu autopercepción F5 supera bastante al grupo
+              </p>
+              <div className="pd-tip-grid">
                 {highSelfF5.map(({ key, gap }) => (
-                  <li key={key}>
-                    <strong style={{ color: "var(--text)" }}>{F5_LABELS[key]}</strong> — diferencia ~{formatRating(gap)} en
-                    escala 1–5. Qué hacer: buscá evidencia en video o pedí ejemplos concretos a quienes te valoran más
-                    bajo para entender el gap.
-                  </li>
+                  <TipCard
+                    key={key}
+                    icon={F5_ICONS[key]}
+                    label={F5_LABELS[key]}
+                    scoreLabel="Diferencia aprox."
+                    scoreValue={gap}
+                    tip={F5_EXERCISES[key].tip}
+                    colorTone={F5_TONE_CYCLE[key] as "tone1" | "tone2" | "tone3" | "tone4" | "tone5"}
+                    kind="gap"
+                  />
                 ))}
-              </ul>
+              </div>
             </div>
           ) : null}
         </>

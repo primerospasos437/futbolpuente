@@ -1,0 +1,588 @@
+/* Ficha técnica / perfil del jugador — mismo lenguaje visual que Fútbol Stats */
+
+.profile-dash {
+  margin: -0.25rem -0.15rem 1.5rem;
+  font-size: 1.06rem;
+}
+
+.profile-float {
+  position: relative;
+  z-index: 0;
+  border-radius: 18px;
+  border: 1px solid rgba(0, 212, 255, 0.28);
+  background:
+    radial-gradient(ellipse 70% 40% at 15% 0%, rgba(255, 176, 32, 0.1), transparent 55%),
+    radial-gradient(ellipse 60% 35% at 90% 5%, rgba(58, 160, 255, 0.14), transparent 50%),
+    radial-gradient(ellipse 50% 30% at 50% 100%, rgba(61, 255, 154, 0.08), transparent 55%),
+    linear-gradient(165deg, #101826 0%, #0e1520 45%, #0a1018 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 24px 60px rgba(0, 0, 0, 0.55),
+    0 0 40px rgba(0, 212, 255, 0.14);
+  padding: 1rem 0.9rem 1.25rem;
+  overflow: hidden;
+  animation: pd-float-in 0.45s ease-out;
+}
+@keyframes pd-float-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.pd-back {
+  display: inline-flex;
+  margin-bottom: 0.75rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+.pd-back:hover {
+  color: var(--text);
+}
+
+/* —— Hero: avatar + nombre + meta —— */
+.pd-hero {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.pd-hero__avatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: radial-gradient(circle, #1a2436, #0a101a);
+  border: 3px solid var(--team-claros);
+  filter: drop-shadow(0 0 10px rgba(255, 176, 32, 0.55));
+}
+.pd-hero__info {
+  min-width: 0;
+  flex: 1;
+}
+.pd-hero__name {
+  margin: 0;
+  font-size: clamp(1.5rem, 4.4vw, 2.1rem);
+  font-weight: 800;
+  line-height: 1.1;
+  background: linear-gradient(90deg, var(--neon-gold), var(--accent) 45%, var(--neon-blue) 85%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 16px rgba(255, 229, 102, 0.2));
+}
+.pd-hero__meta {
+  margin: 0.3rem 0 0;
+  font-size: 1rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.pd-hero__meta strong {
+  color: var(--text);
+}
+
+/* —— KPIs —— */
+.pd-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+}
+@media (min-width: 560px) {
+  .pd-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 860px) {
+  .pd-kpis {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+.pd-kpi {
+  position: relative;
+  border-radius: 14px;
+  border: 2px solid rgba(200, 210, 230, 0.35);
+  background: #141c2a;
+  padding: 0.6rem 0.7rem 0.65rem;
+  min-height: 5.4rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 24px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.pd-kpi__icon {
+  font-size: 1.2rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
+}
+.pd-kpi__label {
+  margin: 0.2rem 0 0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.pd-kpi__value {
+  margin: 0.15rem 0 0;
+  font-size: 1.65rem;
+  font-weight: 800;
+  line-height: 1.05;
+  font-family: var(--mono);
+}
+.pd-kpi__sub {
+  margin: 0.1rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.pd-kpi--gold {
+  border-color: rgba(255, 176, 32, 0.9);
+  box-shadow: 0 0 20px rgba(255, 176, 32, 0.35);
+  background: linear-gradient(160deg, rgba(255, 176, 32, 0.28), rgba(40, 28, 10, 0.9));
+}
+.pd-kpi--gold .pd-kpi__value { color: var(--team-claros); }
+.pd-kpi--blue {
+  border-color: rgba(58, 160, 255, 0.8);
+  box-shadow: 0 0 20px rgba(58, 160, 255, 0.28);
+  background: linear-gradient(160deg, rgba(58, 160, 255, 0.28), rgba(10, 24, 45, 0.9));
+}
+.pd-kpi--blue .pd-kpi__value { color: var(--team-oscuros); }
+.pd-kpi--green {
+  border-color: rgba(61, 255, 154, 0.75);
+  box-shadow: 0 0 18px rgba(61, 255, 154, 0.24);
+  background: linear-gradient(160deg, rgba(61, 255, 154, 0.26), rgba(10, 36, 24, 0.9));
+}
+.pd-kpi--green .pd-kpi__value { color: var(--accent); }
+.pd-kpi--purple {
+  border-color: rgba(179, 136, 255, 0.8);
+  box-shadow: 0 0 18px rgba(179, 136, 255, 0.26);
+  background: linear-gradient(160deg, rgba(179, 136, 255, 0.28), rgba(28, 16, 45, 0.9));
+}
+.pd-kpi--purple .pd-kpi__value { color: var(--neon-purple); }
+.pd-kpi--neutral {
+  border-color: rgba(200, 210, 230, 0.4);
+  background: linear-gradient(160deg, rgba(180, 200, 220, 0.16), rgba(20, 28, 42, 0.9));
+}
+
+/* —— Panels —— */
+.pd-panel {
+  border-radius: 14px;
+  border: 1px solid rgba(0, 255, 136, 0.25);
+  background: #141c2a;
+  padding: 0.9rem 0.9rem;
+  margin-bottom: 0.85rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 28px rgba(0, 0, 0, 0.3);
+}
+.pd-panel__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.12rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.pd-panel__hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.92rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.pd-panel--private {
+  border-color: rgba(255, 138, 61, 0.4);
+  background: linear-gradient(165deg, rgba(255, 138, 61, 0.08), #141c2a 55%);
+}
+.pd-panel--cta {
+  border-color: rgba(255, 229, 102, 0.5);
+  background: linear-gradient(165deg, rgba(255, 229, 102, 0.1), #141c2a 55%);
+}
+
+/* —— Ficha técnica: grid de datos —— */
+.pd-info-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+@media (min-width: 560px) {
+  .pd-info-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.pd-info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+}
+.pd-info-item__icon {
+  font-size: 1.2rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+.pd-info-item__label {
+  display: block;
+  margin: 0 0 0.1rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.pd-info-item__value {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text);
+  font-weight: 600;
+}
+.pd-info-item--empty .pd-info-item__value {
+  color: var(--muted);
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* —— Barras de dimensiones (autopercepción / grupo) —— */
+.pd-dim-section {
+  margin-top: 1rem;
+}
+.pd-dim-section:first-of-type {
+  margin-top: 0;
+}
+.pd-dim-section__title {
+  margin: 0 0 0.15rem;
+  font-size: 1.02rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.pd-dim-section__desc {
+  margin: 0 0 0.65rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.pd-dim-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+@media (min-width: 640px) {
+  .pd-dim-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.pd-dim-row {
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+}
+.pd-dim-row__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+.pd-dim-row__label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.pd-dim-row__value {
+  font-family: var(--mono);
+  font-weight: 800;
+  font-size: 0.92rem;
+  flex-shrink: 0;
+}
+.pd-dim-row__track {
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.pd-dim-row__fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+.pd-dim-row--tecnico .pd-dim-row__fill,
+.pd-dim-row--tone1 .pd-dim-row__fill {
+  background: linear-gradient(90deg, #0090b8, var(--neon-blue));
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.55);
+}
+.pd-dim-row--tecnico .pd-dim-row__value,
+.pd-dim-row--tone1 .pd-dim-row__value {
+  color: var(--neon-blue);
+}
+.pd-dim-row--tactico .pd-dim-row__fill,
+.pd-dim-row--tone2 .pd-dim-row__fill {
+  background: linear-gradient(90deg, #1f9d63, var(--accent));
+  box-shadow: 0 0 8px rgba(61, 255, 154, 0.55);
+}
+.pd-dim-row--tactico .pd-dim-row__value,
+.pd-dim-row--tone2 .pd-dim-row__value {
+  color: var(--accent);
+}
+.pd-dim-row--fisico .pd-dim-row__fill,
+.pd-dim-row--tone3 .pd-dim-row__fill {
+  background: linear-gradient(90deg, #c4680f, var(--neon-orange));
+  box-shadow: 0 0 8px rgba(255, 138, 61, 0.55);
+}
+.pd-dim-row--fisico .pd-dim-row__value,
+.pd-dim-row--tone3 .pd-dim-row__value {
+  color: var(--neon-orange);
+}
+.pd-dim-row--psico .pd-dim-row__fill,
+.pd-dim-row--tone4 .pd-dim-row__fill {
+  background: linear-gradient(90deg, #7c4fd6, var(--neon-purple));
+  box-shadow: 0 0 8px rgba(179, 136, 255, 0.55);
+}
+.pd-dim-row--psico .pd-dim-row__value,
+.pd-dim-row--tone4 .pd-dim-row__value {
+  color: var(--neon-purple);
+}
+.pd-dim-row--rosa .pd-dim-row__fill,
+.pd-dim-row--tone5 .pd-dim-row__fill {
+  background: linear-gradient(90deg, #d6337f, #ff6fb0);
+  box-shadow: 0 0 8px rgba(255, 111, 176, 0.55);
+}
+.pd-dim-row--rosa .pd-dim-row__value,
+.pd-dim-row--tone5 .pd-dim-row__value {
+  color: #ff6fb0;
+}
+.pd-dim-row--peer .pd-dim-row__fill {
+  background: linear-gradient(90deg, #b8860a, var(--team-claros));
+  box-shadow: 0 0 8px rgba(255, 176, 32, 0.5);
+}
+.pd-dim-row--peer .pd-dim-row__value {
+  color: var(--team-claros);
+}
+.pd-dim-row__empty {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* —— CTA valorar —— */
+.pd-cta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.6rem;
+}
+.pd-cta-actions .btn {
+  flex: 1;
+  min-width: 180px;
+  text-align: center;
+  font-size: 1rem;
+}
+
+/* —— Aggregate-only panel (para quien no es admin ni el propio jugador) —— */
+.pd-agg-score {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
+}
+.pd-agg-score__value {
+  font-family: var(--mono);
+  font-weight: 800;
+  font-size: 1.8rem;
+  color: var(--team-claros);
+}
+.pd-agg-score__n {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* —— Resumen para mejorar: tips con ejercicio concreto —— */
+.pd-tip-subtitle {
+  margin: 0 0 0.2rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.pd-tip-block {
+  margin-top: 0.65rem;
+}
+.pd-tip-block__title {
+  margin: 0 0 0.55rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.pd-tip-block__title--low {
+  color: var(--neon-orange);
+}
+.pd-tip-block__title--gap {
+  color: var(--neon-purple);
+}
+.pd-tip-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.55rem;
+}
+@media (min-width: 640px) {
+  .pd-tip-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.pd-tip-card {
+  border-radius: 12px;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.22);
+  padding: 0.75rem 0.8rem;
+}
+/* Color por categoría de la dimensión (técnico/táctico/físico/psico, o ciclo para F5) —
+   la misma paleta que las barras de arriba, para variar los colores del panel. */
+.pd-tip-card--tecnico,
+.pd-tip-card--tone1 {
+  border-color: rgba(0, 212, 255, 0.5);
+  background: linear-gradient(165deg, rgba(0, 212, 255, 0.14), rgba(10, 24, 40, 0.6));
+}
+.pd-tip-card--tactico,
+.pd-tip-card--tone2 {
+  border-color: rgba(61, 255, 154, 0.5);
+  background: linear-gradient(165deg, rgba(61, 255, 154, 0.14), rgba(10, 32, 22, 0.6));
+}
+.pd-tip-card--fisico,
+.pd-tip-card--tone3 {
+  border-color: rgba(255, 138, 61, 0.5);
+  background: linear-gradient(165deg, rgba(255, 138, 61, 0.14), rgba(36, 20, 8, 0.6));
+}
+.pd-tip-card--psico,
+.pd-tip-card--tone4 {
+  border-color: rgba(179, 136, 255, 0.5);
+  background: linear-gradient(165deg, rgba(179, 136, 255, 0.14), rgba(28, 16, 42, 0.6));
+}
+.pd-tip-card--tone5 {
+  border-color: rgba(255, 111, 176, 0.5);
+  background: linear-gradient(165deg, rgba(255, 111, 176, 0.14), rgba(36, 12, 26, 0.6));
+}
+.pd-tip-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.pd-tip-card__icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.2));
+}
+.pd-tip-card__headtext {
+  min-width: 0;
+  flex: 1;
+}
+.pd-tip-card__label {
+  margin: 0;
+  font-weight: 800;
+  font-size: 0.98rem;
+  color: var(--text);
+}
+.pd-tip-card__score {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.pd-tip-card__score strong {
+  font-family: var(--mono);
+  color: var(--text);
+}
+.pd-tip-card__kind {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.pd-tip-card__kind--low {
+  color: var(--neon-orange);
+  background: rgba(255, 138, 61, 0.16);
+  border: 1px solid rgba(255, 138, 61, 0.4);
+}
+.pd-tip-card__kind--gap {
+  color: var(--neon-purple);
+  background: rgba(179, 136, 255, 0.16);
+  border: 1px solid rgba(179, 136, 255, 0.4);
+}
+.pd-tip-card__exercise {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--text);
+  padding-top: 0.5rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+}
+.pd-tip-card__exercise-kicker {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--neon-gold);
+  margin-right: 0.3rem;
+}
+
+/* —— Agrandar textos compartidos (formularios de valoración) solo en esta página —— */
+.profile-dash .muted {
+  font-size: 1rem;
+}
+.profile-dash .profile-section-title {
+  font-size: 1.15rem;
+}
+.profile-dash .profile-section-desc {
+  font-size: 0.96rem;
+}
+.profile-dash .star-metric-title {
+  font-size: 1.02rem;
+}
+.profile-dash .star-metric-short {
+  font-size: 0.85rem;
+}
+.profile-dash .f5-avg-pill__label {
+  font-size: 0.88rem;
+}
+.profile-dash .f5-avg-pill__value {
+  font-size: 1.7rem;
+}
+.profile-dash .tabs a,
+.profile-dash .tabs button {
+  font-size: 0.95rem;
+}
+.profile-dash h3 {
+  font-size: 1.1rem;
+}
+
+body.light-mode .profile-float {
+  background:
+    radial-gradient(ellipse 70% 40% at 15% 0%, rgba(255, 160, 0, 0.12), transparent 55%),
+    radial-gradient(ellipse 60% 35% at 90% 5%, rgba(30, 120, 220, 0.1), transparent 50%),
+    linear-gradient(165deg, #ffffff 0%, #f2f6fb 100%);
+  border-color: rgba(30, 120, 220, 0.25);
+  box-shadow: 0 18px 40px rgba(7, 13, 26, 0.12);
+}
+body.light-mode .pd-kpi,
+body.light-mode .pd-panel,
+body.light-mode .pd-info-item,
+body.light-mode .pd-dim-row,
+body.light-mode .pd-tip-card {
+  background: #ffffff;
+}
