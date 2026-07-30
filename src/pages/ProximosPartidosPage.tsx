@@ -16,7 +16,7 @@ import {
   parseEquipoNombres,
   partidoTieneEquiposPublicados,
 } from "../lib/partidoEquipos";
-import { buildPlayerListSnippets } from "../lib/partidoStats";
+import { buildMatchPreviewInsights, buildPlayerListSnippets } from "../lib/partidoStats";
 import type { PlayerSummary } from "../types";
 
 const TZ = "America/Argentina/Buenos_Aires";
@@ -241,6 +241,18 @@ export default function ProximosPartidosPage() {
     return out;
   }, [players, partidos, presencias, apodoById]);
 
+  /** Previa de stats por partido confirmado (solo si aún no hay resultado). */
+  const previewByPartidoId = useMemo(() => {
+    const out: Record<string, ReturnType<typeof buildMatchPreviewInsights>> = {};
+    for (const p of partidosConEquipos) {
+      if (p.goles_claros != null && p.goles_oscuros != null) continue;
+      const claros = parseEquipoNombres(p.equipo_claros, apodoById);
+      const oscuros = parseEquipoNombres(p.equipo_oscuros, apodoById);
+      out[p.id] = buildMatchPreviewInsights(claros, oscuros, partidos, presencias, apodoById);
+    }
+    return out;
+  }, [partidosConEquipos, partidos, presencias, apodoById]);
+
   async function bajaTitularPartidoConfirmado(partidoId: string) {
     setBajaPartidoBusy(partidoId);
     setError(null);
@@ -331,7 +343,7 @@ export default function ProximosPartidosPage() {
         <section style={{ marginTop: "1rem" }}>
           <h2 className="proximos-section-title"><Shield size={16} className="neon-icon" /> Partidos con equipos confirmados</h2>
           <p className="muted" style={{ marginTop: 0, marginBottom: "0.85rem" }}>
-            Compañeros, rivales, posición y últimos 3 resultados de cada uno.
+            Compañeros, rivales y abajo la previa con datos: rachas, enfrentamientos y duplas de este partido.
           </p>
           <div className="proximos-spotlight-grid">
             {partidosConEquipos.map((p) => {
@@ -349,6 +361,7 @@ export default function ProximosPartidosPage() {
                   miEquipo={meId ? miEquipoEnPartido(p.id, meId, presencias) : null}
                   showScore={p.goles_claros != null && p.goles_oscuros != null}
                   playerExtras={playerExtras}
+                  previewInsights={previewByPartidoId[p.id]}
                   footer={
                     soyTitular ? (
                       <button

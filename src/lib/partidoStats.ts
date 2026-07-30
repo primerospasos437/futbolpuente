@@ -1052,3 +1052,322 @@ export function buildPlayerListSnippets(
 
   return out;
 }
+
+/** Insight narrativo para la previa Claros vs Oscuros. */
+export type MatchPreviewInsight = {
+  id: string;
+  icon: string;
+  title: string;
+  body: string;
+  tone?: "green" | "red" | "blue" | "purple" | "gold" | "orange";
+  /** Últimos resultados (G/E/P) para mostrar como chips. */
+  chips?: ResultLetter[];
+  /** Apodos a mostrar como avatares. */
+  names?: string[];
+  /** Métrica corta a la derecha (ej. "2-0", "40%"). */
+  metric?: string;
+};
+
+type PreviewPlayer = { id: string; apodo: string };
+
+/**
+ * Analiza Claros vs Oscuros contra el historial y arma tarjetas de previa
+ * (rachas, enfrentamientos, duplas, debutantes, serie de color, etc.).
+ */
+export function buildMatchPreviewInsights(
+  claros: PreviewPlayer[],
+  oscuros: PreviewPlayer[],
+  partidos: PartidoRow[],
+  presencias: PresenciaRow[],
+  apodoById: Map<string, string>,
+): MatchPreviewInsight[] {
+  const claroIds = new Set(claros.map((p) => p.id));
+  const oscuroIds = new Set(oscuros.map((p) => p.id));
+  const allIds = new Set([...claroIds, ...oscuroIds]);
+  if (allIds.size < 2) return [];
+
+  const nameOf = (id: string, fallback?: string) => resolveApodo(id, apodoById, fallback);
+  const apodoLive = (p: PreviewPlayer) => nameOf(p.id, p.apodo);
+
+  const ranking = buildPlayerRanking(partidos, presencias, apodoById);
+  const byId = new Map(ranking.map((r) => [r.jugadorId, r]));
+  const standings = buildClarosOscurosStandings(partidos);
+
+  // H2H cruzado + duplas del mismo lado, solo con jugadores de este partido.
+  type PairAcc = { aId: string; bId: string; pj: number; g: number; p: number; e: number };
+  const sameTeamPairs = new Map<string, PairAcc>();
+  const crossWins = new Map<string, Map<string, number>>(); // winner -> loser -> n
+
+  function bumpCross(w: string, l: string) {
+    let m = crossWins.get(w);
+    if (!m) {
+      m = new Map();
+      crossWins.set(w, m);
+    }
+    m.set(l, (m.get(l) ?? 0) + 1);
+  }
+
+  function bumpPair(a: string, b: string, letter: ResultLetter) {
+    const key = pairKey(a, b);
+    let acc = sameTeamPairs.get(key);
+    if (!acc) {
+      acc = { aId: a < b ? a : b, bId: a < b ? b : a, pj: 0, g: 0, p: 0, e: 0 };
+      sameTeamPairs.set(key, acc);
+    }
+    acc.pj += 1;
+    if (letter === "G") acc.g += 1;
+    else if (letter === "P") acc.p += 1;
+    else acc.e += 1;
+  }
+
+  for (const p of finishedMatchesDesc(partidos)) {
+    const gc = Number(p.goles_claros);
+    const go = Number(p.goles_oscuros);
+    const slots = lineupForMatch(p, presencias, apodoById);
+    const teamA = slots.filter((s) => s.equipo === "claros").map((s) => s.id);
+    const teamB = slots.filter((s) => s.equipo === "oscuros").map((s) => s.id);
+
+    for (const equipo of ["claros", "oscuros"] as const) {
+      const ids = equipo === "claros" ? teamA : teamB;
+      const letter = resultForTeam(gc, go, equipo);
+      for (let i = 0; i < ids.length; i += 1) {
+        if (!allIds.has(ids[i])) continue;
+        for (let j = i + 1; j < ids.length; j += 1) {
+          if (!allIds.has(ids[j])) continue;
+          // Solo duplas que hoy vuelven a estar del mismo lado
+          const sameSideNow =
+            (claroIds.has(ids[i]) && claroIds.has(ids[j])) ||
+            (oscuroIds.has(ids[i]) && oscuroIds.has(ids[j]));
+          if (sameSideNow) bumpPair(ids[i], ids[j], letter);
+        }
+      }
+    }
+
+    if (gc === go) continue;
+    const winners = gc > go ? teamA : teamB;
+    const losers = gc > go ? teamB : teamA;
+    for (const w of winners) {
+      if (!allIds.has(w)) continue;
+      for (const l of losers) {
+        if (!allIds.has(l)) continue;
+        // Solo si hoy están enfrentados (lados opuestos)
+        const opposedNow =
+          (claroIds.has(w) && oscuroIds.has(l)) || (oscuroIds.has(w) && claroIds.has(l));
+        if (opposedNow) bumpCross(w, l);
+      }
+    }
+  }
+
+  const cards: MatchPreviewInsight[] = [];
+
+  // 1) Debutantes
+  const debuts = [...claros, ...oscuros].filter((p) => (byId.get(p.id)?.pj ?? 0) === 0);
+  if (debuts.length) {
+    cards.push({
+      id: "debuts",
+      icon: "🆕",
+      title: debuts.length === 1 ? "Hay debut" : "Hay debutantes",
+      body:
+        debuts.length === 1
+          ? `${apodoLive(debuts[0])} juega su primer partido del grupo.`
+          : `${debuts.map(apodoLive).join(", ")} todavía no tienen partidos registrados.`,
+      tone: "purple",
+      names: debuts.slice(0, 4).map(apodoLive),
+      metric: String(debuts.length),
+    });
+  }
+
+  // 2) Mejor enfrentamiento cruzado
+  let bestH2h: { a: string; b: string; wa: number; wb: number } | null = null;
+  for (const [w, m] of crossWins) {
+    for (const [l, n] of m) {
+      if (n < 1) continue;
+      const reverse = crossWins.get(l)?.get(w) ?? 0;
+      // Ordenar para no duplicar el par
+      const [a, b, wa, wb] = w < l ? [w, l, n, reverse] : [l, w, reverse, n];
+      const total = wa + wb;
+      if (total < 1) continue;
+      if (
+        !bestH2h ||
+        total > bestH2h.wa + bestH2h.wb ||
+        (total === bestH2h.wa + bestH2h.wb && Math.abs(wa - wb) > Math.abs(bestH2h.wa - bestH2h.wb))
+      ) {
+        bestH2h = { a, b, wa, wb };
+      }
+    }
+  }
+  if (bestH2h && bestH2h.wa + bestH2h.wb >= 1) {
+    const aName = nameOf(bestH2h.a);
+    const bName = nameOf(bestH2h.b);
+    cards.push({
+      id: "h2h",
+      icon: "⚔️",
+      title: `${aName} vs ${bName}`,
+      body:
+        bestH2h.wa === bestH2h.wb
+          ? `Historial parejo entre ellos: ${bestH2h.wa}-${bestH2h.wb} cuando se cruzaron.`
+          : bestH2h.wa > bestH2h.wb
+            ? `${aName} le lleva ventaja a ${bName} (${bestH2h.wa}-${bestH2h.wb}) en enfrentamientos directos.`
+            : `${bName} le lleva ventaja a ${aName} (${bestH2h.wb}-${bestH2h.wa}) en enfrentamientos directos.`,
+      tone: "orange",
+      names: [aName, bName],
+      metric: `${Math.max(bestH2h.wa, bestH2h.wb)}-${Math.min(bestH2h.wa, bestH2h.wb)}`,
+    });
+  }
+
+  // 3) Racha en racha (subiendo)
+  const streakers = ranking
+    .filter((r) => allIds.has(r.jugadorId) && r.racha.startsWith("G") && Number(r.racha.slice(1)) >= 2)
+    .sort((a, b) => Number(b.racha.slice(1)) - Number(a.racha.slice(1)));
+  if (streakers[0]) {
+    const r = streakers[0];
+    const n = Number(r.racha.slice(1));
+    cards.push({
+      id: "win-streak",
+      icon: "🔥",
+      title: `${r.apodo} viene en racha`,
+      body: `Lleva ${n} victoria${n === 1 ? "" : "s"} seguida${n === 1 ? "" : "s"}. Si sigue así, puede desbalancear el partido.`,
+      tone: "green",
+      names: [r.apodo],
+      chips: Array.from({ length: Math.min(n, 5) }, () => "G" as ResultLetter),
+      metric: r.racha,
+    });
+  }
+
+  // 4) Racha negativa
+  const cold = ranking
+    .filter((r) => allIds.has(r.jugadorId) && r.racha.startsWith("P") && Number(r.racha.slice(1)) >= 2)
+    .sort((a, b) => Number(b.racha.slice(1)) - Number(a.racha.slice(1)));
+  if (cold[0]) {
+    const r = cold[0];
+    const n = Number(r.racha.slice(1));
+    cards.push({
+      id: "loss-streak",
+      icon: "🧊",
+      title: `${r.apodo} viene flojo`,
+      body: `${n} derrota${n === 1 ? "" : "s"} al hilo. Hoy es una chance de cortar la racha… o seguirla.`,
+      tone: "blue",
+      names: [r.apodo],
+      chips: Array.from({ length: Math.min(n, 5) }, () => "P" as ResultLetter),
+      metric: r.racha,
+    });
+  }
+
+  // 5) Mejor % del partido
+  const withMin = ranking.filter((r) => allIds.has(r.jugadorId) && r.pj >= 2);
+  const bestPct = [...withMin].sort((a, b) => b.pctVict - a.pctVict || b.g - a.g)[0];
+  if (bestPct) {
+    cards.push({
+      id: "best-pct",
+      icon: "📈",
+      title: `Más efectivo: ${bestPct.apodo}`,
+      body: `${bestPct.g}G-${bestPct.p}P-${bestPct.e}E en ${bestPct.pj} PJ. Gana el ${bestPct.pctVict.toFixed(0)}% de sus partidos.`,
+      tone: "gold",
+      names: [bestPct.apodo],
+      metric: `${bestPct.pctVict.toFixed(0)}%`,
+    });
+  }
+
+  // 6) Peor % del partido
+  const worstPct = [...withMin].sort((a, b) => a.pctVict - b.pctVict || b.p - a.p)[0];
+  if (worstPct && (!bestPct || worstPct.jugadorId !== bestPct.jugadorId)) {
+    cards.push({
+      id: "worst-pct",
+      icon: "📉",
+      title: `Más irregular: ${worstPct.apodo}`,
+      body: `${worstPct.g}G-${worstPct.p}P-${worstPct.e}E · ${worstPct.pctVict.toFixed(0)}% de victorias. Hoy busca enderezarlo.`,
+      tone: "red",
+      names: [worstPct.apodo],
+      metric: `${worstPct.pctVict.toFixed(0)}%`,
+    });
+  }
+
+  // 7) Mejor dupla del mismo lado
+  const pairRows = [...sameTeamPairs.values()]
+    .filter((x) => x.pj >= 2)
+    .map((x) => ({
+      ...x,
+      pct: (x.g / x.pj) * 100,
+      aApodo: nameOf(x.aId),
+      bApodo: nameOf(x.bId),
+    }));
+  const bestDuo = [...pairRows].sort((a, b) => b.pct - a.pct || b.pj - a.pj)[0];
+  if (bestDuo && bestDuo.pct >= 50) {
+    cards.push({
+      id: "best-duo",
+      icon: "🤝",
+      title: `${bestDuo.aApodo} + ${bestDuo.bApodo}`,
+      body: `Cuando juegan juntos: ${bestDuo.g}-${bestDuo.p}-${bestDuo.e} (${bestDuo.pct.toFixed(0)}% en ${bestDuo.pj} PJ). Hoy vuelven a estar del mismo lado.`,
+      tone: "green",
+      names: [bestDuo.aApodo, bestDuo.bApodo],
+      metric: `${bestDuo.pct.toFixed(0)}%`,
+    });
+  }
+
+  // 8) Peor dupla del mismo lado
+  const worstDuo = [...pairRows].sort((a, b) => a.pct - b.pct || b.pj - a.pj)[0];
+  if (worstDuo && (!bestDuo || worstDuo.aId !== bestDuo.aId || worstDuo.bId !== bestDuo.bId) && worstDuo.pct <= 40) {
+    cards.push({
+      id: "worst-duo",
+      icon: "💀",
+      title: `${worstDuo.aApodo} + ${worstDuo.bApodo}`,
+      body: `Juntos van ${worstDuo.g}-${worstDuo.p}-${worstDuo.e} (${worstDuo.pct.toFixed(0)}%). La mufa vuelve a juntarse… o se rompe hoy.`,
+      tone: "red",
+      names: [worstDuo.aApodo, worstDuo.bApodo],
+      metric: `${worstDuo.g}-${worstDuo.p}`,
+    });
+  }
+
+  // 9) Serie de color
+  if (standings.partidosConResultado > 0) {
+    cards.push({
+      id: "color-series",
+      icon: "🎨",
+      title: "Serie Claros vs Oscuros",
+      body: `En la temporada: Claros ${standings.clarosWins} – ${standings.oscurosWins} Oscuros${
+        standings.empates ? ` (${standings.empates} empate${standings.empates === 1 ? "" : "s"})` : ""
+      }.`,
+      tone: "gold",
+      metric: `${standings.clarosWins}-${standings.oscurosWins}`,
+    });
+  }
+
+  // 10) Factores a favor (resumen)
+  const favorOscuros: string[] = [];
+  const favorClaros: string[] = [];
+  for (const r of streakers.slice(0, 3)) {
+    const tip = `${r.apodo} en racha (${r.racha})`;
+    if (claroIds.has(r.jugadorId)) favorClaros.push(tip);
+    else favorOscuros.push(tip);
+  }
+  for (const r of withMin.filter((x) => x.pctVict >= 60).slice(0, 4)) {
+    const tip = `${r.apodo} al ${r.pctVict.toFixed(0)}%`;
+    if (claroIds.has(r.jugadorId)) {
+      if (!favorClaros.some((t) => t.startsWith(r.apodo))) favorClaros.push(tip);
+    } else if (!favorOscuros.some((t) => t.startsWith(r.apodo))) {
+      favorOscuros.push(tip);
+    }
+  }
+  if (favorClaros.length || favorOscuros.length) {
+    const side =
+      favorClaros.length === favorOscuros.length
+        ? "ambos lados tienen argumentos"
+        : favorClaros.length > favorOscuros.length
+          ? "Claros llegan con más factores a favor"
+          : "Oscuros llegan con más factores a favor";
+    const bits = [
+      ...favorClaros.slice(0, 2).map((t) => `☀️ ${t}`),
+      ...favorOscuros.slice(0, 2).map((t) => `🌙 ${t}`),
+    ];
+    cards.push({
+      id: "favor",
+      icon: "🎯",
+      title: "Factores a favor",
+      body: `${side.charAt(0).toUpperCase() + side.slice(1)}. ${bits.join(" · ")}.`,
+      tone: favorClaros.length >= favorOscuros.length ? "gold" : "purple",
+    });
+  }
+
+  return cards.slice(0, 10);
+}
+
