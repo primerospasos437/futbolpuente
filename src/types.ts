@@ -71,9 +71,9 @@ export interface PlayerSummary {
   } | null;
   esAdmin: boolean;
   createdAt: string;
-  /** Guardó al menos una vez el perfil completo en «Mis perfiles». */
+  /** Guardó al menos una vez el perfil completo en «Mi perfil». */
   perfilCompletoCargado: boolean;
-  /** Guardó al menos una vez el perfil F5 en «Mis perfiles». */
+  /** Guardó al menos una vez el perfil F5 en «Mi perfil». */
   perfilF5Cargado: boolean;
   /**
    * Solo en el propio resumen (`isSelf`): cantidad de compañeros distintos a los que ya valoraste

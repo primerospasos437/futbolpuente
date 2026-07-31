@@ -399,12 +399,12 @@ export default function ProximosPartidosPage() {
           <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.2rem" }}>
             {exigeF11 && !me.perfilCompletoCargado ? (
               <li>
-                Guardá tu <strong>perfil completo</strong> en «Mis perfiles».
+                Guardá tu <strong>perfil completo</strong> en «Mi perfil».
               </li>
             ) : null}
             {exigeF5 && !me.perfilF5Cargado ? (
               <li>
-                Guardá tu perfil <strong>F5</strong> en «Mis perfiles».
+                Guardá tu perfil <strong>F5</strong> en «Mi perfil».
               </li>
             ) : null}
             {(me.miValoracionesPerfilOtros ?? 0) < minVal ? (

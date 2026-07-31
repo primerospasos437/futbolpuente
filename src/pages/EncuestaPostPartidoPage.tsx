@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiEncuesta } from "../api";
 import { Trophy } from "lucide-react";
+import { personAvatarUrl } from "../lib/avatarImage";
 import {
   ENCUESTA_CATEGORIAS,
   ENCUESTA_META,
@@ -125,28 +126,44 @@ export default function EncuestaPostPartidoPage() {
 
         {ENCUESTA_CATEGORIAS.map((cat) => {
           const meta = ENCUESTA_META[cat];
+          const selectedId = votes[cat] ?? "";
           return (
             <div className="row encuesta-row" key={cat}>
-              <label htmlFor={`encuesta-${cat}`}>
+              <label>
                 <span className="encuesta-label">
                   {meta.emoji} {meta.titulo}
                 </span>
                 <span className="encuesta-sub muted">{meta.subtitulo}</span>
               </label>
-              <select
-                id={`encuesta-${cat}`}
-                value={votes[cat] ?? ""}
-                disabled={data.yaVoto || busy}
-                onChange={(e) => setVotes((prev) => ({ ...prev, [cat]: e.target.value }))}
-                required
-              >
-                <option value="">— Elegí —</option>
-                {data.candidatos.map((c) => (
-                  <option key={`${cat}-${c.id}`} value={c.id}>
-                    {c.apodo} · {c.equipo === "claros" ? TEAM_LABEL_CLAROS : TEAM_LABEL_OSCUROS}
-                  </option>
-                ))}
-              </select>
+              <div className="avatar-pick-grid" role="radiogroup" aria-label={meta.titulo}>
+                {data.candidatos.map((c) => {
+                  const isClaros = c.equipo === "claros";
+                  const isSelected = selectedId === c.id;
+                  return (
+                    <button
+                      type="button"
+                      key={`${cat}-${c.id}`}
+                      role="radio"
+                      aria-checked={isSelected}
+                      disabled={data.yaVoto || busy}
+                      className={`avatar-pick${isSelected ? " is-selected" : ""}`}
+                      onClick={() => setVotes((prev) => ({ ...prev, [cat]: c.id }))}
+                    >
+                      <span className="avatar-pick__check">✓</span>
+                      <img
+                        className={`pc-avatar pc-avatar--sm ${isClaros ? "pc-avatar--claros" : "pc-avatar--oscuros"}`}
+                        src={personAvatarUrl(c.id)}
+                        alt=""
+                        loading="lazy"
+                      />
+                      <span className="avatar-pick__name">{c.apodo}</span>
+                      <span className="avatar-pick__team muted">
+                        {isClaros ? TEAM_LABEL_CLAROS : TEAM_LABEL_OSCUROS}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           );
         })}

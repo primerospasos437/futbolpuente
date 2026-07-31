@@ -322,7 +322,7 @@ export default function PlayerProfilePage() {
           </div>
           {data.isSelf && (
             <p className="muted" style={{ marginBottom: 0, marginTop: "0.85rem" }}>
-              Historial de lesiones y más datos los editás en «Mis perfiles».
+              Historial de lesiones y más datos los editás en «Mi perfil».
             </p>
           )}
         </div>

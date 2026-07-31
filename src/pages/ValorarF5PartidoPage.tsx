@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Star } from "lucide-react";
 import { api, apiPartidos } from "../api";
 import F5ProfileScorePickers from "../components/F5ProfileScorePickers";
 import { defaultF5ScoresZeros, F5_DIMENSION_ORDER } from "../dimensions-f5";
+import { personAvatarUrl } from "../lib/avatarImage";
 import { getSupabase } from "../lib/supabase";
 import type { F5ProfileScores } from "../types";
 
@@ -83,34 +85,44 @@ export default function ValorarF5PartidoPage() {
       <p style={{ marginBottom: "1rem" }}>
         <Link to="/">← Volver</Link>
       </p>
-      <h1>Valorar F5 · partido</h1>
+      <h1><Star size={22} className="neon-icon" /> Valorar F5 · partido</h1>
       <p className="sub">Elegí al compañero que jugó esa noche y cargá las 5 métricas (1 a 5). Las estrellas empiezan vacías.</p>
 
       {msg && <p className={msg === "Guardado." ? "muted" : "error"}>{msg}</p>}
 
       {companeros.length > 0 ? (
         <div className="card" style={{ marginBottom: "1rem" }}>
-          <label className="muted" style={{ display: "block", marginBottom: "0.35rem" }}>
+          <label className="muted" style={{ display: "block", marginBottom: "0.5rem" }}>
             Compañero
           </label>
-          <select
-            className="btn btn-ghost"
-            style={{ width: "100%", maxWidth: 360 }}
-            value={targetId}
-            onChange={(e) => setTargetId(e.target.value)}
-          >
-            {companeros.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.apodo}
-              </option>
-            ))}
-          </select>
+          <div className="avatar-pick-grid" role="radiogroup" aria-label="Compañero a valorar">
+            {companeros.map((c) => {
+              const isSelected = targetId === c.id;
+              return (
+                <button
+                  type="button"
+                  key={c.id}
+                  role="radio"
+                  aria-checked={isSelected}
+                  className={`avatar-pick${isSelected ? " is-selected" : ""}`}
+                  onClick={() => setTargetId(c.id)}
+                >
+                  <span className="avatar-pick__check">✓</span>
+                  <img className="pc-avatar pc-avatar--sm pc-avatar--blue" src={personAvatarUrl(c.id)} alt="" loading="lazy" />
+                  <span className="avatar-pick__name">{c.apodo}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : null}
 
       {targetId && target ? (
         <form className="card" onSubmit={submit}>
-          <h2 style={{ marginTop: 0 }}>{target.apodo}</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.5rem" }}>
+            <img className="pc-avatar pc-avatar--sm pc-avatar--blue" src={personAvatarUrl(target.id)} alt="" />
+            <h2 style={{ margin: 0 }}>{target.apodo}</h2>
+          </div>
           <F5ProfileScorePickers scores={scores} onChange={setScores} allowEmpty />
           <button type="submit" className="btn btn-primary" style={{ marginTop: "1rem" }} disabled={busy}>
             {busy ? "Guardando…" : "Guardar valoración F5"}

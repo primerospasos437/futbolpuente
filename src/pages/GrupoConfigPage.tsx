@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
+import { Settings } from "lucide-react";
 import { api } from "../api";
+import { personAvatarUrl } from "../lib/avatarImage";
 import { setActiveGrupoNombre } from "../lib/bridgeSession";
 import {
   DIAS_SEMANA,
@@ -105,7 +107,7 @@ export default function GrupoConfigPage() {
   return (
     <div className="page-shell grupo-config-page">
       <header className="page-hero">
-        <h1>Configuración del grupo</h1>
+        <h1><Settings size={22} className="neon-icon" /> Configuración del grupo</h1>
         <p className="sub">
           Solo admins. Personalizá días, cupos, reglas de inscripción y quién administra.
           {cfg.inviteCode ? (
@@ -447,10 +449,18 @@ export default function GrupoConfigPage() {
           <ul className="grupo-config-miembros">
             {miembros.map((m) => (
               <li key={m.jugadorId}>
-                <div>
-                  <strong>{m.apodo}</strong>
-                  <span className="muted"> · {m.nombreCompleto}</span>
-                  {m.esAdmin ? <span className="score-pill" style={{ marginLeft: 8 }}>admin</span> : null}
+                <div style={{ display: "flex", alignItems: "center", gap: "0.55rem" }}>
+                  <img
+                    className={`pc-avatar pc-avatar--sm ${m.esAdmin ? "pc-avatar--yellow" : "pc-avatar--blue"}`}
+                    src={personAvatarUrl(m.jugadorId)}
+                    alt=""
+                    loading="lazy"
+                  />
+                  <span>
+                    <strong>{m.apodo}</strong>
+                    <span className="muted"> · {m.nombreCompleto}</span>
+                    {m.esAdmin ? <span className="score-pill" style={{ marginLeft: 8 }}>admin</span> : null}
+                  </span>
                 </div>
                 <button
                   type="button"

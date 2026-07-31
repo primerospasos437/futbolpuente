@@ -1,12 +1,12 @@
 import type { SportCarouselItem } from "../components/SportCarousel";
 
 export const SPORTS_CATALOG: SportCarouselItem[] = [
-  { id: "futbol", icon: "⚽", name: "Fútbol", available: true },
-  { id: "padel", icon: "🎾", name: "Pádel", available: false },
-  { id: "basquet", icon: "🏀", name: "Básquet", available: false },
-  { id: "voley", icon: "🏐", name: "Vóley", available: false },
-  { id: "tenis", icon: "🥎", name: "Tenis", available: false },
-  { id: "hockey", icon: "🏑", name: "Hockey", available: false },
+  { id: "futbol", icon: "⚽", image: "/sports/futbol.webp", name: "Fútbol", available: true },
+  { id: "padel", icon: "🎾", image: "/sports/padel.webp", name: "Pádel", available: false },
+  { id: "basquet", icon: "🏀", image: "/sports/basquet.webp", name: "Básquet", available: false },
+  { id: "voley", icon: "🏐", image: "/sports/voley.webp", name: "Vóley", available: false },
+  { id: "tenis", icon: "🥎", image: "/sports/tenis.webp", name: "Tenis", available: false },
+  { id: "hockey", icon: "🏑", image: "/sports/hockey.webp", name: "Hockey", available: false },
 ];
 
 export function sportNameById(id: string | null): string | null {

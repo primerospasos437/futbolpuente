@@ -287,7 +287,7 @@ export default function LandingPage({ onEnterBridge }: Props) {
               {isRegister ? (
                 <div className="psb-register-extra">
                   <div className="psb-register-hint">
-                    Posición, medidas y perfiles los completás después en «Mis perfiles».
+                    Posición, medidas y perfiles los completás después en «Mi perfil».
                   </div>
                   <label htmlFor="psb-nombre">Nombre completo</label>
                   <input

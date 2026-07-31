@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
+import { Scale } from "lucide-react";
 import { api, apiConvocatorias, apiPartidos, isAdminFromPlayersList, type ConvocatoriaRow, type PartidoRow } from "../api";
 import { formatRating } from "../lib/formatRating";
+import { personAvatarUrl } from "../lib/avatarImage";
 import {
   grupoConfigGet,
   labelDia,
@@ -10,6 +12,8 @@ import {
 } from "../lib/grupoConfig";
 import { TEAM_LABEL_CLAROS, TEAM_LABEL_OSCUROS } from "../lib/teamsBalance";
 import type { BalanceResponse, PlayerSummary, Posicion, TeamSlot } from "../types";
+
+const ROW_TONES = ["green", "blue", "red", "lilac", "yellow"] as const;
 
 const TITULARES_CAMPO = 10;
 
@@ -329,7 +333,7 @@ export default function TeamsPage() {
     <div className="page-shell">
       <header className="page-hero">
         <img className="page-hero__decor" src="/decor/side-jersey-neon.png" alt="" aria-hidden="true" />
-        <h1>Armar equipos</h1>
+        <h1><Scale size={22} className="neon-icon" /> Armar equipos</h1>
         <p className="sub">
           Armá el partido <strong>5 vs 5</strong> ({TITULARES_CAMPO} titulares). Podés usar solo los{" "}
           <strong>anotados</strong> o armar una lista <strong>manual</strong> con cualquier jugador registrado. El balanceo
@@ -456,15 +460,23 @@ export default function TeamsPage() {
             </p>
           ) : (
             <ul className="list" style={{ margin: 0, padding: 0, listStyle: "none" }}>
-              {jugadoresBusqueda.map((p) => (
+              {jugadoresBusqueda.map((p, i) => (
                 <li
                   key={p.id}
                   className="player-row"
                   style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}
                 >
-                  <span>
-                    <strong>{p.apodo}</strong>{" "}
-                    <span className="muted">{playerScoreLine(p)}</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: "0.55rem" }}>
+                    <img
+                      className={`pc-avatar pc-avatar--sm pc-avatar--${ROW_TONES[i % ROW_TONES.length]}`}
+                      src={personAvatarUrl(p.id)}
+                      alt=""
+                      loading="lazy"
+                    />
+                    <span>
+                      <strong>{p.apodo}</strong>{" "}
+                      <span className="muted">{playerScoreLine(p)}</span>
+                    </span>
                   </span>
                   <button type="button" className="btn btn-primary" onClick={() => agregarAlPool(p.id)}>
                     Agregar
@@ -547,13 +559,19 @@ export default function TeamsPage() {
               </button>
             </div>
             <div className="list">
-              {poolPlayers.map((p) => (
+              {poolPlayers.map((p, i) => (
                 <div key={p.id} className="checkbox-row player-row" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <label style={{ cursor: "pointer", flex: 1, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <label style={{ cursor: "pointer", flex: 1, display: "flex", alignItems: "center", gap: "0.6rem" }}>
                     <input
                       type="checkbox"
                       checked={selected[p.id] ?? false}
                       onChange={(e) => toggleTitular(p.id, e.target.checked)}
+                    />
+                    <img
+                      className={`pc-avatar pc-avatar--sm pc-avatar--${ROW_TONES[i % ROW_TONES.length]}`}
+                      src={personAvatarUrl(p.id)}
+                      alt=""
+                      loading="lazy"
                     />
                     <span>
                       <strong>{p.apodo}</strong> <span className="muted">{playerScoreLine(p)}</span>
@@ -607,28 +625,40 @@ export default function TeamsPage() {
           ) : null}
           <div className="team-grid">
             <div className="card team-card team-card--claros">
-              <h3>
+              <h3 className="team-card__title">
                 {TEAM_LABEL_CLAROS} · prom. {formatRating(result.sumA)}
               </h3>
-              <ul>
+              <div className="roster-list">
                 {sortTeamSlots(result.teamA).map((x) => (
-                  <li key={x.id}>
-                    {x.apodo} · {x.posicionPreferida} · {formatRating(x.score)}
-                  </li>
+                  <div key={x.id} className="roster-row">
+                    <img className="pc-avatar pc-avatar--sm pc-avatar--claros" src={personAvatarUrl(x.id)} alt="" loading="lazy" />
+                    <span className="roster-row__info">
+                      <span className="roster-row__name">{x.apodo}</span>
+                      <span className="roster-row__meta">
+                        {x.posicionPreferida} · {formatRating(x.score)}
+                      </span>
+                    </span>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
             <div className="card team-card team-card--oscuros">
-              <h3>
+              <h3 className="team-card__title">
                 {TEAM_LABEL_OSCUROS} · prom. {formatRating(result.sumB)}
               </h3>
-              <ul>
+              <div className="roster-list">
                 {sortTeamSlots(result.teamB).map((x) => (
-                  <li key={x.id}>
-                    {x.apodo} · {x.posicionPreferida} · {formatRating(x.score)}
-                  </li>
+                  <div key={x.id} className="roster-row">
+                    <img className="pc-avatar pc-avatar--sm pc-avatar--oscuros" src={personAvatarUrl(x.id)} alt="" loading="lazy" />
+                    <span className="roster-row__info">
+                      <span className="roster-row__name">{x.apodo}</span>
+                      <span className="roster-row__meta">
+                        {x.posicionPreferida} · {formatRating(x.score)}
+                      </span>
+                    </span>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           </div>
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
+import { KeyRound } from "lucide-react";
 import { setToken } from "../api";
 import { useAuth } from "../AuthContext";
 import { loginAsGuestDemo, loginWithSupabase, registerWithSupabase } from "../lib/futbolAuth";
@@ -149,7 +150,7 @@ export default function AuthPage() {
   return (
     <div className="shell">
       <div className="card" style={{ maxWidth: 560, margin: "2rem auto" }}>
-        <h1>Bienvenido</h1>
+        <h1><KeyRound size={22} className="neon-icon" /> Bienvenido</h1>
         <p className="sub">
           Registrate con correo válido: sirve para recuperar el PIN si lo olvidás. Después completá perfiles en «Mis
           perfiles» y valorá a tus compañeros desde cada ficha.
@@ -375,7 +376,7 @@ export default function AuthPage() {
             </div>
 
             <p className="muted" style={{ marginTop: "1rem" }}>
-              Las cualidades del perfil completo arrancan en 3/5 por defecto: ajustalas con estrellas en «Mis perfiles».
+              Las cualidades del perfil completo arrancan en 3/5 por defecto: ajustalas con estrellas en «Mi perfil».
             </p>
 
             <button className="btn btn-primary" type="submit" style={{ marginTop: "1rem" }} disabled={loading}>

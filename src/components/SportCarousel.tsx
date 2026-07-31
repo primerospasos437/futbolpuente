@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export type SportCarouselItem = {
   id: string;
   icon: string;
+  /** Imagen ilustrada 3D del deporte (más realista que el emoji). */
+  image?: string;
   name: string;
   available: boolean;
 };
@@ -110,7 +112,7 @@ export default function SportCarousel({ sports, initialSportId, onSelectEnter }:
               aria-pressed={i === selected}
             >
               <span className="psb-sport-icon" aria-hidden>
-                {s.icon}
+                {s.image ? <img src={s.image} alt="" className="psb-sport-icon__img" loading="lazy" /> : s.icon}
               </span>
               <span className="psb-sport-name">{s.name}</span>
               {!s.available ? <span className="psb-sport-badge">Próximamente</span> : null}

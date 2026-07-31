@@ -280,6 +280,19 @@
   display: block;
   margin-bottom: 0.45rem;
 }
+.psb-sport-icon__img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 50%;
+  background: radial-gradient(circle, #101f30, #060b12);
+  border: 2px solid rgba(0, 212, 255, 0.35);
+  box-shadow: 0 0 14px rgba(0, 212, 255, 0.25);
+}
+.psb-carousel-item--soon .psb-sport-icon__img {
+  filter: grayscale(0.55);
+  opacity: 0.85;
+}
 
 .psb-sport-name {
   font-size: 0.82rem;

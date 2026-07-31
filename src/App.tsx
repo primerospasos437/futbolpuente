@@ -117,7 +117,7 @@ function Shell() {
 
             <nav className="app-account-nav" aria-label="Cuenta">
               <NavLink to="/perfil" className={({ isActive }) => (isActive ? "active" : "")}>
-                Mis perfiles
+                Mi perfil
               </NavLink>
               <NavLink to="/mis-datos" className={({ isActive }) => (isActive ? "active" : "")}>
                 Mis datos

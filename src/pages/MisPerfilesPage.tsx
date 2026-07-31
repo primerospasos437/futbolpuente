@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { UserRoundCog } from "lucide-react";
 import { api } from "../api";
+import { useBridgeOptional } from "../BridgeContext";
 import { formatRating } from "../lib/formatRating";
+import { personAvatarUrl } from "../lib/avatarImage";
 import ProfileScoreSliders from "../components/ProfileScoreSliders";
 import F5ProfileScorePickers from "../components/F5ProfileScorePickers";
 import { normalizeProfileF5ScoresRpc } from "../lib/futbolRegistration";
@@ -15,6 +18,7 @@ const TABS: { id: TabId; label: string; short: string }[] = [
 ];
 
 export default function MisPerfilesPage() {
+  const sportLabel = useBridgeOptional()?.selectedSportName ?? "Fútbol";
   const [tab, setTab] = useState<TabId>("datos");
   const [me, setMe] = useState<PlayerSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -138,12 +142,15 @@ export default function MisPerfilesPage() {
 
   return (
     <div className="page-shell mis-perfiles-page">
-      <header className="page-hero">
-        <h1>Mis perfiles</h1>
-        <p className="sub">
-          @{me.apodo}. Completá cada pestaña por separado: datos de ficha, autopercepción F11 y F5. El historial de
-          lesiones es privado.
-        </p>
+      <header className="page-hero mis-perfiles-hero">
+        <img className="pc-avatar pc-avatar--yellow mis-perfiles-hero__avatar" src={personAvatarUrl(me.id)} alt="" />
+        <div>
+          <h1><UserRoundCog size={22} className="neon-icon" /> Mi perfil {sportLabel}</h1>
+          <p className="sub">
+            @{me.apodo}. Completá cada pestaña por separado: datos de ficha, autopercepción F11 y F5. El historial de
+            lesiones es privado.
+          </p>
+        </div>
       </header>
 
       {(!me.perfilCompletoCargado || !me.perfilF5Cargado) && (
@@ -169,7 +176,7 @@ export default function MisPerfilesPage() {
         </div>
       </div>
 
-      <div className="tabs mis-perfiles-tabs" role="tablist" aria-label="Secciones de Mis perfiles">
+      <div className="tabs mis-perfiles-tabs" role="tablist" aria-label="Secciones de Mi perfil">
         {TABS.map((t) => (
           <button
             key={t.id}

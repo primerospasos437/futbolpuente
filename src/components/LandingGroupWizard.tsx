@@ -239,7 +239,7 @@ export default function LandingGroupWizard({ onGroupReady }: Props) {
           : "Todavía no estás en ningún grupo. Creá uno nuevo (vas a ser admin) o unite con PIN / código."}
       </p>
       <p className="psb-register-hint" style={{ marginBottom: "0.85rem" }}>
-        Después de entrar a un grupo, completá tu ficha Fútbol 11 / Fútbol 5 en «Mis perfiles».
+        Después de entrar a un grupo, completá tu ficha Fútbol 11 / Fútbol 5 en «Mi perfil».
       </p>
       {error ? <div className="psb-landing-error">{error}</div> : null}
 

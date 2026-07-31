@@ -53,7 +53,7 @@ export function defaultF5Scores(): F5ProfileScores {
   return o as F5ProfileScores;
 }
 
-/** Perfil F5 aún no guardado (mostrar 0 hasta guardar en «Mis perfiles»). */
+/** Perfil F5 aún no guardado (mostrar 0 hasta guardar en «Mi perfil»). */
 export function defaultF5ScoresZeros(): F5ProfileScores {
   const o = {} as Record<F5Dimension, number>;
   for (const k of F5_DIMENSION_ORDER) o[k] = 0;

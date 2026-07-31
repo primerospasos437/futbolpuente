@@ -669,6 +669,19 @@ h1 {
   font-weight: 800;
   letter-spacing: -0.02em;
 }
+.mis-perfiles-hero {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+.mis-perfiles-hero__avatar {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
+.mis-perfiles-hero h1 {
+  margin-bottom: 0;
+}
 
 .mis-perfiles-actions {
   display: flex;
@@ -1007,6 +1020,13 @@ textarea:focus {
 .pc-avatar--red { border-color: #ff646e; filter: drop-shadow(0 0 6px rgba(255, 100, 110, 0.55)); }
 .pc-avatar--lilac { border-color: #b482ff; filter: drop-shadow(0 0 6px rgba(180, 130, 255, 0.55)); }
 .pc-avatar--yellow { border-color: #ffd246; filter: drop-shadow(0 0 6px rgba(255, 210, 70, 0.55)); }
+.pc-avatar--claros { border-color: var(--team-claros); filter: drop-shadow(0 0 6px rgba(255, 176, 32, 0.55)); }
+.pc-avatar--oscuros { border-color: var(--team-oscuros); filter: drop-shadow(0 0 6px rgba(58, 160, 255, 0.55)); }
+.pc-avatar--sm {
+  width: 34px;
+  height: 34px;
+  border-width: 2px;
+}
 @media (max-width: 480px) {
   .pc-avatar {
     width: 44px;
@@ -1537,6 +1557,125 @@ textarea:focus {
 }
 .team-card--oscuros h3 {
   color: var(--team-oscuros);
+}
+.team-card__title {
+  display: block;
+  width: fit-content;
+  margin: 0 auto 0.85rem;
+  padding: 0.3rem 1rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  border-radius: 999px;
+  font-weight: 900;
+}
+.team-card--claros .team-card__title {
+  color: #04150c;
+  background: linear-gradient(120deg, #ffd98a, var(--team-claros));
+  box-shadow: 0 0 14px rgba(255, 176, 32, 0.4);
+}
+.team-card--oscuros .team-card__title {
+  color: #04101f;
+  background: linear-gradient(120deg, #9fd4ff, var(--team-oscuros));
+  box-shadow: 0 0 14px rgba(58, 160, 255, 0.4);
+}
+.roster-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+}
+.roster-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+}
+.roster-row__info {
+  min-width: 0;
+  flex: 1;
+}
+.roster-row__name {
+  display: block;
+  font-weight: 700;
+  color: var(--text);
+}
+.roster-row__meta {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* —— Selector visual de jugador (avatar + nombre) para encuestas y valoraciones —— */
+.avatar-pick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 0.55rem;
+  margin: 0.5rem 0 0.25rem;
+}
+.avatar-pick {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.3rem 0.45rem;
+  border-radius: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+.avatar-pick:hover {
+  border-color: rgba(0, 212, 255, 0.4);
+  transform: translateY(-1px);
+}
+.avatar-pick__name {
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.avatar-pick__team {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.avatar-pick:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+.avatar-pick__check {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #04150c;
+  font-size: 0.7rem;
+  font-weight: 900;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 8px rgba(61, 255, 154, 0.6);
+}
+.avatar-pick.is-selected {
+  border-color: var(--accent);
+  background: rgba(61, 255, 154, 0.14);
+  box-shadow: 0 0 14px rgba(61, 255, 154, 0.28);
+}
+.avatar-pick.is-selected .avatar-pick__check {
+  display: flex;
 }
 .team-card--mine {
   outline: 2px solid var(--accent);

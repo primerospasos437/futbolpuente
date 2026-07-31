@@ -80,7 +80,7 @@ function PlayerRow({
               <ProfileBadge label="F5" done={p.ratedF5PerfilByMe} to={`/jugador/${p.id}#f5-valoracion`} />
             </div>
           ) : (
-            <Link to="/mis-perfiles" className="pr-self-link">Mis perfiles</Link>
+            <Link to="/perfil" className="pr-self-link">Mi perfil</Link>
           )}
         </div>
 
@@ -174,6 +174,12 @@ export default function HomePage() {
   }, []);
 
   const list = data?.jugadores ?? [];
+  /** El jugador de la sesión siempre va primero en la lista. */
+  const orderedList = useMemo(() => {
+    const self = list.find((p) => p.isSelf);
+    if (!self) return list;
+    return [self, ...list.filter((p) => !p.isSelf)];
+  }, [list]);
   const otros = useMemo(() => list.filter((p) => !p.isSelf), [list]);
   const f5Hechos = otros.filter((p) => p.ratedF5PerfilByMe).length;
   const f11Hechos = otros.filter((p) => p.ratedByMe).length;
@@ -243,7 +249,7 @@ export default function HomePage() {
         <p className="muted">No hay jugadores registrados todavía.</p>
       ) : (
         <div className="list">
-          {list.map((p, i) => (
+          {orderedList.map((p, i) => (
             <PlayerRow
               key={p.id}
               p={p}
