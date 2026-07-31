@@ -32,6 +32,7 @@ import GrupoConfigPage from "./pages/GrupoConfigPage";
 import ValorarF5PartidoPage from "./pages/ValorarF5PartidoPage";
 import EncuestaPostPartidoPage from "./pages/EncuestaPostPartidoPage";
 import SeleccionarDeportePage from "./pages/SeleccionarDeportePage";
+import ValorarInvitadoPage from "./pages/ValorarInvitadoPage";
 import SportPickerModal from "./components/SportPickerModal";
 import NotificationsBell from "./components/NotificationsBell";
 import ThemeToggle from "./components/ThemeToggle";
@@ -251,6 +252,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/entrar" element={<EntrarRoute />} />
+      <Route path="/valorar-invitado/:token" element={<ValorarInvitadoPage />} />
       <Route
         element={
           <RequireAuth>
@@ -363,6 +365,8 @@ function BridgeLayout() {
   const [grupoNombre, setGrupoNombre] = useState<string | null>(() => getActiveGrupoNombre());
   const [sportModalOpen, setSportModalOpen] = useState(false);
 
+  const isGuestRatePath = location.pathname.startsWith("/valorar-invitado/");
+
   const syncFromSession = useCallback(() => {
     setSportId(getSelectedSport());
     setGrupoId(getActiveGrupoId());
@@ -446,6 +450,17 @@ function BridgeLayout() {
       <div className="psb-landing" style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
         <p className="muted">Cargando…</p>
       </div>
+    );
+  }
+
+  // Link/QR público: accesible sin sesión.
+  if (isGuestRatePath) {
+    return (
+      <BridgeProvider value={bridgeValue}>
+        <Routes>
+          <Route path="/valorar-invitado/:token" element={<ValorarInvitadoPage />} />
+        </Routes>
+      </BridgeProvider>
     );
   }
 

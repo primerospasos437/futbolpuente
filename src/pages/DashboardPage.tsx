@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { BarChart3, RefreshCw, UserRound } from "lucide-react";
+import { BarChart3, QrCode, RefreshCw, UserRound } from "lucide-react";
 import { api } from "../api";
 import { useAuth } from "../AuthContext";
 import { useBridgeOptional } from "../BridgeContext";
 import CargarPartidoModal from "../components/CargarPartidoModal";
+import GuestSharePanel from "../components/GuestSharePanel";
 import LandingGroupWizard from "../components/LandingGroupWizard";
 import MundialitoPanel from "../components/MundialitoPanel";
 import { formatRating } from "../lib/formatRating";
+import { syncCalendarPostMatchReminders } from "../lib/calendarReminders";
 import {
   getSelectedSport,
   setActiveGrupoId,
@@ -30,10 +32,27 @@ import {
   type PersonalMatchInput,
   type PersonalStatsSummary,
 } from "../lib/personalMatches";
+import { fetchGuestRatingsForPlayer } from "../lib/guestRateShare";
 import { sportNameById } from "../lib/sportsCatalog";
 import type { PlayerSummary } from "../types";
 import "../dashboard.css";
 import "../landing.css";
+
+const emptySummary: PersonalStatsSummary = {
+  partidos: 0,
+  goles: 0,
+  asistencias: 0,
+  quites: 0,
+  atajadas: 0,
+  avgRendimiento: null,
+  ganados: 0,
+  empatados: 0,
+  perdidos: 0,
+  avgF5: null,
+  avgF11: null,
+  partidosF5: 0,
+  partidosF11: 0,
+};
 
 /**
  * Home personal post-login: stats, carga de partido, Mundialito y Mis Grupos.
@@ -47,16 +66,11 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [matchModalOpen, setMatchModalOpen] = useState(false);
   const [matchModalMundialito, setMatchModalMundialito] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [guestCount, setGuestCount] = useState(0);
   const [mundialito, setMundialito] = useState<MundialitoState>(defaultMundialitoState);
-  const [summary, setSummary] = useState<PersonalStatsSummary>({
-    partidos: 0,
-    goles: 0,
-    asistencias: 0,
-    quites: 0,
-    atajadas: 0,
-    avgRendimiento: null,
-  });
+  const [summary, setSummary] = useState<PersonalStatsSummary>(emptySummary);
 
   const sportId = bridge?.selectedSportId ?? getSelectedSport();
   const sportName = bridge?.selectedSportName ?? sportNameById(sportId) ?? "Fútbol";
@@ -66,6 +80,7 @@ export default function DashboardPage() {
     if (!id) return;
     setMundialito(loadMundialito(id));
     setSummary(summarizePersonalMatches(loadPersonalMatches(id)));
+    syncCalendarPostMatchReminders(id);
   }, []);
 
   useEffect(() => {
@@ -77,6 +92,9 @@ export default function DashboardPage() {
         setMe(p);
         setMundialito(loadMundialito(p.id));
         setSummary(summarizePersonalMatches(loadPersonalMatches(p.id)));
+        syncCalendarPostMatchReminders(p.id);
+        const guest = await fetchGuestRatingsForPlayer(p.id);
+        if (!cancelled) setGuestCount(guest.length);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error");
       } finally {
@@ -168,18 +186,29 @@ export default function DashboardPage() {
       ) : null}
 
       <div className="psb-dash-grid">
-        {/* SECCIÓN 1 — Stats individuales */}
         <section className="psb-dash-panel" aria-labelledby="psb-dash-stats-title">
           <h2 id="psb-dash-stats-title" className="psb-dash-panel__title">
             <BarChart3 size={18} className="neon-icon" /> Tus números
           </h2>
           <p className="psb-dash-panel__hint">
-            Resumen de tus partidos cargados. Activá el switch de Mundialito al guardar para mover el torneo.
+            Solo partidos que cargaste vos (agenda personal). Sin stats de grupo.
           </p>
           <div className="psb-dash-kpis">
             <div className="psb-dash-kpi psb-dash-kpi--gold">
               <p className="psb-dash-kpi__label">Partidos</p>
               <p className="psb-dash-kpi__value">{summary.partidos}</p>
+            </div>
+            <div className="psb-dash-kpi psb-dash-kpi--green">
+              <p className="psb-dash-kpi__label">Ganados</p>
+              <p className="psb-dash-kpi__value">{summary.ganados}</p>
+            </div>
+            <div className="psb-dash-kpi psb-dash-kpi--blue">
+              <p className="psb-dash-kpi__label">Empatados</p>
+              <p className="psb-dash-kpi__value">{summary.empatados}</p>
+            </div>
+            <div className="psb-dash-kpi psb-dash-kpi--red">
+              <p className="psb-dash-kpi__label">Perdidos</p>
+              <p className="psb-dash-kpi__value">{summary.perdidos}</p>
             </div>
             <div className="psb-dash-kpi psb-dash-kpi--green">
               <p className="psb-dash-kpi__label">Goles</p>
@@ -190,11 +219,15 @@ export default function DashboardPage() {
               <p className="psb-dash-kpi__value">{summary.asistencias}</p>
             </div>
             <div className="psb-dash-kpi psb-dash-kpi--purple">
-              <p className="psb-dash-kpi__label">Prom. F5 / F11</p>
+              <p className="psb-dash-kpi__label">Prom. F5/F7/F8</p>
               <p className="psb-dash-kpi__value" style={{ fontSize: "1.05rem" }}>
-                {me?.f5FinalScore != null ? formatRating(me.f5FinalScore) : "—"}
-                {" / "}
-                {me ? formatRating(me.finalScore) : "—"}
+                {summary.avgF5 != null ? formatRating(summary.avgF5) : "—"}
+              </p>
+            </div>
+            <div className="psb-dash-kpi psb-dash-kpi--purple">
+              <p className="psb-dash-kpi__label">Prom. F9/F11</p>
+              <p className="psb-dash-kpi__value" style={{ fontSize: "1.05rem" }}>
+                {summary.avgF11 != null ? formatRating(summary.avgF11) : "—"}
               </p>
             </div>
           </div>
@@ -202,26 +235,26 @@ export default function DashboardPage() {
             <button type="button" className="btn btn-primary" onClick={() => openMatchModal(false)}>
               ➕ Cargar nuevo partido
             </button>
-            {bridge?.activeGrupoId ? (
-              <Link to="/stats" className="btn btn-ghost">
-                Ver stats del grupo
-              </Link>
-            ) : (
-              <span className="btn btn-ghost" style={{ opacity: 0.55, pointerEvents: "none" }}>
-                Stats del grupo (entrá a un grupo)
-              </span>
-            )}
+            <button type="button" className="btn btn-ghost" onClick={() => setShareOpen(true)}>
+              <QrCode size={15} className="neon-icon" /> Pedir calificación
+            </button>
+            <Link to="/mi-calendario" className="btn btn-ghost">
+              Mi Calendario
+            </Link>
           </div>
+          {guestCount > 0 ? (
+            <p className="muted" style={{ marginTop: "0.65rem", fontSize: "0.85rem" }}>
+              Tenés {guestCount} calificación{guestCount === 1 ? "" : "es"} de invitados (link/QR).
+            </p>
+          ) : null}
         </section>
 
-        {/* SECCIÓN 2 — Mundialito */}
         <MundialitoPanel
           state={mundialito}
           onLoadMatch={() => openMatchModal(true)}
           onNewEdition={onNewEdition}
         />
 
-        {/* SECCIÓN 3 — Mis grupos */}
         <section className="psb-dash-panel psb-dash-groups" aria-labelledby="psb-dash-grupos-title">
           <h2 id="psb-dash-grupos-title" className="psb-dash-panel__title">
             📋 Mis grupos
@@ -239,6 +272,15 @@ export default function DashboardPage() {
         onSave={onSaveMatch}
         defaultMundialito={matchModalMundialito}
       />
+
+      {me ? (
+        <GuestSharePanel
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          playerId={me.id}
+          apodo={apodo}
+        />
+      ) : null}
     </div>
   );
 }

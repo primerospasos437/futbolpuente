@@ -27,6 +27,7 @@ function emptyForm(): PersonalEncuentroInput {
     lugar: "",
     tipo: "F5",
     notificar: true,
+    camiseta: "claros",
   };
 }
 
@@ -136,10 +137,32 @@ export default function AgendarEncuentroModal({ open, onClose, onSave }: Props) 
             </select>
           </label>
 
+          <fieldset className="psb-match-fieldset">
+            <legend>Color de camiseta</legend>
+            <div className="psb-camiseta-toggle" role="group" aria-label="Color de camiseta">
+              <button
+                type="button"
+                className={`psb-camiseta-btn psb-camiseta-btn--claros${form.camiseta === "claros" ? " is-active" : ""}`}
+                aria-pressed={form.camiseta === "claros"}
+                onClick={() => setForm((p) => ({ ...p, camiseta: "claros" }))}
+              >
+                Claros
+              </button>
+              <button
+                type="button"
+                className={`psb-camiseta-btn psb-camiseta-btn--oscuros${form.camiseta === "oscuros" ? " is-active" : ""}`}
+                aria-pressed={form.camiseta === "oscuros"}
+                onClick={() => setForm((p) => ({ ...p, camiseta: "oscuros" }))}
+              >
+                Oscuros
+              </button>
+            </div>
+          </fieldset>
+
           <label className={`psb-mundi-switch psb-notify-switch${form.notificar ? " is-on" : ""}`}>
             <span className="psb-mundi-switch__text">
               <strong>🔔 Activar notificación</strong>
-              <span className="muted">Recordatorio antes del encuentro.</span>
+              <span className="muted">Te avisamos después del partido para cargarlo y calificarte.</span>
             </span>
             <input
               type="checkbox"

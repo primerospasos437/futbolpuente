@@ -1,7 +1,16 @@
 import { useEffect, useId, useState } from "react";
-import StarRating from "./StarRating";
+import { createPortal } from "react-dom";
+import F5ProfileScorePickers from "./F5ProfileScorePickers";
+import ProfileScoreSliders from "./ProfileScoreSliders";
 import type { MatchResult } from "../lib/mundialito";
-import type { PersonalMatchInput, PersonalMatchTipo } from "../lib/personalMatches";
+import {
+  emptyPersonalMatchInput,
+  skillFamilyForFormato,
+  type PersonalMatchInput,
+} from "../lib/personalMatches";
+import { FUTBOL_FORMATOS, type FutbolFormato } from "../lib/personalCalendar";
+import { defaultF5Scores } from "../dimensions-f5";
+import { defaultScores } from "../dimensions";
 
 type Props = {
   open: boolean;
@@ -9,48 +18,59 @@ type Props = {
   onSave: (input: PersonalMatchInput) => void;
   /** Prefill: marcar el switch de Mundialito al abrir desde ese panel. */
   defaultMundialito?: boolean;
+  /** Prefill formato (ej. desde recordatorio de calendario). */
+  defaultTipo?: FutbolFormato;
 };
 
-const emptyForm = (mundialito: boolean): PersonalMatchInput => ({
-  tipo: "f5",
-  resultado: "ganamos",
-  goles: 0,
-  asistencias: 0,
-  quites: 0,
-  atajadas: 0,
-  rendimiento: 3,
-  esMundialito: mundialito,
-});
-
 /**
- * Modal FUT: carga de rendimiento individual + flag Mundialito.
+ * Modal FUT: carga de partido + autoevaluación por formato (F5/F7/F8 vs F9/F11).
  */
 export default function CargarPartidoModal({
   open,
   onClose,
   onSave,
   defaultMundialito = false,
+  defaultTipo = "F5",
 }: Props) {
   const titleId = useId();
-  const [form, setForm] = useState<PersonalMatchInput>(() => emptyForm(defaultMundialito));
+  const [form, setForm] = useState<PersonalMatchInput>(() =>
+    emptyPersonalMatchInput(defaultMundialito, defaultTipo),
+  );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    setForm(emptyForm(defaultMundialito));
+    setForm(emptyPersonalMatchInput(defaultMundialito, defaultTipo));
     setError(null);
-  }, [open, defaultMundialito]);
+  }, [open, defaultMundialito, defaultTipo]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
+
+  const family = skillFamilyForFormato(form.tipo);
+
+  function setTipo(tipo: FutbolFormato) {
+    const nextFamily = skillFamilyForFormato(tipo);
+    setForm((p) => ({
+      ...p,
+      tipo,
+      skillsF5: nextFamily === "f5" ? p.skillsF5 ?? defaultF5Scores() : undefined,
+      skillsF11: nextFamily === "f11" ? p.skillsF11 ?? defaultScores() : undefined,
+    }));
+  }
 
   function setNum(key: "goles" | "asistencias" | "quites" | "atajadas", raw: string) {
     const n = Math.max(0, Math.min(99, Number(raw.replace(/\D/g, "")) || 0));
@@ -59,8 +79,12 @@ export default function CargarPartidoModal({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (form.rendimiento < 1 || form.rendimiento > 5) {
-      setError("Elegí tu rendimiento con las estrellas (1 a 5).");
+    if (family === "f5" && !form.skillsF5) {
+      setError("Completá las 5 métricas del partido.");
+      return;
+    }
+    if (family === "f11" && !form.skillsF11) {
+      setError("Completá las características del partido.");
       return;
     }
     onSave(form);
@@ -73,8 +97,8 @@ export default function CargarPartidoModal({
     { id: "perdimos", label: "Perdimos", cls: "psb-result-btn--loss" },
   ];
 
-  return (
-    <div className="psb-match-modal" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+  return createPortal(
+    <div className="psb-match-modal psb-cal-modal" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <button type="button" className="psb-match-modal__backdrop" aria-label="Cerrar" onClick={onClose} />
       <div className="psb-match-modal__panel">
         <div className="psb-match-modal__head">
@@ -83,28 +107,33 @@ export default function CargarPartidoModal({
             ✕
           </button>
         </div>
-        <p className="psb-match-modal__sub">Registrá tu rendimiento individual. Estilo FUT · dark neón.</p>
+        <p className="psb-match-modal__sub">
+          Autoevaluá todas las características según el formato. F5/F7/F8 usan métricas chicas · F9/F11 las de once.
+        </p>
 
         <form className="psb-match-form" onSubmit={submit}>
-          {/* Tipo F5 / F11 */}
           <fieldset className="psb-match-fieldset">
-            <legend>Tipo de partido</legend>
-            <div className="psb-tipo-toggle" role="group" aria-label="Tipo de partido">
-              {(["f5", "f11"] as PersonalMatchTipo[]).map((t) => (
+            <legend>Tipo de fútbol</legend>
+            <div className="psb-tipo-toggle psb-tipo-toggle--5" role="group" aria-label="Tipo de partido">
+              {FUTBOL_FORMATOS.map((t) => (
                 <button
                   key={t}
                   type="button"
                   className={`psb-tipo-btn${form.tipo === t ? " is-active" : ""}`}
                   aria-pressed={form.tipo === t}
-                  onClick={() => setForm((p) => ({ ...p, tipo: t }))}
+                  onClick={() => setTipo(t)}
                 >
-                  {t === "f5" ? "Fútbol 5" : "Fútbol 11"}
+                  {t}
                 </button>
               ))}
             </div>
+            <p className="muted" style={{ margin: "0.45rem 0 0", fontSize: "0.78rem" }}>
+              {family === "f5"
+                ? "Métricas F5: pulmón, pegada, pase, quite, compromiso."
+                : "Métricas F11: técnico, táctico, físico y psico (18 ítems)."}
+            </p>
           </fieldset>
 
-          {/* Resultado */}
           <fieldset className="psb-match-fieldset">
             <legend>Resultado del equipo</legend>
             <div className="psb-result-grid" role="group" aria-label="Resultado">
@@ -122,7 +151,6 @@ export default function CargarPartidoModal({
             </div>
           </fieldset>
 
-          {/* Stats personales */}
           <fieldset className="psb-match-fieldset">
             <legend>Estadísticas personales</legend>
             <div className="psb-stat-grid">
@@ -149,20 +177,24 @@ export default function CargarPartidoModal({
             </div>
           </fieldset>
 
-          {/* Rendimiento estrellas */}
           <fieldset className="psb-match-fieldset">
-            <legend>Mi rendimiento</legend>
-            <div className="psb-match-stars">
-              <StarRating
-                value={form.rendimiento}
-                onChange={(n) => setForm((p) => ({ ...p, rendimiento: n }))}
-                min={1}
-                aria-label="Autoevaluación del partido"
-              />
+            <legend>Rendimiento del partido ({family === "f5" ? "formato chico" : "formato grande"})</legend>
+            <div className="psb-match-skills">
+              {family === "f5" && form.skillsF5 ? (
+                <F5ProfileScorePickers
+                  scores={form.skillsF5}
+                  onChange={(skillsF5) => setForm((p) => ({ ...p, skillsF5 }))}
+                />
+              ) : null}
+              {family === "f11" && form.skillsF11 ? (
+                <ProfileScoreSliders
+                  scores={form.skillsF11}
+                  onChange={(skillsF11) => setForm((p) => ({ ...p, skillsF11 }))}
+                />
+              ) : null}
             </div>
           </fieldset>
 
-          {/* Switch Mundialito */}
           <label className={`psb-mundi-switch${form.esMundialito ? " is-on" : ""}`}>
             <span className="psb-mundi-switch__text">
               <strong>🏆 Partido de Mundialito</strong>
@@ -185,6 +217,7 @@ export default function CargarPartidoModal({
           </button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

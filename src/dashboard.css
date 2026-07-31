@@ -159,6 +159,12 @@
 }
 .psb-dash-kpi--purple .psb-dash-kpi__value { color: var(--neon-purple, #b388ff); }
 
+.psb-dash-kpi--red {
+  border-color: rgba(255, 77, 109, 0.7);
+  box-shadow: 0 0 16px rgba(255, 77, 109, 0.16);
+}
+.psb-dash-kpi--red .psb-dash-kpi__value { color: var(--danger, #ff4d6d); }
+
 .psb-dash-cta {
   display: flex;
   flex-wrap: wrap;
@@ -1133,4 +1139,116 @@
 
 .psb-cal-modal {
   z-index: 10050;
+}
+
+.psb-tipo-toggle--5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+@media (max-width: 520px) {
+  .psb-tipo-toggle--5 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.psb-match-skills {
+  max-height: min(48vh, 420px);
+  overflow: auto;
+  padding: 0.35rem 0.15rem 0.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(90, 130, 180, 0.25);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.psb-camiseta-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.psb-camiseta-btn {
+  padding: 0.7rem 0.5rem;
+  border-radius: 12px;
+  border: 2px solid rgba(90, 130, 180, 0.35);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.psb-camiseta-btn--claros.is-active {
+  border-color: rgba(255, 176, 32, 0.85);
+  background: rgba(255, 176, 32, 0.16);
+  box-shadow: 0 0 16px rgba(255, 176, 32, 0.28);
+  color: var(--team-claros, #ffb020);
+}
+
+.psb-camiseta-btn--oscuros.is-active {
+  border-color: rgba(58, 160, 255, 0.85);
+  background: rgba(58, 160, 255, 0.16);
+  box-shadow: 0 0 16px rgba(58, 160, 255, 0.28);
+  color: var(--team-oscuros, #3aa0ff);
+}
+
+.psb-cal-card__camiseta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.65rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.psb-cal-card__camiseta--claros {
+  color: var(--team-claros, #ffb020);
+}
+
+.psb-cal-card__camiseta--oscuros {
+  color: var(--team-oscuros, #3aa0ff);
+}
+
+.psb-cal-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.psb-cal-card__load {
+  font-size: 0.78rem !important;
+  padding: 0.3rem 0.55rem !important;
+}
+
+.psb-guest-share-result {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.psb-guest-qr {
+  display: block;
+  margin: 0 auto 0.75rem;
+  border-radius: 14px;
+  border: 1px solid rgba(61, 255, 154, 0.35);
+  background: #0a0f18;
+}
+
+.psb-guest-url {
+  word-break: break-all;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0 0 0.65rem;
+}
+
+.psb-guest-brand {
+  margin: 0;
+  font-family: var(--font-display, "Oswald", sans-serif);
+  font-style: italic;
+  letter-spacing: 0.08em;
+  color: var(--neon-blue, #00d4ff);
+  font-weight: 800;
+}
+
+.psb-guest-rate-form {
+  margin-top: 1rem;
 }

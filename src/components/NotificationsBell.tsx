@@ -1,13 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiNotificaciones, type NotificacionRow } from "../api";
+import {
+  listLocalNotifications,
+  LOCAL_NOTIF_EVENT,
+  markLocalNotificationRead,
+} from "../lib/localNotifications";
+
+function mergeNotifs(server: NotificacionRow[], local: NotificacionRow[]): NotificacionRow[] {
+  const byId = new Map<string, NotificacionRow>();
+  for (const n of [...local, ...server]) byId.set(n.id, n);
+  return [...byId.values()].sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
 
 export default function NotificationsBell() {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<NotificacionRow[]>([]);
+  const [serverItems, setServerItems] = useState<NotificacionRow[]>([]);
+  const [localItems, setLocalItems] = useState<NotificacionRow[]>(() => listLocalNotifications());
   const [err, setErr] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
+  const items = useMemo(() => mergeNotifs(serverItems, localItems), [serverItems, localItems]);
   const unread = useMemo(() => items.filter((n) => !n.leida).length, [items]);
 
   useEffect(() => {
@@ -15,7 +28,7 @@ export default function NotificationsBell() {
     (async () => {
       try {
         const list = await apiNotificaciones.list();
-        if (!cancelled) setItems(list);
+        if (!cancelled) setServerItems(list);
       } catch (e) {
         if (!cancelled) setErr(e instanceof Error ? e.message : "Error");
       }
@@ -23,6 +36,12 @@ export default function NotificationsBell() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    const refresh = () => setLocalItems(listLocalNotifications());
+    window.addEventListener(LOCAL_NOTIF_EVENT, refresh);
+    return () => window.removeEventListener(LOCAL_NOTIF_EVENT, refresh);
   }, []);
 
   useEffect(() => {
@@ -35,18 +54,23 @@ export default function NotificationsBell() {
   }, [open]);
 
   async function onRead(n: NotificacionRow) {
-    if (!n.leida) {
-      try {
-        await apiNotificaciones.marcarLeida(n.id);
-        setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, leida: true } : x)));
-      } catch {
-        /* ignore */
-      }
+    if (n.leida) return;
+    if (n.id.startsWith("local_")) {
+      markLocalNotificationRead(n.id);
+      setLocalItems(listLocalNotifications());
+      return;
+    }
+    try {
+      await apiNotificaciones.marcarLeida(n.id);
+      setServerItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, leida: true } : x)));
+    } catch {
+      /* ignore */
     }
   }
 
   function hrefFor(n: NotificacionRow): string | null {
     const d = n.datos ?? {};
+    if (typeof d.href === "string" && d.href.length > 0) return d.href;
     const partidoId = d.partido_id;
     if (typeof partidoId === "string" && partidoId.length > 0) {
       if (n.tipo === "partido_confirmado" || n.tipo === "partido_promovido_suplente") {
@@ -61,6 +85,9 @@ export default function NotificationsBell() {
     }
     if (n.tipo === "convocatoria_rol_actualizado") {
       return "/proximos-partidos";
+    }
+    if (n.tipo === "calendario_cargar_partido") {
+      return "/mi-calendario?cargar=1";
     }
     return null;
   }
@@ -132,7 +159,11 @@ export default function NotificationsBell() {
                     }}
                   >
                     <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>{n.titulo}</div>
-                    {n.cuerpo ? <div className="muted" style={{ fontSize: "0.85rem", marginTop: 4 }}>{n.cuerpo}</div> : null}
+                    {n.cuerpo ? (
+                      <div className="muted" style={{ fontSize: "0.85rem", marginTop: 4 }}>
+                        {n.cuerpo}
+                      </div>
+                    ) : null}
                   </div>
                 );
                 return (
