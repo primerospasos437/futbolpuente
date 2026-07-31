@@ -16,33 +16,39 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onSave: (input: PersonalMatchInput) => void;
-  /** Prefill: marcar el switch de Mundialito al abrir desde ese panel. */
-  defaultMundialito?: boolean;
+  /**
+   * `stats` = Tus números (stats + switch opcional Mundialito).
+   * `mundialito` = solo resultado para mover el torneo.
+   */
+  mode?: "stats" | "mundialito";
   /** Prefill formato (ej. desde recordatorio de calendario). */
   defaultTipo?: FutbolFormato;
 };
 
 /**
- * Modal FUT: carga de partido + autoevaluación por formato (F5/F7/F8 vs F9/F11).
+ * Modal FUT: carga de partido.
+ * - Desde Tus números: stats + dims + switch Mundialito (una sola carga).
+ * - Desde panel Mundialito: solo Ganamos / Empatamos / Perdimos.
  */
 export default function CargarPartidoModal({
   open,
   onClose,
   onSave,
-  defaultMundialito = false,
+  mode = "stats",
   defaultTipo = "F5",
 }: Props) {
   const titleId = useId();
+  const soloMundialito = mode === "mundialito";
   const [form, setForm] = useState<PersonalMatchInput>(() =>
-    emptyPersonalMatchInput(defaultMundialito, defaultTipo),
+    emptyPersonalMatchInput(soloMundialito, defaultTipo),
   );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    setForm(emptyPersonalMatchInput(defaultMundialito, defaultTipo));
+    setForm(emptyPersonalMatchInput(soloMundialito, defaultTipo));
     setError(null);
-  }, [open, defaultMundialito, defaultTipo]);
+  }, [open, soloMundialito, defaultTipo]);
 
   useEffect(() => {
     if (!open) return;
@@ -79,15 +85,31 @@ export default function CargarPartidoModal({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (family === "f5" && !form.skillsF5) {
-      setError("Completá las 5 métricas del partido.");
-      return;
+    if (!soloMundialito) {
+      if (family === "f5" && !form.skillsF5) {
+        setError("Completá las 5 métricas del partido.");
+        return;
+      }
+      if (family === "f11" && !form.skillsF11) {
+        setError("Completá las características del partido.");
+        return;
+      }
     }
-    if (family === "f11" && !form.skillsF11) {
-      setError("Completá las características del partido.");
-      return;
-    }
-    onSave(form);
+    onSave(
+      soloMundialito
+        ? {
+            ...form,
+            esMundialito: true,
+            goles: 0,
+            asistencias: 0,
+            quites: 0,
+            atajadas: 0,
+            skillsF5: undefined,
+            skillsF11: undefined,
+            rendimiento: 3,
+          }
+        : form,
+    );
     onClose();
   }
 
@@ -102,37 +124,41 @@ export default function CargarPartidoModal({
       <button type="button" className="psb-match-modal__backdrop" aria-label="Cerrar" onClick={onClose} />
       <div className="psb-match-modal__panel">
         <div className="psb-match-modal__head">
-          <h2 id={titleId}>➕ Cargar nuevo partido</h2>
+          <h2 id={titleId}>{soloMundialito ? "🏆 Resultado Mundialito" : "➕ Cargar nuevo partido"}</h2>
           <button type="button" className="psb-sport-modal__close" onClick={onClose} aria-label="Cerrar">
             ✕
           </button>
         </div>
         <p className="psb-match-modal__sub">
-          Autoevaluá todas las características según el formato. F5/F7/F8 usan métricas chicas · F9/F11 las de once.
+          {soloMundialito
+            ? "Solo el resultado mueve tu torneo. Las estadísticas se cargan desde Tus números."
+            : "Autoevaluá según el formato. Si también cuenta para Mundialito, activá el switch y cargás una sola vez."}
         </p>
 
         <form className="psb-match-form" onSubmit={submit}>
-          <fieldset className="psb-match-fieldset">
-            <legend>Tipo de fútbol</legend>
-            <div className="psb-tipo-toggle psb-tipo-toggle--5" role="group" aria-label="Tipo de partido">
-              {FUTBOL_FORMATOS.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  className={`psb-tipo-btn${form.tipo === t ? " is-active" : ""}`}
-                  aria-pressed={form.tipo === t}
-                  onClick={() => setTipo(t)}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-            <p className="muted" style={{ margin: "0.45rem 0 0", fontSize: "0.78rem" }}>
-              {family === "f5"
-                ? "Métricas F5: pulmón, pegada, pase, quite, compromiso."
-                : "Métricas F11: técnico, táctico, físico y psico (18 ítems)."}
-            </p>
-          </fieldset>
+          {!soloMundialito ? (
+            <fieldset className="psb-match-fieldset">
+              <legend>Tipo de fútbol</legend>
+              <div className="psb-tipo-toggle psb-tipo-toggle--5" role="group" aria-label="Tipo de partido">
+                {FUTBOL_FORMATOS.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className={`psb-tipo-btn${form.tipo === t ? " is-active" : ""}`}
+                    aria-pressed={form.tipo === t}
+                    onClick={() => setTipo(t)}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <p className="muted" style={{ margin: "0.45rem 0 0", fontSize: "0.78rem" }}>
+                {family === "f5"
+                  ? "Métricas F5: pulmón, pegada, pase, quite, compromiso."
+                  : "Métricas F11: técnico, táctico, físico y psico (18 ítems)."}
+              </p>
+            </fieldset>
+          ) : null}
 
           <fieldset className="psb-match-fieldset">
             <legend>Resultado del equipo</legend>
@@ -151,69 +177,73 @@ export default function CargarPartidoModal({
             </div>
           </fieldset>
 
-          <fieldset className="psb-match-fieldset">
-            <legend>Estadísticas personales</legend>
-            <div className="psb-stat-grid">
-              {(
-                [
-                  ["goles", "Goles", form.goles],
-                  ["asistencias", "Asistencias", form.asistencias],
-                  ["quites", "Quites / Recup.", form.quites],
-                  ["atajadas", "Atajadas", form.atajadas],
-                ] as const
-              ).map(([key, label, val]) => (
-                <label key={key} className="psb-stat-field">
-                  <span>{label}</span>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    max={99}
-                    value={val}
-                    onChange={(e) => setNum(key, e.target.value)}
-                  />
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          {!soloMundialito ? (
+            <>
+              <fieldset className="psb-match-fieldset">
+                <legend>Estadísticas personales</legend>
+                <div className="psb-stat-grid">
+                  {(
+                    [
+                      ["goles", "Goles", form.goles],
+                      ["asistencias", "Asistencias", form.asistencias],
+                      ["quites", "Quites / Recup.", form.quites],
+                      ["atajadas", "Atajadas", form.atajadas],
+                    ] as const
+                  ).map(([key, label, val]) => (
+                    <label key={key} className="psb-stat-field">
+                      <span>{label}</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={99}
+                        value={val}
+                        onChange={(e) => setNum(key, e.target.value)}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
 
-          <fieldset className="psb-match-fieldset">
-            <legend>Rendimiento del partido ({family === "f5" ? "formato chico" : "formato grande"})</legend>
-            <div className="psb-match-skills">
-              {family === "f5" && form.skillsF5 ? (
-                <F5ProfileScorePickers
-                  scores={form.skillsF5}
-                  onChange={(skillsF5) => setForm((p) => ({ ...p, skillsF5 }))}
-                />
-              ) : null}
-              {family === "f11" && form.skillsF11 ? (
-                <ProfileScoreSliders
-                  scores={form.skillsF11}
-                  onChange={(skillsF11) => setForm((p) => ({ ...p, skillsF11 }))}
-                />
-              ) : null}
-            </div>
-          </fieldset>
+              <fieldset className="psb-match-fieldset">
+                <legend>Rendimiento del partido ({family === "f5" ? "formato chico" : "formato grande"})</legend>
+                <div className="psb-match-skills">
+                  {family === "f5" && form.skillsF5 ? (
+                    <F5ProfileScorePickers
+                      scores={form.skillsF5}
+                      onChange={(skillsF5) => setForm((p) => ({ ...p, skillsF5 }))}
+                    />
+                  ) : null}
+                  {family === "f11" && form.skillsF11 ? (
+                    <ProfileScoreSliders
+                      scores={form.skillsF11}
+                      onChange={(skillsF11) => setForm((p) => ({ ...p, skillsF11 }))}
+                    />
+                  ) : null}
+                </div>
+              </fieldset>
 
-          <label className={`psb-mundi-switch${form.esMundialito ? " is-on" : ""}`}>
-            <span className="psb-mundi-switch__text">
-              <strong>🏆 Partido de Mundialito</strong>
-              <span className="muted">Si lo activás, este resultado mueve tu torneo personal.</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={form.esMundialito}
-              onChange={(e) => setForm((p) => ({ ...p, esMundialito: e.target.checked }))}
-            />
-            <span className="psb-mundi-switch__track" aria-hidden>
-              <span className="psb-mundi-switch__thumb" />
-            </span>
-          </label>
+              <label className={`psb-mundi-switch${form.esMundialito ? " is-on" : ""}`}>
+                <span className="psb-mundi-switch__text">
+                  <strong>🏆 Sumar también al Mundialito</strong>
+                  <span className="muted">Activá esto y cargás una sola vez: stats + torneo.</span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={form.esMundialito}
+                  onChange={(e) => setForm((p) => ({ ...p, esMundialito: e.target.checked }))}
+                />
+                <span className="psb-mundi-switch__track" aria-hidden>
+                  <span className="psb-mundi-switch__thumb" />
+                </span>
+              </label>
+            </>
+          ) : null}
 
           {error ? <div className="error" style={{ marginTop: "0.75rem" }}>{error}</div> : null}
 
           <button type="submit" className="psb-match-save">
-            Guardar estadísticas
+            {soloMundialito ? "Registrar resultado" : "Guardar estadísticas"}
           </button>
         </form>
       </div>

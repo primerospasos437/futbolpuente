@@ -96,7 +96,7 @@ export default function MundialitoPanel({ state, onLoadMatch, onNewEdition }: Pr
             </button>
           ) : (
             <button type="button" className="btn btn-primary" onClick={onLoadMatch}>
-              ➕ Cargar partido de Mundialito
+              ➕ Registrar resultado
             </button>
           )}
         </div>

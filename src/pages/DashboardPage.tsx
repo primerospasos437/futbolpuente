@@ -123,9 +123,13 @@ export default function DashboardPage() {
 
   function onSaveMatch(input: PersonalMatchInput) {
     if (!playerId) return;
-    addPersonalMatch(playerId, input);
-    let msg = "Partido guardado.";
-    if (input.esMundialito) {
+    const fromMundialitoOnly = matchModalMundialito;
+    // Solo Tus números (o Tus números + switch) suma a partidos/stats.
+    if (!fromMundialitoOnly) {
+      addPersonalMatch(playerId, input);
+    }
+    let msg = fromMundialitoOnly ? "Resultado de Mundialito registrado." : "Partido guardado.";
+    if (input.esMundialito || fromMundialitoOnly) {
       const current = loadMundialito(playerId);
       const { next, message } = applyMundialitoResult(current, input.resultado);
       saveMundialito(playerId, next);
@@ -191,7 +195,8 @@ export default function DashboardPage() {
             <BarChart3 size={18} className="neon-icon" /> Tus números
           </h2>
           <p className="psb-dash-panel__hint">
-            Solo partidos que cargaste vos (agenda personal). Sin stats de grupo.
+            Solo partidos que cargaste vos (agenda personal). Sin stats de grupo. Podés marcar el switch de
+            Mundialito al guardar y sumás torneo + números de una vez.
           </p>
           <div className="psb-dash-kpis">
             <div className="psb-dash-kpi psb-dash-kpi--gold">
@@ -270,7 +275,7 @@ export default function DashboardPage() {
         open={matchModalOpen}
         onClose={() => setMatchModalOpen(false)}
         onSave={onSaveMatch}
-        defaultMundialito={matchModalMundialito}
+        mode={matchModalMundialito ? "mundialito" : "stats"}
       />
 
       {me ? (
