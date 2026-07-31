@@ -12,9 +12,11 @@ type Mode = "hub" | "crear" | "unirse";
 
 type Props = {
   onGroupReady: (grupoId: string, meta: GrupoMembership) => void;
+  /** Oculta el título duplicado cuando vive dentro del Dashboard. */
+  embedded?: boolean;
 };
 
-export default function LandingGroupWizard({ onGroupReady }: Props) {
+export default function LandingGroupWizard({ onGroupReady, embedded = false }: Props) {
   const [mode, setMode] = useState<Mode>("hub");
   const [grupos, setGrupos] = useState<GrupoMembership[]>([]);
   const [loading, setLoading] = useState(true);
@@ -232,15 +234,19 @@ export default function LandingGroupWizard({ onGroupReady }: Props) {
 
   return (
     <section className="psb-auth-panel" aria-labelledby="psb-grupos-title">
-      <h2 id="psb-grupos-title">{hasGrupos ? "Tus grupos" : "Elegí cómo empezar"}</h2>
-      <p className="psb-auth-sub">
-        {hasGrupos
-          ? "Entrá a un grupo o creá / unite a otro."
-          : "Todavía no estás en ningún grupo. Creá uno nuevo (vas a ser admin) o unite con PIN / código."}
-      </p>
-      <p className="psb-register-hint" style={{ marginBottom: "0.85rem" }}>
-        Después de entrar a un grupo, completá tu ficha Fútbol 11 / Fútbol 5 en «Mi perfil».
-      </p>
+      {embedded ? null : (
+        <>
+          <h2 id="psb-grupos-title">{hasGrupos ? "Tus grupos" : "Elegí cómo empezar"}</h2>
+          <p className="psb-auth-sub">
+            {hasGrupos
+              ? "Entrá a un grupo o creá / unite a otro."
+              : "Todavía no estás en ningún grupo. Creá uno nuevo (vas a ser admin) o unite con PIN / código."}
+          </p>
+          <p className="psb-register-hint" style={{ marginBottom: "0.85rem" }}>
+            Después de entrar a un grupo, completá tu ficha Fútbol 11 / Fútbol 5 en «Mi perfil».
+          </p>
+        </>
+      )}
       {error ? <div className="psb-landing-error">{error}</div> : null}
 
       {hasGrupos ? (

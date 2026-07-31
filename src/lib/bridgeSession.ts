@@ -109,7 +109,33 @@ export function clearActiveGrupoId(): void {
   }
 }
 
-/** Listo para mostrar el Shell: sesión + deporte + grupo + flag de entrada. */
+/** Dashboard personal: ya entró al puente con un deporte (grupo opcional). */
+export function canEnterDashboard(): boolean {
+  return hasBridgeEntered() && Boolean(getSelectedSport());
+}
+
+/** Shell del grupo: dashboard + grupo activo. */
 export function canEnterAppShell(): boolean {
-  return hasBridgeEntered() && Boolean(getSelectedSport()) && Boolean(getActiveGrupoId());
+  return canEnterDashboard() && Boolean(getActiveGrupoId());
+}
+
+const USER_ROLE_KEY = "psb_user_role";
+
+export type PsbUserRole = "jugador" | "dt";
+
+export function setUserRole(role: PsbUserRole): void {
+  try {
+    sessionStorage.setItem(USER_ROLE_KEY, role);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getUserRole(): PsbUserRole | null {
+  try {
+    const v = sessionStorage.getItem(USER_ROLE_KEY);
+    return v === "jugador" || v === "dt" ? v : null;
+  } catch {
+    return null;
+  }
 }

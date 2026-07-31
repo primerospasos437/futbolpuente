@@ -1,9 +1,14 @@
 import React, { createContext, useContext } from "react";
 
 export type BridgeContextValue = {
+  /** Abre el flujo de cambio de deporte (modal o landing legacy). */
   returnToLanding: () => void;
-  /** Vuelve al wizard de grupos sin cerrar sesión. */
+  /** Vuelve al dashboard de grupos sin cerrar sesión. */
   returnToGroupPicker: () => void;
+  /** Abre el modal de calesita de deportes. */
+  openSportPicker: () => void;
+  /** Actualiza el deporte activo en sesión + contexto. */
+  setSelectedSport: (sportId: string) => void;
   selectedSportId: string | null;
   selectedSportName: string | null;
   activeGrupoId: string | null;

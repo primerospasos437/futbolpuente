@@ -207,7 +207,7 @@ export default function PlayerProfilePage() {
   return (
     <div className="profile-dash">
       <div className="profile-float">
-        <Link className="pd-back" to="/">
+        <Link className="pd-back" to="/jugadores">
           ← Volver al listado
         </Link>
 
@@ -476,7 +476,7 @@ export default function PlayerProfilePage() {
         {canRate && valoracionFormVisible ? (
           <div className="pd-panel" id="valoracion-formulario">
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.75rem" }}>
-              <Link to="/" className="btn btn-ghost">
+              <Link to="/jugadores" className="btn btn-ghost">
                 ← Jugadores
               </Link>
               {valoracionTab === "completo" ? (

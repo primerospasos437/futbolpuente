@@ -91,7 +91,7 @@ export default function EncuestaPostPartidoPage() {
     return (
       <div className="page-shell">
         <div className="error">{error}</div>
-        <Link to="/" className="btn btn-ghost" style={{ marginTop: "1rem", display: "inline-flex" }}>
+        <Link to="/jugadores" className="btn btn-ghost" style={{ marginTop: "1rem", display: "inline-flex" }}>
           Volver
         </Link>
       </div>
@@ -194,7 +194,7 @@ export default function EncuestaPostPartidoPage() {
               {busy ? "Enviando…" : "Enviar votos"}
             </button>
           ) : null}
-          <button type="button" className="btn btn-ghost" onClick={() => navigate("/")}>
+          <button type="button" className="btn btn-ghost" onClick={() => navigate("/jugadores")}>
             Volver a jugadores
           </button>
           <Link to="/stats" className="btn btn-ghost">

@@ -1,39 +1,37 @@
-import { useEffect, useState } from "react";
-import { api, setToken } from "../api";
-import LandingGroupWizard from "../components/LandingGroupWizard";
-import LandingSessionBar from "../components/LandingSessionBar";
-import SportCarousel from "../components/SportCarousel";
+import { useState } from "react";
+import { setToken } from "../api";
 import { useAuth } from "../AuthContext";
 import { loginAsGuestDemo, loginWithSupabase, registerWithSupabase } from "../lib/futbolAuth";
 import {
   getSelectedSport,
-  setActiveGrupoId,
-  setActiveGrupoNombre,
+  markBridgeEntered,
   setSelectedSport,
+  setUserRole,
+  type PsbUserRole,
 } from "../lib/bridgeSession";
-import type { GrupoMembership } from "../lib/gruposApi";
-import { PSB_LOGO_SRC, SPORTS_CATALOG } from "../lib/sportsCatalog";
+import { PSB_LOGO_SRC } from "../lib/sportsCatalog";
 import type { Pie, Posicion } from "../types";
-import MisPerfilesPage from "./MisPerfilesPage";
 import "../landing.css";
+import "../dashboard.css";
 
-/** Pantallas del panel inferior de la landing. */
-export type LandingAuthView = "login" | "register" | "grupos" | "perfil";
+/** Pantallas del panel inferior de la landing (solo pre-login). */
+export type LandingAuthView = "login" | "register";
 
 type Props = {
+  /** Tras login/registro/demo: entra al dashboard (sin exigir grupo). */
   onEnterBridge: (sportId: string) => void;
 };
 
 export default function LandingPage({ onEnterBridge }: Props) {
-  const { refresh, loggedIn, logout } = useAuth();
+  const { refresh } = useAuth();
   const [authView, setAuthView] = useState<LandingAuthView>("login");
+  const [registerStep, setRegisterStep] = useState<"role" | "form">("role");
+  const [registerRole, setRegisterRole] = useState<PsbUserRole | null>(null);
   const [usuario, setUsuario] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [sessionApodo, setSessionApodo] = useState<string | null>(null);
-  const [sessionApodoLoading, setSessionApodoLoading] = useState(false);
 
   const [nombreCompleto, setNombreCompleto] = useState("");
   const [email, setEmail] = useState("");
@@ -42,91 +40,35 @@ export default function LandingPage({ onEnterBridge }: Props) {
 
   const [logoError, setLogoError] = useState(false);
 
-  const showCarousel = authView === "login" || authView === "grupos";
   const isRegister = authView === "register";
-  const showSessionBar = loggedIn && (authView === "grupos" || authView === "perfil");
-
-  useEffect(() => {
-    if (!loggedIn) {
-      setSessionApodo(null);
-      if (authView === "grupos" || authView === "perfil") setAuthView("login");
-      return;
-    }
-    if (authView === "login") {
-      setAuthView("grupos");
-    }
-  }, [loggedIn, authView]);
-
-  useEffect(() => {
-    if (!loggedIn) return;
-    let cancelled = false;
-    setSessionApodoLoading(true);
-    void (async () => {
-      try {
-        const me = await api.me();
-        if (!cancelled) setSessionApodo(me.apodo || me.nombreCompleto || null);
-      } catch {
-        if (!cancelled) setSessionApodo(null);
-      } finally {
-        if (!cancelled) setSessionApodoLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loggedIn, authView]);
 
   function goLogin() {
     setAuthView("login");
+    setRegisterStep("role");
+    setRegisterRole(null);
     setError(null);
     setInfoMessage(null);
   }
 
   function goRegister() {
     setAuthView("register");
+    setRegisterStep("role");
+    setRegisterRole(null);
     setError(null);
     setInfoMessage(null);
   }
 
-  function goGrupos() {
-    setAuthView("grupos");
+  function pickRole(role: PsbUserRole) {
+    setRegisterRole(role);
+    setUserRole(role);
+    setRegisterStep("form");
     setError(null);
-    setInfoMessage(null);
   }
 
-  function goPerfil() {
-    setAuthView("perfil");
-    setError(null);
-    setInfoMessage(null);
-  }
-
-  function finishWithGroup(_grupoId: string, _meta: GrupoMembership) {
-    setActiveGrupoId(_grupoId);
-    if (_meta?.nombre) setActiveGrupoNombre(_meta.nombre);
-    const sport = getSelectedSport() ?? "futbol";
-    setSelectedSport(sport);
-    onEnterBridge(sport);
-  }
-
-  function onSportPick(sportId: string) {
-    const sport = SPORTS_CATALOG.find((s) => s.id === sportId);
-    if (sport && !sport.available) {
-      setInfoMessage(`${sport.name} próximamente. Por ahora elegí Fútbol.`);
-      return;
-    }
+  function enterAfterAuth(sportId = "futbol") {
     setSelectedSport(sportId);
-    setInfoMessage(null);
-    if (!loggedIn) {
-      setError("Primero ingresá o creá tu cuenta; después elegís el grupo.");
-      return;
-    }
-    setAuthView("grupos");
-  }
-
-  function onLogout() {
-    logout();
-    setSessionApodo(null);
-    goLogin();
+    markBridgeEntered();
+    onEnterBridge(sportId);
   }
 
   async function onGuestDemo() {
@@ -137,10 +79,8 @@ export default function LandingPage({ onEnterBridge }: Props) {
       const r = await loginAsGuestDemo();
       setToken(r.token);
       await refresh();
-      setSelectedSport("futbol");
-      setActiveGrupoId("demo-grupo");
-      setActiveGrupoNombre("Demo · Fútbol Puente");
-      onEnterBridge("futbol");
+      setUserRole("jugador");
+      enterAfterAuth("futbol");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al entrar en demo");
     } finally {
@@ -159,8 +99,7 @@ export default function LandingPage({ onEnterBridge }: Props) {
       const r = await loginWithSupabase(apodo, password);
       setToken(r.token);
       await refresh();
-      if (!getSelectedSport()) setSelectedSport("futbol");
-      setAuthView("grupos");
+      enterAfterAuth(getSelectedSport() ?? "futbol");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al ingresar");
     } finally {
@@ -174,6 +113,7 @@ export default function LandingPage({ onEnterBridge }: Props) {
     setInfoMessage(null);
     setLoading(true);
     try {
+      if (!registerRole) throw new Error("Elegí si sos jugador o DT.");
       const apodo = usuario.trim();
       if (!nombreCompleto.trim() || !apodo || !email.trim()) {
         throw new Error("Completá nombre, apodo y correo.");
@@ -183,19 +123,19 @@ export default function LandingPage({ onEnterBridge }: Props) {
         apodo,
         email: email.trim(),
         pin: password,
-        posicionPreferida: posicion,
-        posicionAlternativa: posicion,
+        posicionPreferida: registerRole === "dt" ? "medio" : posicion,
+        posicionAlternativa: registerRole === "dt" ? "medio" : posicion,
         pieDominante: "derecho" as Pie,
-        modalidadPreferida: modalidad,
+        modalidadPreferida: registerRole === "dt" ? "ambas" : modalidad,
         fechaNacimiento: "",
         contacto: "",
         alturaCm: "",
         pesoKg: "",
       });
       setToken(r.token);
+      setUserRole(registerRole);
       await refresh();
-      setSelectedSport(getSelectedSport() ?? "futbol");
-      setAuthView("grupos");
+      enterAfterAuth(getSelectedSport() ?? "futbol");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al registrarse");
     } finally {
@@ -205,13 +145,7 @@ export default function LandingPage({ onEnterBridge }: Props) {
 
   return (
     <div className="psb-landing" id="landing-root">
-      <div
-        className={
-          authView === "perfil" || authView === "grupos"
-            ? "psb-landing-inner psb-landing-inner--wide"
-            : "psb-landing-inner"
-        }
-      >
+      <div className="psb-landing-inner">
         <header className="psb-landing-header">
           <div className="psb-logo-wrap">
             {!logoError ? (
@@ -231,63 +165,75 @@ export default function LandingPage({ onEnterBridge }: Props) {
           </div>
         </header>
 
-        {showSessionBar ? (
-          <LandingSessionBar
-            apodo={sessionApodo}
-            loading={sessionApodoLoading}
-            onProfile={goPerfil}
-            onLogout={onLogout}
-          />
-        ) : null}
-
-        {showCarousel ? (
-          <SportCarousel
-            sports={SPORTS_CATALOG}
-            initialSportId={getSelectedSport()}
-            onSelectEnter={onSportPick}
-          />
-        ) : null}
-
-        {authView === "perfil" ? (
-          <section className="psb-landing-perfil" aria-label="Mi perfil">
-            <button type="button" className="psb-back-link" onClick={goGrupos}>
-              ← Volver a mis grupos
+        <section className="psb-auth-panel" aria-labelledby="psb-auth-title">
+          {isRegister ? (
+            <button
+              type="button"
+              className="psb-back-link"
+              onClick={() => {
+                if (registerStep === "form") {
+                  setRegisterStep("role");
+                  setRegisterRole(null);
+                } else {
+                  goLogin();
+                }
+              }}
+            >
+              ← {registerStep === "form" ? "Volver a elegir rol" : "Volver al ingreso"}
             </button>
-            <MisPerfilesPage />
-          </section>
-        ) : authView === "grupos" ? (
-          <>
-            {infoMessage ? <div className="psb-toast psb-toast-standalone">{infoMessage}</div> : null}
-            {error ? (
-              <div className="psb-landing-error" style={{ marginBottom: "0.75rem" }}>
-                {error}
-              </div>
-            ) : null}
-            <LandingGroupWizard onGroupReady={finishWithGroup} />
-          </>
-        ) : (
-          <section className="psb-auth-panel" aria-labelledby="psb-auth-title">
-            {isRegister ? (
-              <button type="button" className="psb-back-link" onClick={goLogin}>
-                ← Volver al ingreso
+          ) : null}
+
+          <h2 id="psb-auth-title">
+            {authView === "login"
+              ? "Ya estoy registrado"
+              : registerStep === "role"
+                ? "¿Cómo vas a usar PlaySportBridge?"
+                : registerRole === "dt"
+                  ? "Creá tu cuenta de DT / Admin"
+                  : "Creá tu cuenta de jugador"}
+          </h2>
+          <p className="psb-auth-sub">
+            {authView === "login"
+              ? "Ingresá con tu apodo y PIN. Después vas a tu inicio personal."
+              : registerStep === "role"
+                ? "Elegí tu rol para adaptar el recorrido. Podés cambiar de enfoque más adelante."
+                : registerRole === "dt"
+                  ? "Como DT vas a poder crear grupos, armar equipos y administrar la lista."
+                  : "Registrá tu usuario y modalidad. Después vas a tu dashboard y elegís o creás un grupo."}
+          </p>
+
+          {infoMessage ? <div className="psb-toast">{infoMessage}</div> : null}
+          {error ? <div className="psb-landing-error">{error}</div> : null}
+
+          {isRegister && registerStep === "role" ? (
+            <div className="psb-role-grid" role="group" aria-label="Rol de registro">
+              <button type="button" className="psb-role-card psb-role-card--jugador" onClick={() => pickRole("jugador")}>
+                <span className="psb-role-card__emoji" aria-hidden>
+                  👤
+                </span>
+                <p className="psb-role-card__title">Jugador Individual</p>
+                <p className="psb-role-card__desc">
+                  Armá tu ficha, valorá compañeros, jugá el Mundialito y unite a grupos de amigos.
+                </p>
               </button>
-            ) : null}
-
-            <h2 id="psb-auth-title">{authView === "login" ? "Ya estoy registrado" : "Creá tu cuenta"}</h2>
-            <p className="psb-auth-sub">
-              {authView === "login"
-                ? "Ingresá con tu apodo y PIN. Después elegís o creás tu grupo."
-                : "Registrá tu usuario y modalidad. Después creás o te unís a un grupo (sin grupo automático)."}
-            </p>
-
-            {infoMessage ? <div className="psb-toast">{infoMessage}</div> : null}
-            {error ? <div className="psb-landing-error">{error}</div> : null}
-
+              <button type="button" className="psb-role-card psb-role-card--dt" onClick={() => pickRole("dt")}>
+                <span className="psb-role-card__emoji" aria-hidden>
+                  📋
+                </span>
+                <p className="psb-role-card__title">DT / Administrador</p>
+                <p className="psb-role-card__desc">
+                  Creá y administrá grupos, armá equipos y gestioná convocatorias.
+                </p>
+              </button>
+            </div>
+          ) : (
             <form onSubmit={authView === "login" ? onLoginSubmit : onRegisterSubmit}>
               {isRegister ? (
                 <div className="psb-register-extra">
                   <div className="psb-register-hint">
-                    Posición, medidas y perfiles los completás después en «Mi perfil».
+                    {registerRole === "dt"
+                      ? "Después vas a poder crear tu primer grupo desde el inicio."
+                      : "Posición, medidas y perfiles los completás después en «Mi perfil»."}
                   </div>
                   <label htmlFor="psb-nombre">Nombre completo</label>
                   <input
@@ -306,23 +252,31 @@ export default function LandingPage({ onEnterBridge }: Props) {
                     autoComplete="email"
                     required
                   />
-                  <label htmlFor="psb-pos">Posición principal</label>
-                  <select id="psb-pos" value={posicion} onChange={(e) => setPosicion(e.target.value as Posicion)}>
-                    <option value="portero">Portero</option>
-                    <option value="defensa">Defensa</option>
-                    <option value="medio">Mediocampo</option>
-                    <option value="delantero">Delantero</option>
-                  </select>
-                  <label htmlFor="psb-mod">Modalidad preferida</label>
-                  <select
-                    id="psb-mod"
-                    value={modalidad}
-                    onChange={(e) => setModalidad(e.target.value as "f5" | "f11" | "ambas")}
-                  >
-                    <option value="ambas">Fútbol 5 y Fútbol 11</option>
-                    <option value="f5">Fútbol 5</option>
-                    <option value="f11">Fútbol 11</option>
-                  </select>
+                  {registerRole === "jugador" ? (
+                    <>
+                      <label htmlFor="psb-pos">Posición principal</label>
+                      <select
+                        id="psb-pos"
+                        value={posicion}
+                        onChange={(e) => setPosicion(e.target.value as Posicion)}
+                      >
+                        <option value="portero">Portero</option>
+                        <option value="defensa">Defensa</option>
+                        <option value="medio">Mediocampo</option>
+                        <option value="delantero">Delantero</option>
+                      </select>
+                      <label htmlFor="psb-mod">Modalidad preferida</label>
+                      <select
+                        id="psb-mod"
+                        value={modalidad}
+                        onChange={(e) => setModalidad(e.target.value as "f5" | "f11" | "ambas")}
+                      >
+                        <option value="ambas">Fútbol 5 y Fútbol 11</option>
+                        <option value="f5">Fútbol 5</option>
+                        <option value="f11">Fútbol 11</option>
+                      </select>
+                    </>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -352,23 +306,25 @@ export default function LandingPage({ onEnterBridge }: Props) {
                 {loading ? "Procesando…" : authView === "login" ? "Ingresar" : "Crear cuenta"}
               </button>
             </form>
+          )}
 
-            {authView === "login" ? (
-              <div className="psb-demo-block">
-                <p className="psb-auth-sub" style={{ marginBottom: "0.65rem", textAlign: "center" }}>
-                  ¿Querés explorar sin registrarte?
-                </p>
-                <button
-                  type="button"
-                  className="psb-btn-demo"
-                  disabled={loading}
-                  onClick={() => void onGuestDemo()}
-                >
-                  {loading ? "Entrando…" : "Probar demo · Entrar como invitado"}
-                </button>
-              </div>
-            ) : null}
+          {authView === "login" ? (
+            <div className="psb-demo-block">
+              <p className="psb-auth-sub" style={{ marginBottom: "0.65rem", textAlign: "center" }}>
+                ¿Querés explorar sin registrarte?
+              </p>
+              <button
+                type="button"
+                className="psb-btn-demo"
+                disabled={loading}
+                onClick={() => void onGuestDemo()}
+              >
+                {loading ? "Entrando…" : "Probar demo · Entrar como invitado"}
+              </button>
+            </div>
+          ) : null}
 
+          {!(isRegister && registerStep === "role") ? (
             <button
               type="button"
               className="psb-toggle-register"
@@ -379,8 +335,8 @@ export default function LandingPage({ onEnterBridge }: Props) {
             >
               {authView === "login" ? "¿Sos nuevo? Creá tu cuenta acá" : "¿Ya tenés cuenta? Ingresá acá"}
             </button>
-          </section>
-        )}
+          ) : null}
+        </section>
       </div>
     </div>
   );

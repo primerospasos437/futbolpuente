@@ -70,7 +70,7 @@ export default function ValorarF5PartidoPage() {
     try {
       await api.ratePlayerF5Partido(partidoId, targetId, scores);
       setMsg("Guardado.");
-      navigate("/");
+      navigate("/jugadores");
     } catch (err) {
       setMsg(err instanceof Error ? err.message : "Error");
     } finally {
@@ -83,7 +83,7 @@ export default function ValorarF5PartidoPage() {
   return (
     <div>
       <p style={{ marginBottom: "1rem" }}>
-        <Link to="/">← Volver</Link>
+        <Link to="/jugadores">← Volver</Link>
       </p>
       <h1><Star size={22} className="neon-icon" /> Valorar F5 · partido</h1>
       <p className="sub">Elegí al compañero que jugó esa noche y cargá las 5 métricas (1 a 5). Las estrellas empiezan vacías.</p>

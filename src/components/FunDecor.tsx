@@ -24,6 +24,9 @@ type DecorSet = { leftTop: string; leftBottom: string; rightTop: string; rightBo
 
 /** Combinación distinta por sección, para que no se repita siempre lo mismo. */
 function decorSetForPath(pathname: string): DecorSet {
+  if (pathname.startsWith("/mi-calendario") || pathname === "/inicio") {
+    return { leftTop: GOAL, leftBottom: JERSEY, rightTop: BALL, rightBottom: TROPHY };
+  }
   if (pathname.startsWith("/proximos-partidos")) {
     return { leftTop: JERSEY, leftBottom: GOAL, rightTop: TROPHY, rightBottom: BALL };
   }
